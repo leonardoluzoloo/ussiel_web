@@ -233,12 +233,9 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
         heroLink.href = bannerLink;
         heroLink.title = bannerTitle;
         heroLink.setAttribute('aria-label', bannerTitle);
-      }
-
-      const imgEl = container.querySelector('#heroProductImage');
-      if (imgEl && bannerImg) {
-        imgEl.src = bannerImg;
-        imgEl.alt = bannerTitle;
+        if (bannerImg) {
+          heroLink.innerHTML = `<img src="${bannerImg}" alt="${bannerTitle}" class="hero-clean-banner-img" id="heroProductImage" />`;
+        }
       }
 
       // Atualiza indicadores de bolinhas
