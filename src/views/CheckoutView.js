@@ -7,6 +7,7 @@ import { formatPrice } from '../utils/format.js';
 import { Storage, FREE_SHIPPING_THRESHOLD } from '../services/storage.js';
 import { Api } from '../services/api.js';
 import { Toast } from '../components/Toast.js';
+import { ANGOLA_PROVINCES } from '../utils/provinces.js';
 
 export function renderCheckoutView() {
   const container = document.createElement('div');
@@ -24,21 +25,20 @@ export function renderCheckoutView() {
     email: user?.email || '',
     phone: user?.phone || '',
     whatsapp: user?.whatsapp || user?.phone || '',
-    province: user?.province || 'Luanda',
+    province: 'Luanda',
     city: user?.city || '',
     neighborhood: user?.neighborhood || '',
     street: user?.street || user?.endereco || '',
     number: user?.number || '',
     reference: user?.reference || user?.ponto_referencia || '',
-    shippingMethod: 'normal', // 'normal' | 'express' | 'pickup'
+    shippingMethod: 'normal', // 'normal' | 'express'
     paymentMethod: 'multicaixa_express', // 'multicaixa_express' | 'transfer' | 'reference' | 'cod'
     multicaixaPhone: user?.phone || ''
   };
 
   const SHIPPING_PRICES = {
     normal: 3500,
-    express: 6500,
-    pickup: 0
+    express: 6500
   };
 
   function render() {
@@ -71,11 +71,11 @@ export function renderCheckoutView() {
 
       const loginBtn = container.querySelector('#checkoutLoginPromptBtn');
       if (loginBtn) {
-        loginBtn.onclick = () => window.dispatchEvent(new CustomEvent('open-auth-modal'));
+        loginBtn.onclick = () => { window.location.hash = '/login'; };
       }
       const regBtn = container.querySelector('#checkoutRegisterPromptBtn');
       if (regBtn) {
-        regBtn.onclick = () => window.dispatchEvent(new CustomEvent('open-auth-modal'));
+        regBtn.onclick = () => { window.location.hash = '/cadastro'; };
       }
       return;
     }
@@ -117,10 +117,14 @@ export function renderCheckoutView() {
       }
     }
 
+    if (formData.shippingMethod !== 'express') {
+      formData.shippingMethod = 'normal';
+    }
+
     const isFreeShipping = subtotal >= FREE_SHIPPING_THRESHOLD || coupon?.type === 'free_shipping';
     const shippingCost = isFreeShipping && formData.shippingMethod === 'normal'
       ? 0
-      : SHIPPING_PRICES[formData.shippingMethod];
+      : (SHIPPING_PRICES[formData.shippingMethod] || SHIPPING_PRICES.normal);
 
     const total = Math.max(0, subtotal - discountAmount + shippingCost);
 
@@ -209,13 +213,13 @@ export function renderCheckoutView() {
                 <div class="form-group form-group-half">
                   <label class="form-label">Província *</label>
                   <select id="addrProvince" class="form-select">
-                    <option value="Luanda" ${formData.province === 'Luanda' ? 'selected' : ''}>Luanda</option>
-                    <option value="Benguela" ${formData.province === 'Benguela' ? 'selected' : ''}>Benguela</option>
-                    <option value="Huambo" ${formData.province === 'Huambo' ? 'selected' : ''}>Huambo</option>
-                    <option value="Huíla" ${formData.province === 'Huíla' ? 'selected' : ''}>Huíla (Lubango)</option>
-                    <option value="Cabinda" ${formData.province === 'Cabinda' ? 'selected' : ''}>Cabinda</option>
-                    <option value="Cuanza Sul" ${formData.province === 'Cuanza Sul' ? 'selected' : ''}>Cuanza Sul</option>
+                    ${ANGOLA_PROVINCES.map(p => `
+                      <option value="${p.name}" ${p.name === (formData.province || 'Luanda') ? 'selected' : ''} ${!p.active ? 'disabled style="color: #94a3b8; background: #f8fafc;"' : 'style="font-weight: 600;"'}>
+                        ${p.name}${!p.active ? ' (Indisponível)' : ' (Disponível)'}
+                      </option>
+                    `).join('')}
                   </select>
+                  <span style="font-size: 0.72rem; color: #64748b; margin-top: 4px; display: block;">* Entregas ativas exclusivamente em Luanda por enquanto.</span>
                 </div>
 
                 <div class="form-group form-group-half">
@@ -291,17 +295,6 @@ export function renderCheckoutView() {
                   </div>
                   <span class="radio-card-price">${formatPrice(SHIPPING_PRICES.express)}</span>
                 </div>
-
-                <div class="radio-card ${formData.shippingMethod === 'pickup' ? 'active' : ''}" data-ship-opt="pickup">
-                  <div class="radio-card-left">
-                    <input type="radio" name="shipOpt" value="pickup" ${formData.shippingMethod === 'pickup' ? 'checked' : ''} />
-                    <div class="radio-card-text">
-                      <span class="radio-card-title">Levantamento na Loja NovaTech</span>
-                      <span class="radio-card-desc">Showroom NovaTech (Talatona, Luanda - Angola)</span>
-                    </div>
-                  </div>
-                  <span class="radio-card-price" style="color: var(--accent-emerald);">GRÁTIS</span>
-                </div>
               </div>
 
               <div class="checkout-actions-row">
@@ -310,7 +303,7 @@ export function renderCheckoutView() {
               </div>
             ` : currentStep > 3 ? `
               <div style="font-size: 0.875rem; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center;">
-                <span>${formData.shippingMethod === 'normal' ? 'Entrega Normal (24-48h)' : formData.shippingMethod === 'express' ? 'Entrega Expressa Mesmo Dia' : 'Levantamento no Showroom'} • ${isFreeShipping ? 'Grátis' : formatPrice(shippingCost)}</span>
+                <span>${formData.shippingMethod === 'express' ? 'Entrega Expressa Mesmo Dia (Luanda)' : 'Entrega Normal Luanda (24-48h)'} • ${isFreeShipping && formData.shippingMethod === 'normal' ? 'Grátis' : formatPrice(shippingCost)}</span>
                 <button class="step-edit-btn" data-goto-step="3" style="color: var(--primary-600); font-weight: 700; cursor: pointer;">Editar</button>
               </div>
             ` : ''}
@@ -540,7 +533,9 @@ export function renderCheckoutView() {
         finishBtn.disabled = true;
         finishBtn.innerHTML = 'Gravando pedido seguro...';
 
+        const loggedUser = Storage.getUser();
         const orderPayload = {
+          user_id: loggedUser?.id || null,
           customer_name: formData.name,
           customer_email: formData.email,
           customer_phone: formData.phone,
@@ -599,11 +594,21 @@ export function renderCheckoutView() {
             status: 'received'
           };
 
-          // Save order and clear cart
-          Storage.saveOrder(newOrder);
+          // Limpa o carrinho e cupom (Supabase já gravou o pedido e baixou o estoque atomicamente)
+          Storage.clearCart();
+          Storage.removeCoupon();
+
+          // Se utilizou cupom, contabiliza o uso no banco/storage
+          if (appliedCoupon && appliedCoupon.code) {
+            Api.coupons.incrementUsage(appliedCoupon.code).catch(() => {});
+          }
+
           orderResult = newOrder;
           currentStep = 5;
           render();
+
+          window.dispatchEvent(new CustomEvent('orders-updated', { detail: { order: newOrder } }));
+          window.dispatchEvent(new CustomEvent('stock-updated'));
 
           Toast.show({
             title: 'Pedido realizado com sucesso! 🎉',

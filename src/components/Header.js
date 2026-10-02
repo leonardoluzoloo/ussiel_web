@@ -23,17 +23,22 @@ export function createHeader() {
         Api.products.getAll({ all: true }).catch(() => [])
       ]);
 
-      dynamicCategories = (cats || []).map(c => ({
-        ...c,
-        iconName: c.icon_name || c.iconName || 'package',
-        subcategories: Array.isArray(c.subcategories) ? c.subcategories : (c.subcategories ? (typeof c.subcategories === 'string' ? JSON.parse(c.subcategories) : c.subcategories) : [])
-      }));
-      dynamicProducts = prods || [];
+      dynamicCategories = (cats || [])
+        .filter(c => c.is_active !== false && c.ativo !== false)
+        .map(c => ({
+          ...c,
+          iconName: c.icon_name || c.iconName || 'package',
+          subcategories: Array.isArray(c.subcategories) ? c.subcategories : (c.subcategories ? (typeof c.subcategories === 'string' ? JSON.parse(c.subcategories) : c.subcategories) : [])
+        }));
+      dynamicProducts = (prods || []).filter(p => p.is_active !== false && p.ativo !== false);
       render();
     } catch {}
   }
 
   syncHeaderDynamicData();
+
+  window.addEventListener('categories-updated', () => syncHeaderDynamicData());
+  window.addEventListener('products-updated', () => syncHeaderDynamicData());
 
   function render() {
     const cartCount = Storage.getCartCount();
@@ -245,7 +250,7 @@ export function createHeader() {
         if (user) {
           window.location.hash = '/minha-conta';
         } else {
-          window.dispatchEvent(new CustomEvent('open-auth-modal'));
+          window.location.hash = '/login';
         }
       };
     }

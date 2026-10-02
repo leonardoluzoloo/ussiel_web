@@ -20,7 +20,6 @@ $$ LANGUAGE plpgsql;
 
 -- ===================================================================
 -- 2. TABELA: usuarios (Clientes e Administradores)
--- Contem endereco completo e ponto de referencia
 -- ===================================================================
 CREATE TABLE IF NOT EXISTS public.usuarios (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -58,7 +57,7 @@ CREATE TABLE IF NOT EXISTS public.categorias (
   icone VARCHAR(100) DEFAULT 'package',
   imagem_url TEXT,
   banner_url TEXT,
-  subcategorias JSONB DEFAULT '[]'::jsonb,
+  subcategorias JSONB DEFAULT '[]'::jsonb, -- Mantido para retrocompatibilidade
   ordem_exibicao INT DEFAULT 1 NOT NULL,
   ativo BOOLEAN DEFAULT TRUE NOT NULL,
   criado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL,
@@ -71,6 +70,30 @@ CREATE INDEX IF NOT EXISTS idx_categorias_ordem ON public.categorias(ordem_exibi
 
 CREATE OR REPLACE TRIGGER trigger_categorias_atualizado_em
 BEFORE UPDATE ON public.categorias
+FOR EACH ROW EXECUTE FUNCTION public.funcao_atualizar_timestamp();
+
+-- ===================================================================
+-- 3.1 TABELA: subcategorias (Subdivisões Oficiais por Categoria)
+-- ===================================================================
+CREATE TABLE IF NOT EXISTS public.subcategorias (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  categoria_id BIGINT NOT NULL REFERENCES public.categorias(id) ON DELETE CASCADE,
+  slug VARCHAR(255) NOT NULL,
+  nome VARCHAR(255) NOT NULL,
+  descricao TEXT,
+  ordem_exibicao INT DEFAULT 1 NOT NULL,
+  ativo BOOLEAN DEFAULT TRUE NOT NULL,
+  criado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  atualizado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  CONSTRAINT uq_subcategorias_categoria_slug UNIQUE (categoria_id, slug)
+);
+
+CREATE INDEX IF NOT EXISTS idx_subcategorias_categoria ON public.subcategorias(categoria_id);
+CREATE INDEX IF NOT EXISTS idx_subcategorias_slug ON public.subcategorias(slug);
+CREATE INDEX IF NOT EXISTS idx_subcategorias_ativo ON public.subcategorias(ativo);
+
+CREATE OR REPLACE TRIGGER trigger_subcategorias_atualizado_em
+BEFORE UPDATE ON public.subcategorias
 FOR EACH ROW EXECUTE FUNCTION public.funcao_atualizar_timestamp();
 
 -- ===================================================================
@@ -105,6 +128,7 @@ CREATE TABLE IF NOT EXISTS public.produtos (
   nome VARCHAR(255) NOT NULL,
   marca VARCHAR(100) NOT NULL DEFAULT 'NovaTech',
   categoria_id BIGINT REFERENCES public.categorias(id) ON DELETE SET NULL,
+  subcategoria_id BIGINT REFERENCES public.subcategorias(id) ON DELETE RESTRICT,
   catalogo_id BIGINT REFERENCES public.catalogos(id) ON DELETE SET NULL,
   preco NUMERIC(15, 2) NOT NULL DEFAULT 0.00,
   preco_antigo NUMERIC(15, 2),
@@ -130,6 +154,7 @@ CREATE TABLE IF NOT EXISTS public.produtos (
 CREATE INDEX IF NOT EXISTS idx_produtos_slug ON public.produtos(slug);
 CREATE INDEX IF NOT EXISTS idx_produtos_sku ON public.produtos(sku);
 CREATE INDEX IF NOT EXISTS idx_produtos_categoria ON public.produtos(categoria_id);
+CREATE INDEX IF NOT EXISTS idx_produtos_subcategoria ON public.produtos(subcategoria_id);
 CREATE INDEX IF NOT EXISTS idx_produtos_catalogo ON public.produtos(catalogo_id);
 CREATE INDEX IF NOT EXISTS idx_produtos_ativo ON public.produtos(ativo);
 CREATE INDEX IF NOT EXISTS idx_produtos_oferta ON public.produtos(oferta);
@@ -175,8 +200,8 @@ FOR EACH ROW EXECUTE FUNCTION public.funcao_atualizar_timestamp();
 CREATE TABLE IF NOT EXISTS public.cupons (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   codigo VARCHAR(100) NOT NULL UNIQUE,
-  tipo_desconto VARCHAR(50) NOT NULL DEFAULT 'percentage', -- 'percentage' ou 'fixed'
-  valor_desconto NUMERIC(15, 2) NOT NULL,
+  tipo_desconto VARCHAR(50) NOT NULL DEFAULT 'percentage', -- 'percentage', 'fixed' ou 'free_shipping'
+  valor_desconto NUMERIC(15, 2) NOT NULL DEFAULT 0.00,
   valor_minimo_pedido NUMERIC(15, 2) DEFAULT 0.00,
   desconto_maximo NUMERIC(15, 2),
   limite_uso INT DEFAULT 100,
@@ -197,7 +222,6 @@ FOR EACH ROW EXECUTE FUNCTION public.funcao_atualizar_timestamp();
 
 -- ===================================================================
 -- 8. TABELA: pedidos (Encomendas Oficiais dos Clientes)
--- Contem endereco completo e ponto de referencia da entrega
 -- ===================================================================
 CREATE TABLE IF NOT EXISTS public.pedidos (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -217,7 +241,7 @@ CREATE TABLE IF NOT EXISTS public.pedidos (
   subtotal NUMERIC(15, 2) NOT NULL,
   desconto NUMERIC(15, 2) DEFAULT 0.00 NOT NULL,
   total NUMERIC(15, 2) NOT NULL,
-  status_pedido VARCHAR(50) DEFAULT 'recebido' NOT NULL,     -- 'recebido', 'confirmado', 'preparando', 'enviado', 'entregue', 'cancelado'
+  status_pedido VARCHAR(50) DEFAULT 'received' NOT NULL,     -- 'received', 'confirmed', 'preparing', 'shipped', 'delivered', 'cancelled'
   notas_admin TEXT,
   criado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   atualizado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL
@@ -279,10 +303,26 @@ CREATE TABLE IF NOT EXISTS public.configuracoes_loja (
 );
 
 -- ===================================================================
--- 12. ROW LEVEL SECURITY (RLS) - PERMISSOES PARA LEITURA E OPERACAO
+-- 12. FUNCAO HELPER PARA VERIFICACAO DE ADMIN NO RLS (SECURITY DEFINER)
+-- ===================================================================
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.usuarios
+    WHERE auth_user_id = auth.uid()
+      AND nivel_acesso = 'admin'
+      AND status = 'ativo'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ===================================================================
+-- 13. ROW LEVEL SECURITY (RLS) - POLÍTICAS GRANULARES DE SEGURANÇA
 -- ===================================================================
 ALTER TABLE public.usuarios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.categorias ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.subcategorias ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.catalogos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.produtos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.banners ENABLE ROW LEVEL SECURITY;
@@ -292,33 +332,65 @@ ALTER TABLE public.itens_pedido ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.movimentacoes_estoque ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.configuracoes_loja ENABLE ROW LEVEL SECURITY;
 
--- Politicas permissivas para operacao transparente no frontend e admin com anon key e authenticated
+-- Subcategorias: Leitura pública, escrita apenas admin
+DROP POLICY IF EXISTS "Leitura publica subcategorias" ON public.subcategorias;
+CREATE POLICY "Leitura publica subcategorias" ON public.subcategorias FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Admin gerencia subcategorias" ON public.subcategorias;
+CREATE POLICY "Admin gerencia subcategorias" ON public.subcategorias FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+-- Categorias: Leitura pública, escrita admin
 DROP POLICY IF EXISTS "Acesso total categorias" ON public.categorias;
-CREATE POLICY "Acesso total categorias" ON public.categorias FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Leitura publica categorias" ON public.categorias;
+CREATE POLICY "Leitura publica categorias" ON public.categorias FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Admin gerencia categorias" ON public.categorias;
+CREATE POLICY "Admin gerencia categorias" ON public.categorias FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
+-- Catálogos & Banners
 DROP POLICY IF EXISTS "Acesso total catalogos" ON public.catalogos;
-CREATE POLICY "Acesso total catalogos" ON public.catalogos FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Acesso total produtos" ON public.produtos;
-CREATE POLICY "Acesso total produtos" ON public.produtos FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Leitura publica catalogos" ON public.catalogos FOR SELECT USING (true);
+CREATE POLICY "Admin gerencia catalogos" ON public.catalogos FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 DROP POLICY IF EXISTS "Acesso total banners" ON public.banners;
-CREATE POLICY "Acesso total banners" ON public.banners FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Leitura publica banners" ON public.banners FOR SELECT USING (true);
+CREATE POLICY "Admin gerencia banners" ON public.banners FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
+-- Produtos: Leitura pública, escrita admin
+DROP POLICY IF EXISTS "Acesso total produtos" ON public.produtos;
+DROP POLICY IF EXISTS "Leitura publica produtos" ON public.produtos;
+CREATE POLICY "Leitura publica produtos" ON public.produtos FOR SELECT USING (ativo = true OR public.is_admin());
+DROP POLICY IF EXISTS "Admin gerencia produtos" ON public.produtos;
+CREATE POLICY "Admin gerencia produtos" ON public.produtos FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+-- Cupons: Leitura pública de cupons ativos, escrita admin
 DROP POLICY IF EXISTS "Acesso total cupons" ON public.cupons;
-CREATE POLICY "Acesso total cupons" ON public.cupons FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Leitura publica cupons ativos" ON public.cupons;
+CREATE POLICY "Leitura publica cupons ativos" ON public.cupons FOR SELECT USING (ativo = true OR public.is_admin());
+DROP POLICY IF EXISTS "Admin gerencia cupons" ON public.cupons;
+CREATE POLICY "Admin gerencia cupons" ON public.cupons FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
+-- Usuários: Cliente acessa apenas seu registro, admin gerencia todos
 DROP POLICY IF EXISTS "Acesso total usuarios" ON public.usuarios;
-CREATE POLICY "Acesso total usuarios" ON public.usuarios FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Usuarios leem proprio perfil ou admin" ON public.usuarios FOR SELECT USING (auth_user_id = auth.uid() OR public.is_admin());
+CREATE POLICY "Cadastro de novos usuarios" ON public.usuarios FOR INSERT WITH CHECK (true);
+CREATE POLICY "Usuarios atualizam proprio perfil ou admin" ON public.usuarios FOR UPDATE USING (auth_user_id = auth.uid() OR public.is_admin()) WITH CHECK (auth_user_id = auth.uid() OR public.is_admin());
 
+-- Pedidos: Cliente vê seus pedidos, admin vê todos; Cliente pode confirmar recebimento
 DROP POLICY IF EXISTS "Acesso total pedidos" ON public.pedidos;
-CREATE POLICY "Acesso total pedidos" ON public.pedidos FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Clientes leem proprios pedidos ou admin" ON public.pedidos FOR SELECT USING (public.is_admin() OR usuario_id IN (SELECT id FROM public.usuarios WHERE auth_user_id = auth.uid()));
+CREATE POLICY "Criacao de pedidos checkout" ON public.pedidos FOR INSERT WITH CHECK (true);
+CREATE POLICY "Atualizacao de pedidos" ON public.pedidos FOR UPDATE USING (public.is_admin() OR (usuario_id IN (SELECT id FROM public.usuarios WHERE auth_user_id = auth.uid()) AND status_pedido IN ('shipped', 'delivered'))) WITH CHECK (public.is_admin() OR (usuario_id IN (SELECT id FROM public.usuarios WHERE auth_user_id = auth.uid()) AND status_pedido = 'delivered'));
 
+-- Itens do Pedido:
 DROP POLICY IF EXISTS "Acesso total itens_pedido" ON public.itens_pedido;
-CREATE POLICY "Acesso total itens_pedido" ON public.itens_pedido FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Leitura itens de pedidos autorizados" ON public.itens_pedido FOR SELECT USING (public.is_admin() OR pedido_id IN (SELECT id FROM public.pedidos WHERE usuario_id IN (SELECT id FROM public.usuarios WHERE auth_user_id = auth.uid())));
+CREATE POLICY "Insercao de itens no checkout" ON public.itens_pedido FOR INSERT WITH CHECK (true);
+CREATE POLICY "Admin gerencia itens pedido" ON public.itens_pedido FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
+-- Movimentações de Estoque: Apenas Admin
 DROP POLICY IF EXISTS "Acesso total movimentacoes_estoque" ON public.movimentacoes_estoque;
-CREATE POLICY "Acesso total movimentacoes_estoque" ON public.movimentacoes_estoque FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Admin gerencia estoque" ON public.movimentacoes_estoque FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
+-- Configurações da Loja: Leitura pública, escrita apenas Admin
 DROP POLICY IF EXISTS "Acesso total configuracoes_loja" ON public.configuracoes_loja;
-CREATE POLICY "Acesso total configuracoes_loja" ON public.configuracoes_loja FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Leitura publica configuracoes" ON public.configuracoes_loja FOR SELECT USING (true);
+CREATE POLICY "Admin gerencia configuracoes" ON public.configuracoes_loja FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());

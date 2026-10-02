@@ -85,8 +85,13 @@ export function setupAuthModal() {
             </div>
 
             <div class="form-group">
-              <label class="form-label">Senha de Acesso</label>
-              <input type="password" id="regPass" class="form-input" placeholder="Mínimo 6 caracteres" required />
+              <label class="form-label">Senha de Acesso *</label>
+              <input type="password" id="regPass" class="form-input" placeholder="Mínimo 6 caracteres" required minlength="6" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Confirmar Senha *</label>
+              <input type="password" id="regPassConfirm" class="form-input" placeholder="Repita a senha de acesso" required minlength="6" />
             </div>
 
             <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.75rem; color: var(--text-secondary); cursor: pointer;">
@@ -143,6 +148,7 @@ export function setupAuthModal() {
     if (toReg) {
       toReg.onclick = () => {
         currentTab = 'register';
+        window.location.hash = '/cadastro';
         render();
       };
     }
@@ -152,6 +158,7 @@ export function setupAuthModal() {
     if (toLog) {
       toLog.onclick = () => {
         currentTab = 'login';
+        window.location.hash = '/login';
         render();
       };
     }
@@ -161,6 +168,7 @@ export function setupAuthModal() {
     if (toForgot) {
       toForgot.onclick = () => {
         currentTab = 'forgot';
+        window.location.hash = '/esqueci-senha';
         render();
       };
     }
@@ -169,6 +177,7 @@ export function setupAuthModal() {
     if (backToLog) {
       backToLog.onclick = () => {
         currentTab = 'login';
+        window.location.hash = '/login';
         render();
       };
     }
@@ -223,12 +232,22 @@ export function setupAuthModal() {
         const address = modal.querySelector('#regAddress')?.value.trim() || '';
         const referencePoint = modal.querySelector('#regReference')?.value.trim() || '';
         const password = modal.querySelector('#regPass').value;
+        const confirmPassword = modal.querySelector('#regPassConfirm')?.value || '';
         const submitBtn = regForm.querySelector('button[type="submit"]');
 
         if (password.length < 6) {
           Toast.show({
             title: 'Senha muito curta',
             message: 'A senha deve conter no mínimo 6 caracteres.',
+            type: 'warning'
+          });
+          return;
+        }
+
+        if (password !== confirmPassword) {
+          Toast.show({
+            title: 'Senhas divergentes',
+            message: 'A confirmação de senha não coincide com a senha digitada.',
             type: 'warning'
           });
           return;
@@ -283,8 +302,12 @@ export function setupAuthModal() {
     }
   }
 
-  function openModal() {
-    currentTab = 'login';
+  function openModal(e) {
+    if (e && e.detail && (e.detail.tab === 'register' || e.detail.tab === 'forgot' || e.detail.tab === 'login')) {
+      currentTab = e.detail.tab;
+    } else {
+      currentTab = 'login';
+    }
     render();
     backdrop.classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -293,6 +316,11 @@ export function setupAuthModal() {
   function closeModal() {
     backdrop.classList.remove('active');
     document.body.style.overflow = '';
+    // Se a rota era #/login, #/cadastro ou #/esqueci-senha, limpa hash de forma limpa
+    const h = window.location.hash || '';
+    if (h === '#/login' || h === '#/cadastro' || h === '#/esqueci-senha') {
+      window.history.replaceState(null, '', window.location.pathname + '#/');
+    }
   }
 
   backdrop.onclick = (e) => {

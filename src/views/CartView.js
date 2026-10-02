@@ -8,19 +8,15 @@ import { Storage, FREE_SHIPPING_THRESHOLD } from '../services/storage.js';
 import { Api } from '../services/api.js';
 import { Toast } from '../components/Toast.js';
 
+import { ANGOLA_PROVINCES } from '../utils/provinces.js';
+
 export function renderCartView() {
   const container = document.createElement('div');
   container.className = 'container';
 
-  // Province shipping estimates for Angola
+  // Province shipping estimates for Angola (Apenas Luanda ativa no momento)
   const PROVINCE_RATES = {
-    'Luanda': 3500,
-    'Benguela': 8500,
-    'Huambo': 9000,
-    'Huíla': 9500,
-    'Cabinda': 12000,
-    'Cuanza Sul': 7500,
-    'Uíge': 8000
+    'Luanda': 3500
   };
 
   let selectedProvince = 'Luanda';
@@ -72,22 +68,6 @@ export function renderCartView() {
           </a>
         </div>
       ` : `
-        <!-- Free Shipping Reminder -->
-        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: var(--radius-md); padding: 16px 20px; margin-bottom: 24px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <span style="font-size: 0.875rem; font-weight: 700; color: #166534;">
-              ${remainingForFree > 0
-        ? `Faltam ${formatPrice(remainingForFree)} para você ganhar FRETE GRÁTIS em Luanda!`
-        : `🎉 Parabéns! O seu pedido atingiu o valor de Frete Grátis!`
-      }
-            </span>
-            <span style="font-size: 0.75rem; font-weight: 700; color: #166534;">${progressPct}%</span>
-          </div>
-          <div style="width: 100%; height: 8px; background: #dcfce7; border-radius: 4px; overflow: hidden;">
-            <div style="height: 100%; width: ${progressPct}%; background: var(--accent-emerald); border-radius: 4px; transition: width 0.3s ease;"></div>
-          </div>
-        </div>
-
         <!-- Cart Grid Layout -->
         <div class="checkout-grid">
           <!-- Left: Cart Items List -->
@@ -174,12 +154,15 @@ export function renderCartView() {
                   Calcular Entrega por Província
                 </label>
                 <select id="provinceSelect" class="form-select" style="width: 100%;">
-                  ${Object.keys(PROVINCE_RATES).map(prov => `
-                    <option value="${prov}" ${prov === selectedProvince ? 'selected' : ''}>
-                      ${prov} ${isFreeShipping ? '(Grátis)' : `(${formatPrice(PROVINCE_RATES[prov])})`}
+                  ${ANGOLA_PROVINCES.map(prov => `
+                    <option value="${prov.name}" ${prov.name === 'Luanda' ? 'selected' : ''} ${!prov.active ? 'disabled style="color: #94a3b8; background: #f8fafc;"' : ''}>
+                      ${prov.label} ${prov.name === 'Luanda' ? (isFreeShipping ? '(Grátis)' : `(${formatPrice(PROVINCE_RATES['Luanda'])})`) : ''}
                     </option>
                   `).join('')}
                 </select>
+                <div style="font-size: 0.72rem; color: #64748b; margin-top: 5px;">
+                  📍 Entregas ativas exclusivamente em Luanda por enquanto.
+                </div>
               </div>
 
               <!-- Coupon Box -->
@@ -340,7 +323,7 @@ export function renderCartView() {
             message: 'Inicie sessão ou crie uma conta para avançar ao pagamento.',
             type: 'info'
           });
-          window.dispatchEvent(new CustomEvent('open-auth-modal'));
+          window.location.hash = '/login';
           const onLogin = () => {
             window.removeEventListener('user-updated', onLogin);
             window.location.hash = '/checkout';

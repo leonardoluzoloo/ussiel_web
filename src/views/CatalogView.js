@@ -3,13 +3,11 @@
 // ===================================================================
 
 import { Icons } from '../utils/icons.js';
-import { CategoriesData } from '../data/categories.js';
-import { ProductsData } from '../data/products.js';
 import { Api } from '../services/api.js';
 import { createProductCard } from '../components/ProductCard.js';
 import { formatPrice } from '../utils/format.js';
 
-export function renderCatalogView({ categorySlug = null, searchQuery = null, isDeals = false, isNew = false } = {}) {
+export function renderCatalogView({ categorySlug = null, subcategorySlug = null, searchQuery = null, isDeals = false, isNew = false } = {}) {
   const container = document.createElement('div');
   container.className = 'container';
 
@@ -17,6 +15,7 @@ export function renderCatalogView({ categorySlug = null, searchQuery = null, isD
   let activeProducts = [];
   let activeCategories = [];
   let currentCategory = null;
+  let currentSubcategory = null; // subcategoria ativa
   let selectedBrands = [];
   let maxPrice = 6000000;
   let onlyInStock = false;
@@ -39,8 +38,24 @@ export function renderCatalogView({ categorySlug = null, searchQuery = null, isD
       ]);
 
       activeCategories = realCats || [];
+
+      // Resolve categoria ativa pelo slug
       if (categorySlug && activeCategories.length > 0) {
-        currentCategory = activeCategories.find(c => c.slug === categorySlug);
+        currentCategory = activeCategories.find(c => c.slug === categorySlug) || null;
+      }
+
+      // Resolve subcategoria ativa pelo slug (vem de #/subcategoria/:slug ou filtro)
+      if (subcategorySlug && activeCategories.length > 0) {
+        for (const cat of activeCategories) {
+          const subs = Array.isArray(cat.subcategories) ? cat.subcategories : [];
+          const found = subs.find(s => s.slug === subcategorySlug);
+          if (found) {
+            currentSubcategory = found;
+            // Se veio por rota de subcategoria, ativa também a categoria pai
+            if (!currentCategory) currentCategory = cat;
+            break;
+          }
+        }
       }
 
       activeBanners = realBanners || [];
@@ -67,19 +82,50 @@ export function renderCatalogView({ categorySlug = null, searchQuery = null, isD
 
   syncFromDatabase();
 
+  // Sincronização em tempo real com alterações do Admin (Produtos, Categorias, Banners e Estoque)
+  const onCatalogUpdated = () => {
+    syncFromDatabase();
+  };
+  window.addEventListener('products-updated', onCatalogUpdated);
+  window.addEventListener('categories-updated', onCatalogUpdated);
+  window.addEventListener('banners-updated', onCatalogUpdated);
+  window.addEventListener('stock-updated', onCatalogUpdated);
+
   function getFilteredProducts() {
     return activeProducts.filter(product => {
-      // Category filter
-      if (currentCategory && product.category !== currentCategory.id) {
+      // Oculta produtos desativados pelo Admin
+      if (product.is_active === false || product.ativo === false) {
         return false;
       }
+
+      // Category filter (compara por ID numérico — mais confiável)
+      if (currentCategory) {
+        const prodCatId = product.category_id || product.categoria_id;
+        const catMatches =
+          String(prodCatId) === String(currentCategory.id) ||
+          product.category === currentCategory.slug ||
+          product.category === currentCategory.name;
+        if (!catMatches) return false;
+      }
+
+      // Subcategory filter
+      if (currentSubcategory) {
+        const prodSubId = product.subcategory_id || product.subcategoria_id;
+        const subMatches =
+          String(prodSubId) === String(currentSubcategory.id) ||
+          product.subcategory === currentSubcategory.slug ||
+          product.subcategory_name === currentSubcategory.name;
+        if (!subMatches) return false;
+      }
+
       // Search query
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        const match = product.name.toLowerCase().includes(q) ||
-          product.brand.toLowerCase().includes(q) ||
-          product.category.toLowerCase().includes(q) ||
-          product.sku.toLowerCase().includes(q);
+        const match =
+          (product.name || '').toLowerCase().includes(q) ||
+          (product.brand || '').toLowerCase().includes(q) ||
+          (product.category || '').toLowerCase().includes(q) ||
+          (product.sku || '').toLowerCase().includes(q);
         if (!match) return false;
       }
       // Deals filter
@@ -116,6 +162,7 @@ export function renderCatalogView({ categorySlug = null, searchQuery = null, isD
       return 0; // relevant
     });
   }
+
 
   // Banner institucional oficial quando o admin ainda não cadastrou banners
   const defaultInstitutionalBanner = [
@@ -332,6 +379,30 @@ export function renderCatalogView({ categorySlug = null, searchQuery = null, isD
             </div>
           </div>
 
+          <!-- Subcategory Selector (quando categoria selecionada tem subcategorias) -->
+          ${currentCategory && Array.isArray(currentCategory.subcategories) && currentCategory.subcategories.length > 0 ? `
+            <div class="filter-section" style="padding-left: 12px; border-left: 2px solid var(--primary-200, #cbd5e1);">
+              <h4 class="filter-title" style="font-size: 0.8125rem; color: var(--primary-700);">Subcategorias</h4>
+              <div class="filter-options-list">
+                <label class="filter-label">
+                  <span class="filter-left-inline">
+                    <input type="radio" name="subcatRadio" value="all" ${!currentSubcategory ? 'checked' : ''} />
+                    <span>Todas de ${currentCategory.name}</span>
+                  </span>
+                </label>
+                ${currentCategory.subcategories.map(s => `
+                  <label class="filter-label">
+                    <span class="filter-left-inline">
+                      <input type="radio" name="subcatRadio" value="${s.slug || s.id}" ${currentSubcategory?.slug === s.slug || currentSubcategory?.id === s.id ? 'checked' : ''} />
+                      <span>${s.name || s.nome}</span>
+                    </span>
+                    <span class="filter-count">(${activeProducts.filter(p => String(p.subcategory_id) === String(s.id) || p.subcategory === s.slug).length})</span>
+                  </label>
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
+
           <!-- Price Filter -->
           <div class="filter-section">
             <h4 class="filter-title">Preço Máximo</h4>
@@ -497,10 +568,24 @@ export function renderCatalogView({ categorySlug = null, searchQuery = null, isD
     // Category Radio
     container.querySelectorAll('input[name="catRadio"]').forEach(radio => {
       radio.onchange = () => {
+        currentSubcategory = null; // Reseta subcategoria ao mudar de categoria
         if (radio.value === 'all') {
           currentCategory = null;
         } else {
           currentCategory = activeCategories.find(c => c.slug === radio.value);
+        }
+        render();
+      };
+    });
+
+    // Subcategory Radio
+    container.querySelectorAll('input[name="subcatRadio"]').forEach(radio => {
+      radio.onchange = () => {
+        if (radio.value === 'all') {
+          currentSubcategory = null;
+        } else {
+          const subs = currentCategory && Array.isArray(currentCategory.subcategories) ? currentCategory.subcategories : [];
+          currentSubcategory = subs.find(s => s.slug === radio.value || String(s.id) === String(radio.value)) || null;
         }
         render();
       };
@@ -564,6 +649,7 @@ export function renderCatalogView({ categorySlug = null, searchQuery = null, isD
         onlyDeals = false;
         minRating = 0;
         currentCategory = null;
+        currentSubcategory = null;
         render();
       };
     }
@@ -577,6 +663,7 @@ export function renderCatalogView({ categorySlug = null, searchQuery = null, isD
         onlyDeals = false;
         minRating = 0;
         currentCategory = null;
+        currentSubcategory = null;
         render();
       };
     }

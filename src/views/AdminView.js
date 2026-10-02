@@ -42,6 +42,7 @@ export function renderAdminView() {
   let productStockFilter = 'all';
   let customerSearchQuery = '';
   let dashboardPeriod = 'today'; // 'today' | '7d' | '30d' | 'all'
+  let layoutMounted = false;
 
   // 1. Inicialização
   async function init() {
@@ -115,27 +116,91 @@ export function renderAdminView() {
     }
   }
 
-  // 3. Renderizador Principal
+  // Extração inteligente da sub-rota administrativa a partir do hash da URL
+  function getAdminSubRoute() {
+    const hash = window.location.hash || '#/admin';
+    const clean = hash.replace(/^#\/?/, '').split('?')[0]; // ex: 'admin/login', 'admin/dashboard', 'admin/orders'
+    const parts = clean.split('/').filter(Boolean);
+    return parts[1] || ''; // 'login' | 'register' | 'forgot-password' | 'reset-password' | 'dashboard' | 'orders' ...
+  }
+
+  // 3. Renderizador Principal & AdminRouteGuard
   function render() {
-    container.innerHTML = '';
+    const subRoute = getAdminSubRoute();
     const currentUser = Storage.getUser();
-    const isAdmin = currentUser && currentUser.role === 'admin';
+    const token = Api.getToken();
+    const isAdmin = currentUser && currentUser.role === 'admin' && Boolean(token);
+    const isCustomer = currentUser && currentUser.role === 'customer';
 
     if (isLoading) {
+      layoutMounted = false;
+      container.innerHTML = '';
       renderLoadingSkeleton();
       return;
     }
 
-    if (!systemStatus.has_admin) {
-      renderSetupScreen();
-      return;
-    }
-
+    // --- PROTEÇÃO DE ROTAS ADMINISTRATIVAS ---
     if (!isAdmin) {
-      renderLoginScreen();
+      layoutMounted = false;
+      container.innerHTML = '';
+
+      if (subRoute === 'register') {
+        renderRegisterScreen();
+        return;
+      }
+      if (subRoute === 'forgot-password') {
+        renderForgotPasswordScreen();
+        return;
+      }
+      if (subRoute === 'reset-password') {
+        renderResetPasswordScreen();
+        return;
+      }
+
+      // Se tentar acessar diretamente qualquer rota administrativa sem sessão de admin:
+      if (subRoute && !['login', 'register', 'forgot-password', 'reset-password'].includes(subRoute)) {
+        if (isCustomer) {
+          Toast.show('Você não possui permissão para acessar o painel administrativo.', 'warning');
+        }
+        window.history.replaceState(null, '', window.location.pathname + '#/admin/login');
+      }
+
+      renderLoginScreen(isCustomer ? 'Você está autenticado como cliente. Para acessar a área de gestão, informe uma conta de administrador.' : null);
       return;
     }
 
+    // Se já autenticado como ADMIN e tentar acessar telas de login/register/forgot:
+    if (!subRoute || ['login', 'register', 'forgot-password', 'reset-password'].includes(subRoute)) {
+      window.history.replaceState(null, '', window.location.pathname + '#/admin/dashboard');
+      currentTab = 'dashboard';
+    } else {
+      const mappedTab = (subRoute === 'inventory') ? 'stock' : (subRoute === 'campaigns' ? 'catalogs' : subRoute);
+      const validTabs = ['dashboard', 'products', 'categories', 'banners', 'orders', 'customers', 'stock', 'coupons', 'catalogs', 'settings', 'profile'];
+      currentTab = validTabs.includes(mappedTab) ? mappedTab : 'dashboard';
+    }
+
+    // Se já estiver montado o layout admin corporativo, preserva cabeçalho e sidebar
+    const mainContent = container.querySelector('#adminMainContent');
+    if (layoutMounted && mainContent) {
+      mainContent.innerHTML = renderActiveTabContent();
+      // Atualiza badges dinâmicos na sidebar sem reconstruir tudo
+      const sidebars = container.querySelectorAll('.admin-enterprise-sidebar, .admin-mobile-drawer-content');
+      sidebars.forEach(s => {
+        s.innerHTML = renderSidebarNavItems();
+      });
+      container.querySelectorAll('.admin-nav-item').forEach(el => {
+        el.classList.toggle('active', el.dataset.tab === currentTab);
+      });
+      const topProfileBtn = container.querySelector('#adminTopProfileBtn');
+      if (topProfileBtn) {
+        topProfileBtn.classList.toggle('active', currentTab === 'profile');
+      }
+      attachTabSpecificEvents();
+      return;
+    }
+
+    layoutMounted = true;
+    container.innerHTML = '';
     renderDashboardLayout();
   }
 
@@ -181,7 +246,7 @@ export function renderAdminView() {
               <label class="form-label">Senha de Acesso</label>
               <input type="password" id="setupPassword" class="form-input" placeholder="Mínimo de 6 dígitos" minlength="6" required />
             </div>
-            <button type="submit" class="btn btn-primary" style="padding: 12px; font-weight: 700; margin-top: 6px;">
+            <button type="submit" id="setupSubmitBtn" class="btn btn-primary" style="padding: 12px; font-weight: 700; margin-top: 6px;">
               Criar Conta e Acessar Painel
             </button>
           </form>
@@ -191,50 +256,105 @@ export function renderAdminView() {
 
     container.querySelector('#adminSetupForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const submitBtn = container.querySelector('#setupSubmitBtn');
       const name = container.querySelector('#setupName').value.trim();
       const email = container.querySelector('#setupEmail').value.trim();
       const password = container.querySelector('#setupPassword').value;
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Criando conta mestre...';
 
       try {
         const res = await Api.admin.setup({ name, email, password });
         Storage.saveUser(res.user);
         Toast.show('Administrador criado com sucesso!', 'success');
         systemStatus.has_admin = true;
+        window.location.hash = '#/admin/dashboard';
         await loadAllData();
         render();
       } catch (err) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Criar Conta e Acessar Painel';
         Toast.show(err.message || 'Erro ao criar conta administrativa.', 'error');
       }
     });
   }
 
-  // Tela de Autenticação
-  function renderLoginScreen() {
+  // 1. Tela de Autenticação Administrativa (Login Real)
+  function renderLoginScreen(notice = null) {
     container.innerHTML = `
-      <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background: #f8fafc;">
-        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px 24px; width: 100%; max-width: 420px; box-shadow: 0 4px 20px rgba(0,0,0,0.06);">
-          <div style="text-align: center; margin-bottom: 24px;">
-            <div style="width: 48px; height: 48px; background: #090d16; color: #38bdf8; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+      <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; background: #0b0f19; box-sizing: border-box;">
+        <div style="background: #111827; border: 1px solid #1f2937; border-radius: 16px; padding: 28px 24px; width: 100%; max-width: 420px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); color: #f9fafb; box-sizing: border-box;">
+          
+          <div style="text-align: center; margin-bottom: 20px;">
+            <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #2563eb, #38bdf8); color: #fff; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 10px; box-shadow: 0 4px 15px rgba(37,99,235,0.4);">
               ${Icons.user(24)}
             </div>
-            <h2 style="font-size: 1.25rem; font-weight: 800; color: #0f172a; margin-bottom: 4px;">Painel Administrativo</h2>
-            <p style="font-size: 0.8125rem; color: #64748b;">Acesse com suas credenciais de gestor.</p>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 4px;">
+              <h2 style="font-size: 1.25rem; font-weight: 800; color: #ffffff; letter-spacing: -0.02em; margin: 0;">NOVATECH</h2>
+              <span class="badge" style="background: #2563eb; color: #ffffff; font-size: 0.6875rem; font-weight: 800; padding: 2px 8px; border-radius: 6px;">ADMIN</span>
+            </div>
+            <p style="font-size: 0.8125rem; color: #9ca3af; margin: 0;">Central de Gestão e Controle Corporativo</p>
           </div>
 
+          ${notice ? `
+            <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; font-size: 0.8125rem; color: #fca5a5; display: flex; align-items: center; gap: 8px;">
+              <span>⚠️</span>
+              <span>${notice}</span>
+            </div>
+          ` : ''}
+
           <form id="adminLoginForm" style="display: flex; flex-direction: column; gap: 14px;">
-            <div class="form-group">
-              <label class="form-label">E-mail</label>
-              <input type="email" id="loginEmail" class="form-input" placeholder="seu-email@novatech.co.ao" required />
+            <div class="form-group" style="margin-bottom: 0; width: 100%;">
+              <label class="form-label" style="color: #d1d5db; font-size: 0.8125rem; font-weight: 600; margin-bottom: 6px;">E-mail do Administrador</label>
+              <input 
+                type="email" 
+                id="loginEmail" 
+                class="form-input" 
+                placeholder="admin@novatech.co.ao" 
+                style="background: #1f2937; border: 1px solid #374151; color: #ffffff; width: 100%; padding: 10px 14px; border-radius: 8px; font-size: 0.875rem; box-sizing: border-box;" 
+                required 
+                autocomplete="email"
+              />
             </div>
-            <div class="form-group">
-              <label class="form-label">Senha</label>
-              <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required />
+
+            <div class="form-group" style="margin-bottom: 0; width: 100%;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label class="form-label" style="color: #d1d5db; font-size: 0.8125rem; font-weight: 600; margin-bottom: 0;">Senha de Acesso</label>
+                <a href="#/admin/forgot-password" style="font-size: 0.75rem; color: #38bdf8; text-decoration: none; font-weight: 600;">
+                  Esqueci minha senha
+                </a>
+              </div>
+              <div style="position: relative; width: 100%; display: flex; align-items: center;">
+                <input 
+                  type="password" 
+                  id="loginPassword" 
+                  class="form-input" 
+                  placeholder="••••••••" 
+                  style="background: #1f2937; border: 1px solid #374151; color: #ffffff; width: 100%; padding: 10px 42px 10px 14px; border-radius: 8px; font-size: 0.875rem; box-sizing: border-box;" 
+                  required 
+                  autocomplete="current-password"
+                />
+                <button 
+                  type="button" 
+                  id="toggleLoginPwdBtn" 
+                  style="position: absolute; right: 10px; background: none; border: none; color: #9ca3af; cursor: pointer; padding: 4px; font-size: 1rem; line-height: 1;"
+                  title="Alternar visualização da senha"
+                >
+                  👁
+                </button>
+              </div>
             </div>
-            <button type="submit" class="btn btn-primary" style="padding: 12px; font-weight: 700; margin-top: 6px;">
+
+            <button type="submit" id="adminLoginSubmitBtn" class="btn btn-primary" style="width: 100%; padding: 11px; font-weight: 700; margin-top: 4px; background: #2563eb; border: none; border-radius: 8px; font-size: 0.875rem; cursor: pointer;">
               Entrar no Painel
             </button>
-            <div style="text-align: center; margin-top: 10px;">
-              <a href="#/" style="font-size: 0.8125rem; color: #2563eb; text-decoration: none; font-weight: 600;">
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 0.8125rem; border-top: 1px solid #1f2937; padding-top: 14px;">
+              <a href="#/admin/register" style="color: #38bdf8; text-decoration: none; font-weight: 600;">
+                + Criar Conta de Gestor
+              </a>
+              <a href="#/" style="color: #9ca3af; text-decoration: none; font-weight: 500;">
                 ← Voltar para a Loja
               </a>
             </div>
@@ -243,24 +363,383 @@ export function renderAdminView() {
       </div>
     `;
 
+    // Toggle de visualização de senha
+    const toggleBtn = container.querySelector('#toggleLoginPwdBtn');
+    const pwdInput = container.querySelector('#loginPassword');
+    if (toggleBtn && pwdInput) {
+      toggleBtn.addEventListener('click', () => {
+        const isPwd = pwdInput.type === 'password';
+        pwdInput.type = isPwd ? 'text' : 'password';
+        toggleBtn.textContent = isPwd ? '🔒' : '👁';
+      });
+    }
+
     container.querySelector('#adminLoginForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const submitBtn = container.querySelector('#adminLoginSubmitBtn');
       const email = container.querySelector('#loginEmail').value.trim();
       const password = container.querySelector('#loginPassword').value;
 
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Autenticando no servidor...';
+
       try {
-        const res = await Api.auth.login(email, password);
+        const res = await Api.auth.adminLogin(email, password);
         Storage.saveUser(res.user);
-        if (res.user.role === 'admin') {
-          Toast.show(`Bem-vindo, ${res.user.name}!`, 'success');
-          await loadAllData();
-          render();
-        } else {
-          Toast.show('Conta autenticada, mas sem privilégios de Administrador.', 'warning');
-          render();
-        }
+        Toast.show(`Bem-vindo, ${res.user.name}!`, 'success');
+        window.location.hash = '#/admin/dashboard';
+        await loadAllData();
+        render();
       } catch (err) {
-        Toast.show(err.message || 'Credenciais inválidas.', 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Entrar no Painel';
+        Toast.show(err.message || 'Não foi possível entrar. Verifique seu e-mail e senha.', 'error');
+      }
+    });
+  }
+
+  // 2. Tela de Criação de Conta Administrativa (#/admin/register)
+  async function renderRegisterScreen() {
+    container.innerHTML = `
+      <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 12px; background: #0b0f19; box-sizing: border-box;">
+        <div style="background: #111827; border: 1px solid #1f2937; border-radius: 16px; padding: 28px 24px; width: 100%; max-width: 440px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); color: #f9fafb; box-sizing: border-box; text-align: center;">
+          <div style="color: #9ca3af; font-size: 0.875rem;">Verificando permissões de acesso...</div>
+        </div>
+      </div>
+    `;
+
+    let hasAdmin = true;
+    try {
+      const status = await Api.admin.getStatus();
+      hasAdmin = Boolean(status.has_admin);
+    } catch {}
+
+    const currentUser = Storage.getUser();
+    const isCallerAdmin = currentUser?.role === 'admin';
+
+    // Se já existem administradores configurados e quem acessa NÃO é administrador logado:
+    if (hasAdmin && !isCallerAdmin) {
+      container.innerHTML = `
+        <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 12px; background: #0b0f19; box-sizing: border-box;">
+          <div style="background: #111827; border: 1px solid #1f2937; border-radius: 16px; padding: 28px 24px; width: 100%; max-width: 440px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); color: #f9fafb; box-sizing: border-box; text-align: center;">
+            <div style="width: 48px; height: 48px; background: #374151; color: #f59e0b; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </div>
+            <h2 style="font-size: 1.1875rem; font-weight: 800; color: #ffffff; margin-bottom: 8px;">Acesso Administrativo Restrito</h2>
+            <p style="font-size: 0.8125rem; color: #9ca3af; line-height: 1.6; margin-bottom: 20px;">
+              A plataforma já possui administradores configurados. Por segurança e conformidade com as regras de acesso, novas contas administrativas só podem ser cadastradas através do painel por um gestor autenticado.
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <a href="#/admin/login" class="btn btn-primary" style="padding: 10px; font-weight: 700; background: #2563eb; text-decoration: none; border-radius: 8px; font-size: 0.84375rem; text-align: center; color: #fff;">
+                Fazer Login no Painel →
+              </a>
+              <a href="#/" style="color: #9ca3af; text-decoration: none; font-size: 0.8125rem; margin-top: 6px;">
+                ← Voltar para a Loja
+              </a>
+            </div>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    const titleText = !hasAdmin ? 'Configurar Primeiro Administrador' : 'Criar Conta Administrativa';
+    const descText = !hasAdmin ? 'Nenhum administrador detectado. Configure o gestor principal da plataforma.' : 'Cadastre um novo perfil de gestor da plataforma.';
+
+    container.innerHTML = `
+      <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 12px; background: #0b0f19; box-sizing: border-box;">
+        <div style="background: #111827; border: 1px solid #1f2937; border-radius: 16px; padding: 22px 20px; width: 100%; max-width: 440px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); color: #f9fafb; box-sizing: border-box;">
+          
+          <div style="text-align: center; margin-bottom: 14px;">
+            <div style="width: 42px; height: 42px; background: linear-gradient(135deg, #10b981, #2563eb); color: #fff; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 4px 15px rgba(16,185,129,0.4);">
+              ${Icons.user(20)}
+            </div>
+            <h2 style="font-size: 1.1875rem; font-weight: 800; color: #ffffff; letter-spacing: -0.02em; margin-bottom: 2px;">${titleText}</h2>
+            <p style="font-size: 0.75rem; color: #9ca3af; margin: 0;">${descText}</p>
+          </div>
+
+          <form id="adminRegisterForm" style="display: flex; flex-direction: column; gap: 10px;">
+            <div class="form-group" style="margin-bottom: 0; width: 100%;">
+              <label class="form-label" style="color: #d1d5db; font-size: 0.75rem; font-weight: 600; margin-bottom: 3px;">Nome Completo *</label>
+              <input 
+                type="text" 
+                id="regName" 
+                class="form-input" 
+                placeholder="Ex: Leonardo Adriano" 
+                style="background: #1f2937; border: 1px solid #374151; color: #ffffff; width: 100%; padding: 8px 12px; border-radius: 8px; font-size: 0.8125rem; box-sizing: border-box;" 
+                required 
+                minlength="2"
+              />
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0; width: 100%;">
+              <label class="form-label" style="color: #d1d5db; font-size: 0.75rem; font-weight: 600; margin-bottom: 3px;">E-mail Profissional *</label>
+              <input 
+                type="email" 
+                id="regEmail" 
+                class="form-input" 
+                placeholder="gestor@novatech.co.ao" 
+                style="background: #1f2937; border: 1px solid #374151; color: #ffffff; width: 100%; padding: 8px 12px; border-radius: 8px; font-size: 0.8125rem; box-sizing: border-box;" 
+                required 
+              />
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0; width: 100%;">
+              <label class="form-label" style="color: #d1d5db; font-size: 0.75rem; font-weight: 600; margin-bottom: 3px;">Telefone / WhatsApp</label>
+              <input 
+                type="tel" 
+                id="regPhone" 
+                class="form-input" 
+                placeholder="+244 923 000 000" 
+                style="background: #1f2937; border: 1px solid #374151; color: #ffffff; width: 100%; padding: 8px 12px; border-radius: 8px; font-size: 0.8125rem; box-sizing: border-box;" 
+              />
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; box-sizing: border-box;">
+              <div class="form-group" style="margin-bottom: 0; min-width: 0;">
+                <label class="form-label" style="color: #d1d5db; font-size: 0.75rem; font-weight: 600; margin-bottom: 3px;">Senha *</label>
+                <div style="position: relative; width: 100%; display: flex; align-items: center;">
+                  <input 
+                    type="password" 
+                    id="regPassword" 
+                    class="form-input" 
+                    placeholder="Mín. 6 dígitos" 
+                    style="background: #1f2937; border: 1px solid #374151; color: #ffffff; width: 100%; padding: 8px 34px 8px 10px; border-radius: 8px; font-size: 0.8125rem; box-sizing: border-box;" 
+                    required 
+                    minlength="6"
+                  />
+                  <button type="button" class="toggle-reg-pwd-btn" data-target="regPassword" style="position: absolute; right: 8px; background: none; border: none; color: #9ca3af; cursor: pointer; padding: 2px; line-height: 1;" title="Mostrar/ocultar senha">👁</button>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 0; min-width: 0;">
+                <label class="form-label" style="color: #d1d5db; font-size: 0.75rem; font-weight: 600; margin-bottom: 3px;">Confirmar Senha *</label>
+                <div style="position: relative; width: 100%; display: flex; align-items: center;">
+                  <input 
+                    type="password" 
+                    id="regPasswordConfirm" 
+                    class="form-input" 
+                    placeholder="Repita a senha" 
+                    style="background: #1f2937; border: 1px solid #374151; color: #ffffff; width: 100%; padding: 8px 34px 8px 10px; border-radius: 8px; font-size: 0.8125rem; box-sizing: border-box;" 
+                    required 
+                    minlength="6"
+                  />
+                  <button type="button" class="toggle-reg-pwd-btn" data-target="regPasswordConfirm" style="position: absolute; right: 8px; background: none; border: none; color: #9ca3af; cursor: pointer; padding: 2px; line-height: 1;" title="Mostrar/ocultar senha">👁</button>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" id="adminRegisterSubmitBtn" class="btn btn-primary" style="width: 100%; padding: 10px; font-weight: 700; margin-top: 4px; background: #2563eb; border: none; border-radius: 8px; font-size: 0.84375rem; cursor: pointer;">
+              Cadastrar Administrador
+            </button>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; font-size: 0.8125rem; border-top: 1px solid #1f2937; padding-top: 10px;">
+              <a href="#/admin/login" style="color: #38bdf8; text-decoration: none; font-weight: 600;">
+                Já possuo conta. Entrar →
+              </a>
+              <a href="#/" style="color: #9ca3af; text-decoration: none; font-weight: 500;">
+                ← Voltar para a Loja
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+
+    container.querySelectorAll('.toggle-reg-pwd-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.dataset.target;
+        const input = container.querySelector(`#${targetId}`);
+        if (input) {
+          const isPwd = input.type === 'password';
+          input.type = isPwd ? 'text' : 'password';
+          btn.textContent = isPwd ? '🔒' : '👁';
+        }
+      });
+    });
+
+    container.querySelector('#adminRegisterForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = container.querySelector('#adminRegisterSubmitBtn');
+      const name = container.querySelector('#regName').value.trim();
+      const email = container.querySelector('#regEmail').value.trim();
+      const phone = container.querySelector('#regPhone').value.trim();
+      const password = container.querySelector('#regPassword').value;
+      const confirmPassword = container.querySelector('#regPasswordConfirm').value;
+
+      if (password !== confirmPassword) {
+        Toast.show('As senhas digitadas não coincidem.', 'warning');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Criando conta administrativa...';
+
+      try {
+        const res = await Api.auth.registerAdmin({ name, email, password, phone });
+        Storage.saveUser(res.user);
+        Toast.show('Conta administrativa criada com sucesso!', 'success');
+        window.location.hash = '#/admin/dashboard';
+        await loadAllData();
+        render();
+      } catch (err) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Cadastrar Administrador';
+        Toast.show(err.message || 'Erro ao registrar administrador.', 'error');
+      }
+    });
+  }
+
+  // 3. Tela de Recuperação de Senha (#/admin/forgot-password)
+  function renderForgotPasswordScreen() {
+    container.innerHTML = `
+      <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; background: #0b0f19; box-sizing: border-box;">
+        <div style="background: #111827; border: 1px solid #1f2937; border-radius: 16px; padding: 28px 24px; width: 100%; max-width: 420px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); color: #f9fafb; box-sizing: border-box;">
+          
+          <div style="text-align: center; margin-bottom: 20px;">
+            <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #f59e0b, #ef4444); color: #fff; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 10px; box-shadow: 0 4px 15px rgba(245,158,11,0.4);">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </div>
+            <h2 style="font-size: 1.25rem; font-weight: 800; color: #ffffff; letter-spacing: -0.02em; margin-bottom: 4px;">Recuperar Senha</h2>
+            <p style="font-size: 0.8125rem; color: #9ca3af; margin: 0;">Informe seu e-mail de acesso para redefinir sua senha.</p>
+          </div>
+
+          <form id="adminForgotForm" style="display: flex; flex-direction: column; gap: 14px;">
+            <div class="form-group" style="margin-bottom: 0; width: 100%;">
+              <label class="form-label" style="color: #d1d5db; font-size: 0.8125rem; font-weight: 600; margin-bottom: 6px;">E-mail Cadastrado *</label>
+              <input 
+                type="email" 
+                id="forgotEmail" 
+                class="form-input" 
+                placeholder="admin@novatech.co.ao" 
+                style="background: #1f2937; border: 1px solid #374151; color: #ffffff; width: 100%; padding: 10px 14px; border-radius: 8px; font-size: 0.875rem; box-sizing: border-box;" 
+                required 
+              />
+            </div>
+
+            <button type="submit" id="adminForgotSubmitBtn" class="btn btn-primary" style="width: 100%; padding: 11px; font-weight: 700; margin-top: 4px; background: #2563eb; border: none; border-radius: 8px; font-size: 0.875rem; cursor: pointer;">
+              Enviar Link de Recuperação
+            </button>
+
+            <div style="text-align: center; margin-top: 6px; font-size: 0.8125rem; border-top: 1px solid #1f2937; padding-top: 14px;">
+              <a href="#/admin/login" style="color: #38bdf8; text-decoration: none; font-weight: 600;">
+                ← Voltar para o Login
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+
+    container.querySelector('#adminForgotForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = container.querySelector('#adminForgotSubmitBtn');
+      const email = container.querySelector('#forgotEmail').value.trim();
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Enviando instruções...';
+
+      try {
+        const res = await Api.auth.forgotPassword(email);
+        Toast.show(res.message || 'Se existir uma conta associada a este e-mail, enviaremos as instruções.', 'success');
+        container.querySelector('#adminForgotForm').innerHTML = `
+          <div style="text-align: center; padding: 10px 0;">
+            <div style="font-size: 2rem; margin-bottom: 8px;">📬</div>
+            <h3 style="font-size: 1rem; font-weight: 700; color: #ffffff; margin-bottom: 6px;">Instruções Enviadas</h3>
+            <p style="font-size: 0.8125rem; color: #9ca3af; line-height: 1.5; margin-bottom: 16px;">
+              ${res.message}
+            </p>
+            <a href="#/admin/login" class="btn btn-primary" style="display: block; text-decoration: none; padding: 10px; font-weight: 700; border-radius: 8px;">
+              Voltar ao Login
+            </a>
+          </div>
+        `;
+      } catch (err) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Enviar Link de Recuperação';
+        Toast.show(err.message || 'Erro ao solicitar recuperação de senha.', 'error');
+      }
+    });
+  }
+
+  // 4. Tela de Redefinição de Senha (#/admin/reset-password)
+  function renderResetPasswordScreen() {
+    container.innerHTML = `
+      <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; background: #0b0f19; box-sizing: border-box;">
+        <div style="background: #111827; border: 1px solid #1f2937; border-radius: 16px; padding: 28px 24px; width: 100%; max-width: 420px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); color: #f9fafb; box-sizing: border-box;">
+          
+          <div style="text-align: center; margin-bottom: 20px;">
+            <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #2563eb, #9333ea); color: #fff; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 10px; box-shadow: 0 4px 15px rgba(37,99,235,0.4);">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </div>
+            <h2 style="font-size: 1.25rem; font-weight: 800; color: #ffffff; letter-spacing: -0.02em; margin-bottom: 4px;">Nova Senha de Acesso</h2>
+            <p style="font-size: 0.8125rem; color: #9ca3af; margin: 0;">Defina sua nova credencial de segurança.</p>
+          </div>
+
+          <form id="adminResetForm" style="display: flex; flex-direction: column; gap: 14px;">
+            <div class="form-group" style="margin-bottom: 0; width: 100%;">
+              <label class="form-label" style="color: #d1d5db; font-size: 0.8125rem; font-weight: 600; margin-bottom: 6px;">Nova Senha *</label>
+              <input 
+                type="password" 
+                id="resetPassword" 
+                class="form-input" 
+                placeholder="Mínimo de 6 caracteres" 
+                style="background: #1f2937; border: 1px solid #374151; color: #ffffff; width: 100%; padding: 10px 14px; border-radius: 8px; font-size: 0.875rem; box-sizing: border-box;" 
+                required 
+                minlength="6"
+              />
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0; width: 100%;">
+              <label class="form-label" style="color: #d1d5db; font-size: 0.8125rem; font-weight: 600; margin-bottom: 6px;">Confirmar Nova Senha *</label>
+              <input 
+                type="password" 
+                id="resetPasswordConfirm" 
+                class="form-input" 
+                placeholder="Repita a nova senha" 
+                style="background: #1f2937; border: 1px solid #374151; color: #ffffff; width: 100%; padding: 10px 14px; border-radius: 8px; font-size: 0.875rem; box-sizing: border-box;" 
+                required 
+                minlength="6"
+              />
+            </div>
+
+            <button type="submit" id="adminResetSubmitBtn" class="btn btn-primary" style="width: 100%; padding: 11px; font-weight: 700; margin-top: 4px; background: #2563eb; border: none; border-radius: 8px; font-size: 0.875rem; cursor: pointer;">
+              Salvar Nova Senha
+            </button>
+
+            <div style="text-align: center; margin-top: 6px; font-size: 0.8125rem; border-top: 1px solid #1f2937; padding-top: 14px;">
+              <a href="#/admin/login" style="color: #38bdf8; text-decoration: none; font-weight: 600;">
+                ← Voltar para o Login
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+
+    container.querySelector('#adminResetForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = container.querySelector('#adminResetSubmitBtn');
+      const password = container.querySelector('#resetPassword').value;
+      const confirmPassword = container.querySelector('#resetPasswordConfirm').value;
+
+      if (password !== confirmPassword) {
+        Toast.show('As senhas digitadas não coincidem.', 'warning');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Atualizando senha...';
+
+      try {
+        await Api.auth.resetPassword(password);
+        Toast.show('Senha alterada com sucesso! Faça login com a nova senha.', 'success');
+        window.location.hash = '#/admin/login';
+        render();
+      } catch (err) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Salvar Nova Senha';
+        Toast.show(err.message || 'Erro ao redefinir senha.', 'error');
       }
     });
   }
@@ -268,52 +747,64 @@ export function renderAdminView() {
   // --- LAYOUT DA CENTRAL DE CONTROLE CORPORATIVA ---
   function renderDashboardLayout() {
     const user = Storage.getUser();
-    const lowStockCount = productsList.filter(p => (p.stock || 0) <= (p.stock_min || 2)).length;
-    const pendingOrdersCount = ordersList.filter(o => o.status === 'received' || o.payment_status === 'pending').length;
-    const userInitials = (user?.name || 'AD').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    const rawName = (user?.name || 'Administrador').trim();
+    const firstName = rawName.split(' ')[0] || 'Administrador';
 
     container.innerHTML = `
-      <!-- 1. Header Corporativo Executivo -->
+      <!-- 1. Header Corporativo Executivo Equilibrado e Limpo -->
       <header class="admin-enterprise-topbar">
         <div class="admin-enterprise-topbar-inner">
           <div class="admin-enterprise-brand-group">
-            <button id="adminMobileDrawerToggleBtn" class="admin-mobile-drawer-btn" aria-label="Abrir Menu de Navegação" title="Menu">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            <button id="adminMobileDrawerToggleBtn" class="admin-mobile-drawer-btn" aria-label="Abrir Menu de Navegação" title="Navegação">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
             </button>
             <div class="admin-enterprise-brand">
               <div class="admin-brand-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
               </div>
               <div class="admin-brand-text">
                 <span class="admin-brand-title">NOVATECH</span>
-                <span class="admin-brand-subtitle">PAINEL ADMINISTRATIVO</span>
+                <span class="admin-brand-badge">ADMIN</span>
               </div>
-            </div>
-            <div class="admin-sys-status-pill">
-              <span class="admin-status-dot"></span>
-              <span>${isSupabaseConfigured() ? 'Supabase Conectado' : 'Operação Local Ativa'}</span>
             </div>
           </div>
 
           <div class="admin-enterprise-actions">
-            <a href="#/" class="admin-topbar-btn admin-topbar-btn-store" title="Visualizar a loja oficial como cliente" target="_blank" rel="noopener">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            <a href="#/" class="admin-topbar-link-store" title="Visualizar a loja oficial como cliente" target="_blank" rel="noopener">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
               <span>Ver Loja</span>
             </a>
-            <button id="adminRefreshBtn" class="admin-topbar-btn" title="Sincronizar base de dados">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-              <span class="desktop-only-txt">Sincronizar</span>
-            </button>
-            <div class="admin-profile-chip">
-              <div class="admin-profile-avatar">${userInitials}</div>
-              <div class="admin-profile-info">
-                <span class="admin-profile-name">${user?.name || 'Administrador'}</span>
-                <span class="admin-profile-role">Master Admin</span>
-              </div>
-              <button id="adminLogoutBtn" class="admin-logout-btn" title="Encerrar Sessão">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-                <span>Sair</span>
+            
+            <div class="admin-topbar-divider"></div>
+
+            <div class="admin-profile-dropdown-wrapper" style="position: relative;">
+              <button id="adminTopProfileBtn" class="admin-profile-btn ${currentTab === 'profile' ? 'active' : ''}" title="Menu do Administrador">
+                <div class="admin-profile-avatar" style="display:flex; align-items:center; justify-content:center; background:#2563eb; color:#ffffff;">
+                  ${Icons.user(16)}
+                </div>
+                <div class="admin-profile-meta">
+                  <span class="admin-profile-name">${firstName}</span>
+                  <span class="admin-profile-role">Gestor ▼</span>
+                </div>
               </button>
+
+              <div id="adminTopProfileDropdown" class="admin-profile-dropdown-menu" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 8px; width: 220px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); padding: 8px; z-index: 1000;">
+                <div style="padding: 8px 10px; border-bottom: 1px solid #f1f5f9; margin-bottom: 4px;">
+                  <strong style="font-size: 0.8125rem; color: #0f172a; display: block;">${firstName}</strong>
+                  <span style="font-size: 0.75rem; color: #64748b; display: block; word-break: break-all;">${user?.email || 'admin@novatech.co.ao'}</span>
+                </div>
+                <button class="admin-dropdown-item" data-tab="profile" style="width: 100%; text-align: left; background: none; border: none; padding: 8px 10px; border-radius: 6px; font-size: 0.8125rem; font-weight: 600; color: #334155; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                  ${Icons.user(16)} <span>Meu Perfil</span>
+                </button>
+                <button class="admin-dropdown-item" data-tab="settings" style="width: 100%; text-align: left; background: none; border: none; padding: 8px 10px; border-radius: 6px; font-size: 0.8125rem; font-weight: 600; color: #334155; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                  ${Icons.settings ? Icons.settings(16) : '⚙️'} <span>Configurações</span>
+                </button>
+                <div style="border-top: 1px solid #f1f5f9; margin: 4px 0;"></div>
+                <button id="adminDropdownLogoutBtn" style="width: 100%; text-align: left; background: none; border: none; padding: 8px 10px; border-radius: 6px; font-size: 0.8125rem; font-weight: 700; color: #ef4444; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                  <span>Sair do Painel</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -325,9 +816,9 @@ export function renderAdminView() {
         <div class="admin-mobile-drawer-header">
           <div style="display:flex; align-items:center; gap:8px;">
             <div class="admin-brand-icon" style="width:28px; height:28px;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
             </div>
-            <strong style="font-size:0.9375rem; color:#fff;">Menu Administrativo</strong>
+            <strong style="font-size:0.9375rem; color:#fff;">Painel Administrativo</strong>
           </div>
           <button id="adminMobileDrawerCloseBtn" style="background:none; border:none; color:#94a3b8; font-size:1.25rem; cursor:pointer; padding:4px;" aria-label="Fechar">✕</button>
         </div>
@@ -403,7 +894,18 @@ export function renderAdminView() {
 
       <div class="admin-sidebar-group-title" style="margin-top:14px;">Configurações</div>
       <div class="admin-nav-item ${currentTab === 'settings' ? 'active' : ''}" data-tab="settings">
-        <div class="admin-nav-item-left">${Icons.settings ? Icons.settings(18) : '⚙️'}<span>Loja & Equipe</span></div>
+        <div class="admin-nav-item-left">${Icons.settings ? Icons.settings(18) : '⚙️'}<span>Configurações da Loja</span></div>
+      </div>
+
+      <div class="admin-sidebar-group-title" style="margin-top:14px;">Administrador</div>
+      <div class="admin-nav-item ${currentTab === 'profile' ? 'active' : ''}" data-tab="profile">
+        <div class="admin-nav-item-left">${Icons.user(18)}<span>Meu Perfil</span></div>
+      </div>
+      <div class="admin-nav-item admin-nav-item-logout" id="sidebarLogoutBtn" title="Encerrar Sessão">
+        <div class="admin-nav-item-left" style="color:#ef4444;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          <span style="font-weight:700;">Sair do Painel</span>
+        </div>
       </div>
     `;
   }
@@ -431,18 +933,41 @@ export function renderAdminView() {
         return renderBannersTab();
       case 'settings':
         return renderSettingsTab();
+      case 'profile':
+        return renderProfileTab();
       default:
         return renderDashboardTab();
     }
   }
 
   // ===================================================================
+  // ===================================================================
   // ABA 1: VISÃO GERAL (DASHBOARD COMPACTO E RESPONSIVO)
   // ===================================================================
   function renderDashboardTab() {
-    const totalSales = ordersList.reduce((sum, o) => sum + Number(o.total || 0), 0);
+    // BUG-008: Cálculo de métricas com base no período selecionado
+    const now = new Date();
+    const periodOrders = ordersList.filter(o => {
+      if (dashboardPeriod === 'all') return true;
+      const orderDate = new Date(o.created_at || o.criado_em || o.date);
+      if (isNaN(orderDate.getTime())) return true;
+      if (dashboardPeriod === 'today') {
+        return orderDate.toDateString() === now.toDateString();
+      }
+      if (dashboardPeriod === '7d') {
+        const diffDays = (now.getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24);
+        return diffDays >= 0 && diffDays <= 7;
+      }
+      if (dashboardPeriod === '30d') {
+        const diffDays = (now.getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24);
+        return diffDays >= 0 && diffDays <= 30;
+      }
+      return true;
+    });
+
+    const totalSales = periodOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
     const lowStock = productsList.filter(p => (p.stock || 0) <= (p.stock_min || 2));
-    const pendingOrders = ordersList.filter(o => o.status === 'received' || o.payment_status === 'pending');
+    const pendingOrders = periodOrders.filter(o => o.status === 'received' || o.payment_status === 'pending');
 
     return `
       <div style="display:flex; flex-direction:column; gap:16px;">
@@ -450,7 +975,7 @@ export function renderAdminView() {
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
           <div>
             <h1 style="font-size:1.25rem; font-weight:800; color:#0f172a; margin-bottom:2px;">Visão Geral</h1>
-            <p style="font-size:0.8125rem; color:#64748b;">Métricas em tempo real de vendas, pedidos e inventário.</p>
+            <p style="font-size:0.8125rem; color:#64748b;">Métricas em tempo real de vendas, pedidos e inventário (${dashboardPeriod === 'today' ? 'Hoje' : dashboardPeriod === '7d' ? 'Últimos 7 dias' : dashboardPeriod === '30d' ? 'Últimos 30 dias' : 'Histórico Completo'}).</p>
           </div>
           <div style="display:flex; align-items:center; gap:8px;">
             <select id="dashPeriodSelect" class="admin-filter-select" style="font-size:0.8125rem; padding:6px 12px;">
@@ -466,7 +991,7 @@ export function renderAdminView() {
         <div class="admin-stats-grid">
           <div class="stat-card">
             <div>
-              <div class="stat-label">Vendas Totais</div>
+              <div class="stat-label">Vendas (${dashboardPeriod === 'today' ? 'Hoje' : dashboardPeriod === '7d' ? '7 dias' : dashboardPeriod === '30d' ? '30 dias' : 'Total'})</div>
               <div class="stat-val" style="color:#2563eb;">${formatPrice(totalSales)}</div>
             </div>
             <div style="color:#2563eb;">${Icons.creditCard(22)}</div>
@@ -474,8 +999,8 @@ export function renderAdminView() {
 
           <div class="stat-card">
             <div>
-              <div class="stat-label">Pedidos Recebidos</div>
-              <div class="stat-val">${ordersList.length}</div>
+              <div class="stat-label">Pedidos do Período</div>
+              <div class="stat-val">${periodOrders.length}</div>
             </div>
             <div style="color:#10b981;">${Icons.package(22)}</div>
           </div>
@@ -506,7 +1031,7 @@ export function renderAdminView() {
               <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
                 <div>
                   <strong style="color:#b45309; font-size:0.875rem;">📦 ${pendingOrders.length} Encomendas Aguardando</strong>
-                  <div style="font-size:0.75rem; color:#78350f;">Existem pedidos recebidos para conferência.</div>
+                  <div style="font-size:0.75rem; color:#78350f;">Existem pedidos pendentes ou para conferência.</div>
                 </div>
                 <button class="btn btn-secondary btn-sm" data-tab="orders" style="flex-shrink:0;">Revisar</button>
               </div>
@@ -568,9 +1093,7 @@ export function renderAdminView() {
                       <td>${formatDate(o.created_at)}</td>
                       <td><strong style="color:#1d4ed8;">${formatPrice(o.total)}</strong></td>
                       <td>
-                        <span class="badge" style="background:#f1f5f9; color:#475569; font-size:0.6875rem;">
-                          ${o.payment_method?.toUpperCase()}
-                        </span>
+                        ${renderPaymentBadge(o.payment_status, o.payment_method)}
                       </td>
                       <td>${renderStatusBadge(o.status)}</td>
                       <td>
@@ -599,6 +1122,10 @@ export function renderAdminView() {
                     <div class="admin-res-card-row">
                       <span>Cliente:</span>
                       <strong>${o.customer_name}</strong>
+                    </div>
+                    <div class="admin-res-card-row">
+                      <span>Pagamento:</span>
+                      ${renderPaymentBadge(o.payment_status, o.payment_method)}
                     </div>
                     <div class="admin-res-card-row">
                       <span>Total:</span>
@@ -710,9 +1237,7 @@ export function renderAdminView() {
                     <td>${formatDate(o.created_at)}</td>
                     <td><strong style="color:#1d4ed8;">${formatPrice(o.total)}</strong></td>
                     <td>
-                      <span class="badge" style="background:#f1f5f9; color:#475569; font-size:0.6875rem;">
-                        ${o.payment_method?.toUpperCase()}
-                      </span>
+                      ${renderPaymentBadge(o.payment_status, o.payment_method)}
                     </td>
                     <td>${renderStatusBadge(o.status)}</td>
                     <td>
@@ -748,7 +1273,7 @@ export function renderAdminView() {
                   </div>
                   <div class="admin-res-card-row">
                     <span>Pagamento:</span>
-                    <span>${o.payment_method?.toUpperCase()}</span>
+                    ${renderPaymentBadge(o.payment_status, o.payment_method)}
                   </div>
                   <div class="admin-res-card-row">
                     <span>Total:</span>
@@ -864,7 +1389,10 @@ export function renderAdminView() {
                 </tr>
               </thead>
               <tbody>
-                ${filtered.map(p => `
+                ${filtered.map(p => {
+                  const cat = categoriesList.find(c => String(c.id) === String(p.category_id));
+                  const subName = p.subcategory_name || p.subcategory || (cat?.subcategories || []).find(s => String(s.id) === String(p.subcategory_id))?.name || '';
+                  return `
                   <tr>
                     <td style="width: 52px;">
                       ${p.image ? `
@@ -882,6 +1410,19 @@ export function renderAdminView() {
                     <td>
                       <div style="font-weight: 700; color: #0f172a;">${p.name}</div>
                       <div style="font-size: 0.75rem; color: #64748b; font-family: monospace;">SKU: ${p.sku || 'N/A'}</div>
+                      <div style="margin-top: 4px; display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; flex-wrap: wrap;">
+                        <span style="background: #eff6ff; color: #1d4ed8; padding: 2px 7px; border-radius: 4px; font-weight: 600;">
+                          ${cat ? cat.name : 'Sem categoria'}
+                        </span>
+                        ${subName ? `
+                          <span style="color: #94a3b8; font-weight: bold;">↳</span>
+                          <span style="background: #f8fafc; color: #334155; padding: 2px 7px; border-radius: 4px; font-weight: 600; border: 1px solid #e2e8f0;">
+                            ${subName}
+                          </span>
+                        ` : `
+                          <span style="color: #ef4444; font-size: 0.6875rem; font-weight: 600;">⚠️ Sem subcategoria</span>
+                        `}
+                      </div>
                     </td>
                     <td><span class="badge" style="background:#f1f5f9; color:#475569;">${p.brand || 'Geral'}</span></td>
                     <td>
@@ -914,7 +1455,8 @@ export function renderAdminView() {
                       </div>
                     </td>
                   </tr>
-                `).join('')}
+                `;
+                }).join('')}
               </tbody>
             </table>
           </div>
@@ -922,8 +1464,9 @@ export function renderAdminView() {
           <!-- Mobile: Cards Responsivos de Produtos -->
           <div class="admin-mobile-card-list admin-mobile-only">
             ${filtered.map(p => {
-      const cat = categoriesList.find(c => c.id === p.category_id);
-      return `
+              const cat = categoriesList.find(c => String(c.id) === String(p.category_id));
+              const subName = p.subcategory_name || p.subcategory || (cat?.subcategories || []).find(s => String(s.id) === String(p.subcategory_id))?.name || '';
+              return `
                 <div class="admin-res-card">
                   <div style="display:flex; gap:12px; align-items:center;">
                     ${p.image ? `
@@ -939,6 +1482,17 @@ export function renderAdminView() {
                       </div>
                       <div style="font-size:0.75rem; color:#64748b; font-family:monospace; margin-top:2px;">
                         SKU: ${p.sku || 'N/A'} • ${p.brand || 'Geral'}
+                      </div>
+                      <div style="margin-top: 3px; display: inline-flex; align-items: center; gap: 4px; font-size: 0.6875rem; flex-wrap: wrap;">
+                        <span style="background: #eff6ff; color: #1d4ed8; padding: 1px 6px; border-radius: 4px; font-weight: 600;">
+                          ${cat ? cat.name : 'Sem categoria'}
+                        </span>
+                        ${subName ? `
+                          <span style="color: #94a3b8;">↳</span>
+                          <span style="background: #f1f5f9; color: #334155; padding: 1px 6px; border-radius: 4px; font-weight: 600;">
+                            ${subName}
+                          </span>
+                        ` : ''}
                       </div>
                       <div style="margin-top:4px; display:flex; align-items:center; gap:6px;">
                         <strong style="color:#1d4ed8; font-size:0.9375rem;">${formatPrice(p.price)}</strong>
@@ -972,157 +1526,143 @@ export function renderAdminView() {
   // ===================================================================
   // ABA 4: CATEGORIAS & SUBCATEGORIAS
   // ===================================================================
+  // ===================================================================
+  // ABA 4: CATEGORIAS & SUBCATEGORIAS (Estrutura Simples, Direta e Sem Ícones)
+  // ===================================================================
   function renderCategoriesTab() {
+    const totalSubs = categoriesList.reduce((acc, c) => acc + (Array.isArray(c.subcategories) ? c.subcategories.length : 0), 0);
+
     return `
       <div class="admin-card">
-        <div class="admin-card-header">
+        <div class="admin-card-header" style="flex-wrap:wrap; gap:16px;">
           <div>
             <h2 class="admin-card-title">
-              ${Icons.grid(20)}
-              <span>Categorias (${categoriesList.length})</span>
+              <span>Categorias & Subcategorias</span>
             </h2>
             <p style="font-size:0.8125rem; color:#64748b; margin-top:2px;">
-              Organize os produtos da sua loja por categorias e subcategorias.
+              Gerencie os departamentos da loja e suas respectivas subcategorias vinculadas.
             </p>
           </div>
-          <button id="openNewCategoryModalBtn" class="btn btn-primary" style="gap:6px;">
-            ${Icons.plus(16)}
-            <span>+ Nova Categoria</span>
-          </button>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button id="openNewCategoryModalBtn" class="btn btn-primary" style="padding: 10px 18px; font-weight:700;">
+              + Nova Categoria
+            </button>
+            <button id="openNewSubcategoryModalBtn" class="btn btn-secondary" style="padding: 10px 18px; font-weight:700; background:#f8fafc; border:1px solid #cbd5e1; color:#0f172a;">
+              + Nova Subcategoria
+            </button>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:16px; margin-bottom:20px; flex-wrap:wrap;">
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px 18px; display:flex; align-items:center; gap:12px; min-width:180px;">
+            <div>
+              <div style="font-size:0.75rem; color:#64748b; font-weight:600; text-transform:uppercase;">Categorias Principais</div>
+              <div style="font-size:1.5rem; font-weight:800; color:#0f172a;">${categoriesList.length}</div>
+            </div>
+          </div>
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px 18px; display:flex; align-items:center; gap:12px; min-width:180px;">
+            <div>
+              <div style="font-size:0.75rem; color:#64748b; font-weight:600; text-transform:uppercase;">Subcategorias Vinculadas</div>
+              <div style="font-size:1.5rem; font-weight:800; color:#2563eb;">${totalSubs}</div>
+            </div>
+          </div>
         </div>
 
         ${categoriesList.length === 0 ? `
           <div class="admin-empty-state">
-            <div class="admin-empty-state-icon">${Icons.grid(24)}</div>
-            <div class="admin-empty-state-title">Nenhuma categoria cadastrada</div>
-            <div class="admin-empty-state-desc">Cadastre categorias como Smartphones, Computadores ou Acessórios.</div>
-            <button class="btn btn-primary btn-sm" id="emptyStateNewCatBtn" style="margin-top:6px;">
+            <div class="admin-empty-state-title">Nenhuma categoria cadastrada no banco de dados</div>
+            <div class="admin-empty-state-desc">Cadastre categorias como Telefones, Computadores, Acessórios para estruturar a loja.</div>
+            <button class="btn btn-primary btn-sm" id="emptyStateNewCatBtn" style="margin-top:10px;">
               + Nova Categoria
             </button>
           </div>
         ` : `
-          <!-- Desktop: Tabela de Categorias -->
-          <div class="admin-table-wrapper admin-desktop-only">
-            <table class="admin-table">
-              <thead>
-                <tr>
-                  <th>Ordem</th>
-                  <th>Imagem / Ícone</th>
-                  <th>Nome / Slug</th>
-                  <th>Hierarquia</th>
-                  <th>Produtos</th>
-                  <th>Status</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${categoriesList.map(c => {
-      const parent = categoriesList.find(p => p.id === c.parent_id);
-      const count = productsList.filter(p => p.category_id === c.id).length;
-      return `
-                    <tr>
-                      <td><strong>#${c.display_order || 0}</strong></td>
-                      <td style="width: 52px;">
-                        ${c.image_url ? `
-                          <img src="${c.image_url}" alt="${c.name}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 8px; border: 1px solid #e2e8f0;" />
-                        ` : `
-                          <div style="width: 40px; height: 40px; border-radius: 8px; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center;">
-                            ${Icons[c.icon_name] ? Icons[c.icon_name](18) : Icons.package(18)}
-                          </div>
-                        `}
-                      </td>
-                      <td>
-                        <div style="font-weight: 700; color: #0f172a;">${c.name}</div>
-                        <div style="font-size: 0.75rem; color: #64748b;">/categoria/${c.slug}</div>
-                      </td>
-                      <td>
-                        ${parent ? `
-                          <span class="badge" style="background: #eff6ff; color: #1d4ed8;">
-                            ↳ Subcategoria de ${parent.name}
-                          </span>
-                        ` : `
-                          <span class="badge" style="background: #f1f5f9; color: #0f172a; font-weight: 700;">
-                            Categoria Principal
-                          </span>
-                        `}
-                      </td>
-                      <td>
-                        <span class="badge" style="background: #f1f5f9; color: #475569;">
-                          ${count} ${count === 1 ? 'produto' : 'produtos'}
-                        </span>
-                      </td>
-                      <td>
-                        <span class="badge" style="${c.is_active !== false ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
-                          ${c.is_active !== false ? 'Ativa' : 'Inativa'}
-                        </span>
-                      </td>
-                      <td>
-                        <div style="display: flex; gap: 6px;">
-                          <button class="btn btn-secondary btn-sm edit-category-btn" data-id="${c.id}">
-                            Editar
-                          </button>
-                          <button class="btn btn-sm delete-category-btn" data-id="${c.id}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;">
-                            ✕
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  `;
-    }).join('')}
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Mobile: Cards Responsivos de Categorias -->
-          <div class="admin-mobile-card-list admin-mobile-only">
+          <div style="display:flex; flex-direction:column; gap:16px;">
             ${categoriesList.map(c => {
-      const parent = categoriesList.find(p => p.id === c.parent_id);
-      const count = productsList.filter(p => p.category_id === c.id).length;
-      return `
-                <div class="admin-res-card">
-                  <div style="display:flex; gap:12px; align-items:center;">
-                    ${c.image_url ? `
-                      <img src="${c.image_url}" alt="${c.name}" style="width:48px; height:48px; object-fit:cover; border-radius:8px; border:1px solid #e2e8f0; flex-shrink:0;" />
-                    ` : `
-                      <div style="width:48px; height:48px; border-radius:8px; background:#eff6ff; color:#2563eb; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                        ${Icons[c.icon_name] ? Icons[c.icon_name](20) : Icons.package(20)}
-                      </div>
-                    `}
-                    <div style="flex:1; min-width:0;">
-                      <div style="font-weight:700; color:#0f172a; font-size:0.9375rem;">
+              const subs = Array.isArray(c.subcategories) ? c.subcategories : [];
+              return `
+                <div class="admin-category-block" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                  <!-- Cabeçalho da Categoria -->
+                  <div style="padding:16px 20px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                      <span style="display:inline-block; font-size:0.75rem; font-weight:700; background:#e2e8f0; color:#475569; padding:4px 8px; border-radius:6px;">
+                        Ordem #${c.display_order || 1}
+                      </span>
+                      <strong style="font-size:1.125rem; color:#0f172a; font-weight:800;">
                         ${c.name}
-                      </div>
-                      <div style="font-size:0.75rem; color:#64748b;">
-                        slug: /categoria/${c.slug}
-                      </div>
-                      <div style="margin-top:4px; display:flex; gap:6px; flex-wrap:wrap;">
-                        ${parent ? `
-                          <span class="badge" style="background:#eff6ff; color:#1d4ed8; font-size:0.6875rem;">
-                            ↳ Sub de ${parent.name}
-                          </span>
-                        ` : `
-                          <span class="badge" style="background:#f1f5f9; color:#0f172a; font-size:0.6875rem;">
-                            Principal
-                          </span>
-                        `}
-                        <span class="badge" style="background:#f1f5f9; color:#475569; font-size:0.6875rem;">
-                          ${count} produtos
-                        </span>
-                      </div>
+                      </strong>
+                      <span class="badge" style="${c.is_active !== false ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
+                        ${c.is_active !== false ? 'Ativa' : 'Inativa'}
+                      </span>
+                      <span class="badge" style="background:#eff6ff; color:#1d4ed8; font-weight:600;">
+                        ${subs.length} ${subs.length === 1 ? 'subcategoria' : 'subcategorias'}
+                      </span>
+                    </div>
+
+                    <div style="display:flex; gap:8px; align-items:center;">
+                      <button class="btn btn-sm btn-primary add-sub-to-cat-btn" data-cat-id="${c.id}" data-cat-name="${c.name}" style="padding:6px 12px; font-size:0.8125rem;">
+                        + Subcategoria
+                      </button>
+                      <button class="btn btn-sm btn-secondary edit-category-btn" data-id="${c.id}" style="padding:6px 12px; font-size:0.8125rem;">
+                        Editar
+                      </button>
+                      <button class="btn btn-sm delete-category-btn" data-id="${c.id}" data-cat-name="${c.name}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; padding:6px 10px; font-size:0.8125rem;">
+                        Excluir
+                      </button>
                     </div>
                   </div>
 
-                  <div class="admin-res-card-actions">
-                    <button class="btn btn-secondary btn-sm edit-category-btn" data-id="${c.id}">
-                      Editar Categoria
-                    </button>
-                    <button class="btn btn-sm delete-category-btn" data-id="${c.id}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; flex:0 0 40px;">
-                      ✕
-                    </button>
+                  ${c.description ? `
+                    <div style="padding:10px 20px; font-size:0.8125rem; color:#64748b; background:#ffffff; border-bottom:1px solid #f1f5f9;">
+                      ${c.description}
+                    </div>
+                  ` : ''}
+
+                  <!-- Listagem de Subcategorias Vinculadas -->
+                  <div style="padding:16px 20px;">
+                    <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:#64748b; margin-bottom:10px; letter-spacing:0.5px;">
+                      Subcategorias Vinculadas a "${c.name}"
+                    </div>
+
+                    ${subs.length === 0 ? `
+                      <div style="font-size:0.8125rem; color:#94a3b8; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; padding:12px 16px; display:flex; justify-content:space-between; align-items:center;">
+                        <span>Nenhuma subcategoria vinculada ainda a esta categoria.</span>
+                        <button class="btn btn-xs btn-secondary add-sub-to-cat-btn" data-cat-id="${c.id}" data-cat-name="${c.name}" style="font-size:0.75rem;">
+                          + Vincular Agora
+                        </button>
+                      </div>
+                    ` : `
+                      <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:10px;">
+                        ${subs.map(sub => `
+                          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                            <div style="min-width:0; flex:1;">
+                              <div style="display:flex; align-items:center; gap:6px;">
+                                <span style="font-size:0.6875rem; background:#f1f5f9; color:#475569; padding:2px 6px; border-radius:4px; font-weight:600;">#${sub.display_order || 1}</span>
+                                <strong style="font-size:0.875rem; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${sub.name}</strong>
+                              </div>
+                              ${sub.description ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${sub.description}</div>` : ''}
+                              <div style="margin-top:4px;">
+                                <span class="badge" style="font-size:0.6875rem; padding:2px 6px; ${sub.is_active !== false ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
+                                  ${sub.is_active !== false ? 'Ativa' : 'Inativa'}
+                                </span>
+                              </div>
+                            </div>
+                            <div style="display:flex; gap:6px; flex-shrink:0;">
+                              <button class="btn btn-secondary btn-xs edit-subcategory-btn" data-cat-id="${c.id}" data-sub-id="${sub.id}" style="padding:4px 8px; font-size:0.75rem;">
+                                Editar
+                              </button>
+                              <button class="btn btn-xs delete-subcategory-btn" data-cat-id="${c.id}" data-sub-id="${sub.id}" data-sub-name="${sub.name}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; padding:4px 8px; font-size:0.75rem;">
+                                Excluir
+                              </button>
+                            </div>
+                          </div>
+                        `).join('')}
+                      </div>
+                    `}
                   </div>
                 </div>
               `;
-    }).join('')}
+            }).join('')}
           </div>
         `}
       </div>
@@ -1261,7 +1801,7 @@ export function renderAdminView() {
                     </td>
                     <td>${Number(c.min_order_value) > 0 ? formatPrice(c.min_order_value) : 'Sem valor mínimo'}</td>
                     <td>
-                      <span style="font-size: 0.8125rem;">${c.times_used || 0} / ${c.usage_limit || '∞'}</span>
+                      <span style="font-size: 0.8125rem;">${c.total_usado !== undefined ? c.total_usado : (c.times_used || 0)} / ${c.usage_limit || '∞'}</span>
                     </td>
                     <td>
                       <button class="toggle-coupon-active-btn" data-id="${c.id}" data-active="${c.is_active !== false}" style="background: none; border: none; cursor: pointer;">
@@ -1271,9 +1811,14 @@ export function renderAdminView() {
                       </button>
                     </td>
                     <td>
-                      <button class="btn btn-sm delete-coupon-btn" data-id="${c.id}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;">
-                        Excluir
-                      </button>
+                      <div style="display:flex; gap:6px;">
+                        <button class="btn btn-secondary btn-sm edit-coupon-btn" data-id="${c.id}">
+                          Editar
+                        </button>
+                        <button class="btn btn-sm delete-coupon-btn" data-id="${c.id}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;">
+                          Excluir
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 `).join('')}
@@ -1296,9 +1841,12 @@ export function renderAdminView() {
                 </div>
                 <div style="font-size:0.75rem; color:#64748b;">
                   <div>Pedido mínimo: ${Number(c.min_order_value) > 0 ? formatPrice(c.min_order_value) : 'Sem valor mínimo'}</div>
-                  <div>Usos: ${c.times_used || 0} / ${c.usage_limit || 'Ilimitado'}</div>
+                  <div>Usos: ${c.total_usado !== undefined ? c.total_usado : (c.times_used || 0)} / ${c.usage_limit || 'Ilimitado'}</div>
                 </div>
                 <div style="display:flex; gap:8px; border-top:1px dashed #cbd5e1; padding-top:10px; margin-top:4px;">
+                  <button class="btn btn-secondary btn-sm edit-coupon-btn" data-id="${c.id}" style="flex:1;">
+                    Editar
+                  </button>
                   <button class="btn btn-secondary btn-sm toggle-coupon-active-btn" data-id="${c.id}" data-active="${c.is_active !== false}" style="flex:1;">
                     ${c.is_active !== false ? 'Pausar' : 'Ativar'}
                   </button>
@@ -1717,6 +2265,235 @@ export function renderAdminView() {
     `;
   }
 
+  // ===================================================================
+  // ABA 11: MINHA CONTA / PERFIL DO ADMINISTRADOR (100% INDEPENDENTE DA LOJA)
+  // ===================================================================
+  function renderProfileTab() {
+    const user = Storage.getUser() || { name: 'Administrador', email: 'admin@novatech.co.ao', role: 'admin' };
+    const rawName = (user?.name || 'Administrador').trim();
+    const firstName = rawName.split(' ')[0] || 'Administrador';
+
+    return `
+      <div style="display:flex; flex-direction:column; gap:20px; max-width:1100px; margin:0 auto; width:100%;">
+        <!-- 1. Hero Card de Identificação do Administrador -->
+        <div class="admin-profile-hero-card">
+          <div class="admin-profile-hero-avatar" style="display:flex; align-items:center; justify-content:center; background:#2563eb; color:#ffffff;">
+            ${Icons.user(32)}
+          </div>
+          <div class="admin-profile-hero-info">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <h2 class="admin-profile-hero-name">${firstName}</h2>
+              <span class="badge" style="background:#dbeafe; color:#1e40af; font-size:0.75rem; font-weight:800;">
+                Gestor do Sistema
+              </span>
+            </div>
+            <div class="admin-profile-hero-email">${user.email || 'admin@novatech.co.ao'}</div>
+            <div class="admin-profile-badges">
+              <span class="badge" style="background:#dcfce7; color:#15803d; font-size:0.6875rem; font-weight:700;">
+                ● Sessão Ativa
+              </span>
+              <span class="badge" style="background:#f1f5f9; color:#475569; font-size:0.6875rem;">
+                Nível: Administrador do Sistema
+              </span>
+              <span class="badge" style="background:#f1f5f9; color:#475569; font-size:0.6875rem;">
+                Acesso Irrestrito à Plataforma
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Grid de Edição Cadastral e Segurança de Senha -->
+        <div class="admin-profile-grid">
+          
+          <!-- Bloco 1: Dados Pessoais & Login -->
+          <div class="admin-card">
+            <div class="admin-card-header" style="border-bottom:1px solid #f1f5f9; padding-bottom:12px; margin-bottom:16px;">
+              <div>
+                <h3 class="admin-card-title" style="font-size:1rem;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                  <span>Dados Cadastrais & Acesso</span>
+                </h3>
+                <p style="font-size:0.8125rem; color:#64748b; margin-top:2px;">
+                  Atualize seu nome de exibição e e-mail utilizado para entrar no painel.
+                </p>
+              </div>
+            </div>
+
+            <form id="adminProfileDataForm" style="display:flex; flex-direction:column; gap:14px;">
+              <div class="form-group">
+                <label class="form-label" for="profileName">Nome Completo</label>
+                <input 
+                  type="text" 
+                  id="profileName" 
+                  class="form-input" 
+                  value="${user.name || ''}" 
+                  placeholder="Ex: Leonardo Adriano" 
+                  required 
+                  minlength="2"
+                  autocomplete="name"
+                />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="profileEmail">E-mail de Acesso (Login)</label>
+                <input 
+                  type="email" 
+                  id="profileEmail" 
+                  class="form-input" 
+                  value="${user.email || ''}" 
+                  placeholder="admin@novatech.co.ao" 
+                  required 
+                  autocomplete="email"
+                />
+                <small style="font-size:0.75rem; color:#64748b; margin-top:4px; display:block;">
+                  Utilizado para autenticação no painel administrativo.
+                </small>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="profilePhone">Telefone / WhatsApp Profissional</label>
+                <input 
+                  type="tel" 
+                  id="profilePhone" 
+                  class="form-input" 
+                  value="${user.phone || ''}" 
+                  placeholder="+244 923 179 192" 
+                  autocomplete="tel"
+                />
+              </div>
+
+              <div style="display:flex; justify-content:flex-end; margin-top:8px;">
+                <button type="submit" id="saveProfileDataBtn" class="btn btn-primary" style="padding:10px 20px; font-weight:700;">
+                  Salvar Dados Cadastrais
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Bloco 2: Segurança & Alteração de Senha -->
+          <div class="admin-card">
+            <div class="admin-card-header" style="border-bottom:1px solid #f1f5f9; padding-bottom:12px; margin-bottom:16px;">
+              <div>
+                <h3 class="admin-card-title" style="font-size:1rem;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                  <span>Segurança & Senha de Acesso</span>
+                </h3>
+                <p style="font-size:0.8125rem; color:#64748b; margin-top:2px;">
+                  Modifique sua senha de gestor com confirmação da senha atual.
+                </p>
+              </div>
+            </div>
+
+            <form id="adminPasswordChangeForm" style="display:flex; flex-direction:column; gap:14px;">
+              <div class="form-group">
+                <label class="form-label" for="pwdCurrent">Senha Atual</label>
+                <div style="position:relative; display:flex; align-items:center;">
+                  <input 
+                    type="password" 
+                    id="pwdCurrent" 
+                    class="form-input" 
+                    placeholder="Digite sua senha atual" 
+                    required 
+                    autocomplete="current-password"
+                    style="padding-right:40px;"
+                  />
+                  <button 
+                    type="button" 
+                    class="toggle-pwd-visibility-btn" 
+                    data-target="pwdCurrent" 
+                    style="position:absolute; right:10px; background:none; border:none; color:#64748b; cursor:pointer; padding:4px;"
+                    title="Alternar visualização da senha"
+                  >
+                    👁
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="pwdNew">Nova Senha de Acesso</label>
+                <div style="position:relative; display:flex; align-items:center;">
+                  <input 
+                    type="password" 
+                    id="pwdNew" 
+                    class="form-input" 
+                    placeholder="Mínimo de 6 caracteres" 
+                    required 
+                    minlength="6"
+                    autocomplete="new-password"
+                    style="padding-right:40px;"
+                  />
+                  <button 
+                    type="button" 
+                    class="toggle-pwd-visibility-btn" 
+                    data-target="pwdNew" 
+                    style="position:absolute; right:10px; background:none; border:none; color:#64748b; cursor:pointer; padding:4px;"
+                    title="Alternar visualização da senha"
+                  >
+                    👁
+                  </button>
+                </div>
+                <small style="font-size:0.75rem; color:#64748b; margin-top:4px; display:block;">
+                  A nova senha deve ter no mínimo 6 dígitos.
+                </small>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="pwdConfirm">Confirmar Nova Senha</label>
+                <div style="position:relative; display:flex; align-items:center;">
+                  <input 
+                    type="password" 
+                    id="pwdConfirm" 
+                    class="form-input" 
+                    placeholder="Repita a nova senha" 
+                    required 
+                    minlength="6"
+                    autocomplete="new-password"
+                    style="padding-right:40px;"
+                  />
+                  <button 
+                    type="button" 
+                    class="toggle-pwd-visibility-btn" 
+                    data-target="pwdConfirm" 
+                    style="position:absolute; right:10px; background:none; border:none; color:#64748b; cursor:pointer; padding:4px;"
+                    title="Alternar visualização da senha"
+                  >
+                    👁
+                  </button>
+                </div>
+              </div>
+
+              <div style="display:flex; justify-content:flex-end; margin-top:8px;">
+                <button type="submit" id="savePasswordBtn" class="btn btn-primary" style="padding:10px 20px; font-weight:700;">
+                  Atualizar Senha
+                </button>
+              </div>
+            </form>
+          </div>
+
+        </div>
+
+        <!-- 3. Sessão Ativa & Encerramento Claro -->
+        <div class="admin-card" style="border: 1px dashed #cbd5e1; background: #fafafa;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
+            <div>
+              <h4 style="font-size:0.9375rem; font-weight:800; color:#0f172a; margin-bottom:4px;">
+                Sessão Administrativa Conectada
+              </h4>
+              <p style="font-size:0.8125rem; color:#64748b;">
+                Ao encerrar a sessão, suas credenciais locais serão limpas com segurança e o painel será bloqueado.
+              </p>
+            </div>
+            <button type="button" id="profileLogoutBtn" class="admin-logout-btn" style="padding:10px 18px; font-size:0.875rem;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              <span>Encerrar Sessão no Painel</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    `;
+  }
+
   // --- HELPERS E BADGES ---
   function renderStatusBadge(status) {
     switch (status) {
@@ -1737,27 +2514,140 @@ export function renderAdminView() {
     }
   }
 
+  function renderPaymentBadge(status, method = '') {
+    const s = String(status || '').toLowerCase();
+    const methodText = method ? ` (${method.toUpperCase()})` : '';
+    if (s === 'paid' || s === 'completed' || s === 'pago') {
+      return `<span class="badge" style="background:#dcfce7; color:#15803d; font-size:0.6875rem; font-weight:700;">✓ Pago${methodText}</span>`;
+    }
+    if (s === 'pending' || s === 'pendente') {
+      return `<span class="badge" style="background:#fef3c7; color:#b45309; font-size:0.6875rem; font-weight:700;">⏳ Pendente${methodText}</span>`;
+    }
+    if (s === 'failed' || s === 'cancelled' || s === 'recusado') {
+      return `<span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:0.6875rem; font-weight:700;">✕ Recusado${methodText}</span>`;
+    }
+    return `<span class="badge" style="background:#f1f5f9; color:#475569; font-size:0.6875rem;">${status ? status.toUpperCase() : 'PENDENTE'}${methodText}</span>`;
+  }
+
+  // --- LOGOUT UNIFICADO COM PROTEÇÃO DE HISTÓRICO ---
+  async function performAdminLogout(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (e && e.stopPropagation) e.stopPropagation();
+
+    try {
+      await Api.auth.logout();
+    } catch (err) {
+      console.warn('Erro ao chamar logout da API:', err.message);
+    }
+
+    Storage.logoutUser();
+    sessionStorage.clear();
+    Api.removeToken();
+
+    // Reset de dados em memória
+    stats = null;
+    ordersList = [];
+    productsList = [];
+    categoriesList = [];
+
+    // IMPEDE RETORNO PELO BOTÃO "VOLTAR" DO NAVEGADOR
+    window.location.hash = '#/admin/login';
+    window.history.replaceState({ adminLoggedOut: true }, '', window.location.pathname + '#/admin/login');
+
+    Toast.show('Sessão administrativa encerrada com sucesso.', 'info');
+    render();
+  }
+
+  // Guardião do evento popstate para impedir retorno ao painel via botão "Voltar"
+  const handleAdminPopStateGuard = () => {
+    const user = Storage.getUser();
+    const token = Api.getToken();
+    if (!user || user.role !== 'admin' || !token) {
+      const sub = getAdminSubRoute();
+      if (sub && !['login', 'register', 'forgot-password', 'reset-password'].includes(sub)) {
+        window.history.replaceState({ adminLoggedOut: true }, '', window.location.pathname + '#/admin/login');
+        render();
+      }
+    }
+  };
+  window.removeEventListener('popstate', handleAdminPopStateGuard);
+  window.addEventListener('popstate', handleAdminPopStateGuard);
+
+  // Sincronizador de rotas com evento hashchange
+  const handleAdminHashSync = () => {
+    const hash = window.location.hash || '';
+    if (hash.startsWith('#/admin')) {
+      render();
+    }
+  };
+  window.removeEventListener('hashchange', handleAdminHashSync);
+  window.addEventListener('hashchange', handleAdminHashSync);
+
+  // --- CENTRALIZAÇÃO DE NAVEGAÇÃO ENTRE ABAS DO ADMIN ---
+  function switchTab(tab) {
+    if (!tab) return;
+    currentTab = tab;
+    
+    // Atualiza a URL com a rota correspondente
+    if (window.location.hash !== `#/admin/${tab}`) {
+      window.history.pushState(null, '', window.location.pathname + `#/admin/${tab}`);
+    }
+
+    const main = container.querySelector('#adminMainContent');
+    if (main) {
+      main.innerHTML = renderActiveTabContent();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    // Atualiza estado ativo nos menus lateral e superior
+    container.querySelectorAll('.admin-nav-item').forEach(el => {
+      el.classList.toggle('active', el.dataset.tab === currentTab);
+    });
+    const topProfileBtn = container.querySelector('#adminTopProfileBtn');
+    if (topProfileBtn) {
+      topProfileBtn.classList.toggle('active', currentTab === 'profile');
+    }
+    // Fecha dropdown e gaveta mobile se abertos
+    const profileDropdown = container.querySelector('#adminTopProfileDropdown');
+    if (profileDropdown) profileDropdown.style.display = 'none';
+
+    const drawer = container.querySelector('#adminMobileDrawer');
+    const drawerOverlay = container.querySelector('#adminMobileDrawerOverlay');
+    drawer?.classList.remove('open');
+    drawerOverlay?.classList.remove('open');
+
+    attachTabSpecificEvents();
+  }
+
   // --- EVENT LISTENERS GLOBAIS DA ESTRUTURA DO ADMIN ---
   function attachLayoutEvents() {
-    // Alternância de abas via Sidebar e Drawer
-    container.querySelectorAll('.admin-nav-item, [data-tab]').forEach(item => {
-      item.addEventListener('click', () => {
-        const tab = item.dataset.tab;
+    // Delegação de cliques para botões e atalhos de navegação [data-tab]
+    container.addEventListener('click', (e) => {
+      const tabTarget = e.target.closest('[data-tab]');
+      if (tabTarget) {
+        const tab = tabTarget.dataset.tab;
         if (tab && tab !== currentTab) {
-          currentTab = tab;
-          const main = container.querySelector('#adminMainContent');
-          if (main) {
-            main.innerHTML = renderActiveTabContent();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }
-          // Atualiza estado ativo nos menus
-          container.querySelectorAll('.admin-nav-item').forEach(el => {
-            el.classList.toggle('active', el.dataset.tab === currentTab);
-          });
-          attachTabSpecificEvents();
+          e.preventDefault();
+          switchTab(tab);
+        }
+      }
+    });
+
+    // Toggle do Dropdown Executivo no Topbar
+    const profileBtn = container.querySelector('#adminTopProfileBtn');
+    const profileDropdown = container.querySelector('#adminTopProfileDropdown');
+    if (profileBtn && profileDropdown) {
+      profileBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = profileDropdown.style.display === 'block';
+        profileDropdown.style.display = isOpen ? 'none' : 'block';
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.admin-profile-dropdown-wrapper')) {
+          if (profileDropdown) profileDropdown.style.display = 'none';
         }
       });
-    });
+    }
 
     // Controle do Drawer Mobile
     const drawerToggleBtn = container.querySelector('#adminMobileDrawerToggleBtn');
@@ -1780,31 +2670,11 @@ export function renderAdminView() {
     if (drawerOverlay) drawerOverlay.addEventListener('click', closeDrawer);
     if (drawerCloseBtn) drawerCloseBtn.addEventListener('click', closeDrawer);
 
-    drawer?.querySelectorAll('[data-tab]').forEach(el => {
-      el.addEventListener('click', closeDrawer);
+    // Logout em todos os pontos acessíveis do painel
+    const logoutBtns = container.querySelectorAll('#adminLogoutBtn, #sidebarLogoutBtn, #adminDropdownLogoutBtn, .admin-nav-item-logout');
+    logoutBtns.forEach(btn => {
+      btn.addEventListener('click', performAdminLogout);
     });
-
-    // Sincronizar dados
-    const refreshBtn = container.querySelector('#adminRefreshBtn');
-    if (refreshBtn) {
-      refreshBtn.addEventListener('click', async () => {
-        Toast.show('Atualizando dados...', 'info');
-        await loadAllData();
-        render();
-        Toast.show('Dados sincronizados com sucesso!', 'success');
-      });
-    }
-
-    // Logout
-    const logoutBtn = container.querySelector('#adminLogoutBtn');
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', async () => {
-        await Api.auth.logout();
-        Storage.removeUser();
-        Toast.show('Sessão encerrada.', 'info');
-        render();
-      });
-    }
 
     attachTabSpecificEvents();
   }
@@ -1845,8 +2715,8 @@ export function renderAdminView() {
 
     container.querySelectorAll('.open-order-modal-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        const id = Number(btn.dataset.orderId);
-        const order = ordersList.find(o => o.id === id);
+        const id = btn.dataset.orderId;
+        const order = ordersList.find(o => String(o.id) === String(id) || o.order_code === id || o.codigo_pedido === id);
         if (order) openOrderDetailsModal(order);
       });
     });
@@ -1934,11 +2804,21 @@ export function renderAdminView() {
       });
     });
 
-    // --- Categorias ---
+    // --- Categorias & Subcategorias ---
     const newCatBtn = container.querySelector('#openNewCategoryModalBtn');
     const emptyCatBtn = container.querySelector('#emptyStateNewCatBtn');
     if (newCatBtn) newCatBtn.addEventListener('click', () => openCategoryModal());
     if (emptyCatBtn) emptyCatBtn.addEventListener('click', () => openCategoryModal());
+
+    const newSubBtn = container.querySelector('#openNewSubcategoryModalBtn');
+    if (newSubBtn) newSubBtn.addEventListener('click', () => openSubcategoryModal());
+
+    container.querySelectorAll('.add-sub-to-cat-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const catId = Number(btn.dataset.catId);
+        openSubcategoryModal({ parent_id: catId });
+      });
+    });
 
     container.querySelectorAll('.edit-category-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1951,14 +2831,45 @@ export function renderAdminView() {
     container.querySelectorAll('.delete-category-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = Number(btn.dataset.id);
-        if (confirm('Deseja excluir esta categoria? Os produtos vinculados perderão a categoria.')) {
+        const catName = btn.dataset.catName || 'esta categoria';
+        if (confirm(`Tem certeza que deseja excluir permanentemente a categoria "${catName}" e todas as suas subcategorias vinculadas?`)) {
           try {
             await Api.categories.delete(id);
-            Toast.show('Categoria excluída.', 'success');
+            Toast.show('Categoria excluída com sucesso.', 'success');
             await loadAllData();
             render();
           } catch (err) {
             Toast.show(err.message || 'Erro ao excluir categoria.', 'error');
+          }
+        }
+      });
+    });
+
+    container.querySelectorAll('.edit-subcategory-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const catId = Number(btn.dataset.catId);
+        const subId = btn.dataset.subId;
+        const cat = categoriesList.find(c => c.id === catId);
+        const sub = (cat?.subcategories || []).find(s => String(s.id) === String(subId));
+        if (cat && sub) {
+          openSubcategoryModal({ parent_id: cat.id, sub });
+        }
+      });
+    });
+
+    container.querySelectorAll('.delete-subcategory-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const catId = Number(btn.dataset.catId);
+        const subId = btn.dataset.subId;
+        const subName = btn.dataset.subName || 'esta subcategoria';
+        if (confirm(`Deseja remover a subcategoria "${subName}"?`)) {
+          try {
+            await Api.categories.deleteSubcategory(catId, subId);
+            Toast.show('Subcategoria removida com sucesso.', 'success');
+            await loadAllData();
+            render();
+          } catch (err) {
+            Toast.show(err.message || 'Erro ao remover subcategoria.', 'error');
           }
         }
       });
@@ -2014,6 +2925,14 @@ export function renderAdminView() {
     const emptyCouponBtn = container.querySelector('#emptyStateNewCouponBtn');
     if (newCouponBtn) newCouponBtn.addEventListener('click', () => openCouponModal());
     if (emptyCouponBtn) emptyCouponBtn.addEventListener('click', () => openCouponModal());
+
+    container.querySelectorAll('.edit-coupon-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = Number(btn.dataset.id);
+        const cp = couponsList.find(c => c.id === id);
+        if (cp) openCouponModal(cp);
+      });
+    });
 
     container.querySelectorAll('.toggle-coupon-active-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
@@ -2140,69 +3059,289 @@ export function renderAdminView() {
         }
       });
     }
+
+    // --- Perfil do Administrador: Dados Cadastrais & Login ---
+    const profileForm = container.querySelector('#adminProfileDataForm');
+    if (profileForm) {
+      profileForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = container.querySelector('#profileName').value.trim();
+        const email = container.querySelector('#profileEmail').value.trim();
+        const phone = container.querySelector('#profilePhone').value.trim();
+
+        if (name.length < 2) {
+          Toast.show('O nome deve conter pelo menos 2 caracteres.', 'warning');
+          return;
+        }
+
+        if (!email.includes('@') || !email.includes('.')) {
+          Toast.show('Por favor, informe um endereço de e-mail válido.', 'warning');
+          return;
+        }
+
+        const saveBtn = container.querySelector('#saveProfileDataBtn');
+        if (saveBtn) {
+          saveBtn.disabled = true;
+          saveBtn.textContent = 'Salvando dados...';
+        }
+
+        try {
+          const updated = await Api.auth.updateAdminAccount({ name, email, phone });
+          const current = Storage.getUser() || {};
+          Storage.saveUser({ ...current, ...updated });
+          Toast.show('Dados cadastrais atualizados com sucesso!', 'success');
+          render();
+        } catch (err) {
+          Toast.show(err.message || 'Erro ao atualizar dados cadastrais.', 'error');
+          if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Salvar Dados Cadastrais';
+          }
+        }
+      });
+    }
+
+    // --- Perfil do Administrador: Alteração de Senha com Validações ---
+    const pwdForm = container.querySelector('#adminPasswordChangeForm');
+    if (pwdForm) {
+      pwdForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const currentPassword = container.querySelector('#pwdCurrent').value;
+        const newPassword = container.querySelector('#pwdNew').value;
+        const confirmPassword = container.querySelector('#pwdConfirm').value;
+
+        if (!currentPassword) {
+          Toast.show('Informe sua senha atual para autorizar a modificação.', 'warning');
+          return;
+        }
+
+        if (newPassword.length < 6) {
+          Toast.show('A nova senha deve ter no mínimo 6 dígitos.', 'warning');
+          return;
+        }
+
+        if (newPassword !== confirmPassword) {
+          Toast.show('A confirmação não coincide com a nova senha digitada.', 'error');
+          return;
+        }
+
+        if (currentPassword === newPassword) {
+          Toast.show('A nova senha deve ser diferente da senha atual.', 'warning');
+          return;
+        }
+
+        const savePwdBtn = container.querySelector('#savePasswordBtn');
+        if (savePwdBtn) {
+          savePwdBtn.disabled = true;
+          savePwdBtn.textContent = 'Atualizando senha...';
+        }
+
+        try {
+          await Api.auth.updateAdminAccount({ currentPassword, newPassword });
+          Toast.show('Senha de acesso atualizada com sucesso!', 'success');
+          pwdForm.reset();
+        } catch (err) {
+          Toast.show(err.message || 'Erro ao atualizar senha.', 'error');
+        } finally {
+          if (savePwdBtn) {
+            savePwdBtn.disabled = false;
+            savePwdBtn.textContent = 'Atualizar Senha';
+          }
+        }
+      });
+    }
+
+    // Alternar visibilidade de senhas sem expor dados sensíveis
+    container.querySelectorAll('.toggle-pwd-visibility-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.dataset.target;
+        const input = container.querySelector(`#${targetId}`);
+        if (input) {
+          const isPassword = input.type === 'password';
+          input.type = isPassword ? 'text' : 'password';
+          btn.textContent = isPassword ? '🔒' : '👁';
+        }
+      });
+    });
+
+    // Encerramento de sessão a partir do card da aba Perfil
+    const profileLogoutBtn = container.querySelector('#profileLogoutBtn');
+    if (profileLogoutBtn) {
+      profileLogoutBtn.addEventListener('click', performAdminLogout);
+    }
   }
 
   // ===================================================================
   // MODAIS OPERACIONAIS COMPLETOS
   // ===================================================================
 
-  // 1. Modal de Pedido
+  // 1. Modal de Pedido Completo & Operacional
   function openOrderDetailsModal(order) {
     const modal = document.createElement('div');
     modal.className = 'admin-modal-overlay';
+
+    const items = order.items || order.itens_pedido || [];
+    const phone = order.customer_phone || order.telefone_cliente || '';
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    const waLink = cleanPhone ? `https://wa.me/${cleanPhone.startsWith('244') ? cleanPhone : '244' + cleanPhone}` : null;
+    const history = Array.isArray(order.status_history) ? order.status_history : [];
+
     modal.innerHTML = `
-      <div class="admin-modal-dialog">
-        <div class="admin-modal-header">
+      <div class="admin-modal-dialog" style="max-width: 680px; max-height: 90vh; overflow-y: auto;">
+        <div class="admin-modal-header" style="position: sticky; top: 0; background: #ffffff; z-index: 10;">
           <div>
-            <h3 class="admin-modal-title">Pedido ${order.order_code}</h3>
-            <span style="font-size: 0.75rem; color: #64748b;">Realizado em ${formatDate(order.created_at)}</span>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <h3 class="admin-modal-title" style="margin: 0;">Pedido ${order.order_code || order.codigo_pedido || order.id}</h3>
+              ${renderStatusBadge(order.status || order.status_pedido)}
+            </div>
+            <span style="font-size: 0.75rem; color: #64748b;">Registrado em ${formatDate(order.created_at || order.criado_em || order.date)}</span>
           </div>
           <button class="btn btn-secondary btn-sm close-modal-btn">✕</button>
         </div>
 
-        <div class="admin-modal-body">
+        <div class="admin-modal-body" style="display: flex; flex-direction: column; gap: 16px;">
+          <!-- 1. Dados do Comprador e Entrega -->
           <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px;">
-            <h4 style="font-size: 0.8125rem; font-weight: 800; color: #0f172a; margin-bottom: 8px;">
-              Dados do Comprador
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <h4 style="font-size: 0.8125rem; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; margin: 0;">
+                Cliente & Entrega
+              </h4>
+              ${waLink ? `
+                <a href="${waLink}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="color: #15803d; border-color: #bbf7d0; background: #f0fdf4; font-size: 0.6875rem; padding: 4px 10px;">
+                  💬 Conversar no WhatsApp
+                </a>
+              ` : ''}
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 0.8125rem;">
+              <div><strong>Nome:</strong> ${order.customer_name || order.nome_cliente || 'Não informado'}</div>
+              <div><strong>Telefone:</strong> ${phone || 'Não informado'}</div>
+              <div><strong>E-mail:</strong> ${order.customer_email || order.email_cliente || 'Não informado'}</div>
+              <div><strong>Pagamento:</strong> <span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:0.6875rem;">${(order.payment_method || order.metodo_pagamento || 'MULTICAIXA').toUpperCase()}</span></div>
+            </div>
+            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1; font-size: 0.8125rem;">
+              <div><strong>Endereço de Entrega:</strong> ${order.shipping_address || order.endereco_entrega || 'Entrega padrão Luanda'}</div>
+              ${(order.ponto_referencia) ? `<div style="margin-top: 4px; color: #475569;"><strong>Ponto de Referência:</strong> 📍 ${order.ponto_referencia}</div>` : ''}
+              ${order.shipping_method ? `<div style="margin-top: 4px; color: #475569;"><strong>Método de Envio:</strong> ${order.shipping_method === 'express' ? '⚡ Entrega Expressa (até 4h)' : '🚚 Entrega Padrão Luanda (até 24h)'}</div>` : ''}
+            </div>
+          </div>
+
+          <!-- 2. Lista de Produtos do Pedido -->
+          <div style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; background: #ffffff;">
+            <h4 style="font-size: 0.8125rem; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 10px 0;">
+              Produtos Adquiridos (${items.length})
             </h4>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; font-size: 0.8125rem;">
-              <div><strong>Nome:</strong> ${order.customer_name}</div>
-              <div><strong>Telefone:</strong> ${order.customer_phone || 'Não informado'}</div>
-              <div><strong>E-mail:</strong> ${order.customer_email || 'Não informado'}</div>
-              <div><strong>Método Pagamento:</strong> ${order.payment_method?.toUpperCase()}</div>
-            </div>
-            <div style="margin-top: 8px; font-size: 0.8125rem;">
-              <strong>Endereço de Entrega:</strong> ${order.shipping_address || 'Entrega padrão Luanda'}
+
+            ${items.length === 0 ? `
+              <div style="font-size: 0.8125rem; color: #64748b; text-align: center; padding: 12px 0;">
+                Nenhum detalhe de item específico registrado para este pedido.
+              </div>
+            ` : `
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                ${items.map(it => {
+                  const name = it.product_name || it.name || it.nome_produto || 'Produto';
+                  const img = it.product_image || it.image || it.imagem_produto || '';
+                  const price = Number(it.unit_price || it.price || it.preco_unitario || 0);
+                  const qty = Number(it.quantity || it.quantidade || 1);
+                  const itemTotal = Number(it.total_price || it.preco_total || (price * qty));
+                  const variant = it.selected_variant || it.variant || {};
+                  const variantStr = Object.entries(variant).map(([k, v]) => `${k}: ${v}`).join(' | ');
+
+                  return `
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px; border-radius: 8px; background: #f8fafc; border: 1px solid #f1f5f9;">
+                      <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+                        ${img ? `
+                          <img src="${img}" alt="${name}" style="width: 44px; height: 44px; object-fit: contain; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; flex-shrink: 0;" />
+                        ` : `
+                          <div style="width: 44px; height: 44px; background: #e2e8f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #64748b; flex-shrink: 0;">
+                            ${Icons.package(20)}
+                          </div>
+                        `}
+                        <div style="min-width: 0;">
+                          <div style="font-size: 0.8125rem; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px;" title="${name}">${name}</div>
+                          ${it.product_sku ? `<div style="font-size: 0.6875rem; color: #64748b;">SKU: ${it.product_sku}</div>` : ''}
+                          ${variantStr ? `<div style="font-size: 0.6875rem; color: #3b82f6;">${variantStr}</div>` : ''}
+                          <div style="font-size: 0.75rem; color: #64748b;">${qty}x ${formatPrice(price)}</div>
+                        </div>
+                      </div>
+                      <div style="text-align: right; flex-shrink: 0;">
+                        <strong style="font-size: 0.875rem; color: #0f172a;">${formatPrice(itemTotal)}</strong>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            `}
+          </div>
+
+          <!-- 3. Resumo Financeiro -->
+          <div style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; background: #ffffff;">
+            <h4 style="font-size: 0.8125rem; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px 0;">
+              Resumo Financeiro
+            </h4>
+            <div style="display: flex; flex-direction: column; gap: 4px; font-size: 0.8125rem;">
+              <div style="display: flex; justify-content: space-between;">
+                <span style="color: #64748b;">Subtotal:</span>
+                <strong>${formatPrice(order.subtotal || order.total)}</strong>
+              </div>
+              ${order.discount ? `
+                <div style="display: flex; justify-content: space-between; color: #16a34a;">
+                  <span>Desconto Aplicado:</span>
+                  <strong>- ${formatPrice(order.discount)}</strong>
+                </div>
+              ` : ''}
+              ${order.shipping_price ? `
+                <div style="display: flex; justify-content: space-between; color: #64748b;">
+                  <span>Taxa de Entrega:</span>
+                  <strong>${formatPrice(order.shipping_price)}</strong>
+                </div>
+              ` : ''}
+              <div style="display: flex; justify-content: space-between; font-size: 1rem; font-weight: 900; color: #1d4ed8; border-top: 1px solid #f1f5f9; padding-top: 8px; margin-top: 4px;">
+                <span>Total Oficial:</span>
+                <span>${formatPrice(order.total)}</span>
+              </div>
             </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Atualizar Status Operacional do Pedido</label>
-            <select id="modalOrderStatusSelect" class="admin-filter-select" style="width: 100%;">
-              <option value="received" ${order.status === 'received' ? 'selected' : ''}>Recebido</option>
-              <option value="confirmed" ${order.status === 'confirmed' ? 'selected' : ''}>Confirmado / Pago</option>
-              <option value="preparing" ${order.status === 'preparing' ? 'selected' : ''}>Em Separação</option>
-              <option value="shipped" ${order.status === 'shipped' ? 'selected' : ''}>Enviado / Saiu para Entrega</option>
-              <option value="delivered" ${order.status === 'delivered' ? 'selected' : ''}>Entregue ao Cliente</option>
-              <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>Cancelado</option>
-            </select>
+          <!-- 4. Alteração de Status e Notas Administrativas -->
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px;">
+            <h4 style="font-size: 0.8125rem; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 10px 0;">
+              Gestão Operacional de Status
+            </h4>
+
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label class="form-label" style="font-size: 0.8125rem; font-weight: 700;">Status do Pedido (Reflete instantaneamente no rastreamento do cliente):</label>
+              <select id="modalOrderStatusSelect" class="admin-filter-select" style="width: 100%; font-size: 0.875rem; padding: 8px 12px;">
+                <option value="received" ${(order.status === 'received' || order.status_pedido === 'received') ? 'selected' : ''}>Recebido (Aguardando processamento)</option>
+                <option value="confirmed" ${(order.status === 'confirmed' || order.status_pedido === 'confirmed') ? 'selected' : ''}>Confirmado / Pago</option>
+                <option value="preparing" ${(order.status === 'preparing' || order.status_pedido === 'preparing') ? 'selected' : ''}>Em Separação no Depósito</option>
+                <option value="shipped" ${(order.status === 'shipped' || order.status_pedido === 'shipped') ? 'selected' : ''}>Enviado / Em Trânsito para Entrega</option>
+                <option value="delivered" ${(order.status === 'delivered' || order.status_pedido === 'delivered') ? 'selected' : ''}>Entregue com Sucesso ao Cliente</option>
+                <option value="cancelled" ${(order.status === 'cancelled' || order.status_pedido === 'cancelled') ? 'selected' : ''}>Cancelado</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 8px;">
+              <label class="form-label" style="font-size: 0.8125rem; font-weight: 700;">Observações / Notas Internas do Admin:</label>
+              <textarea id="modalOrderNotesInput" class="form-textarea" rows="2" style="width: 100%; font-size: 0.8125rem;" placeholder="Ex: Código de rastreio da transportadora, confirmação de comprovante via Multicaixa, etc.">${order.admin_notes || order.notas_admin || ''}</textarea>
+            </div>
+
+            ${history.length > 0 ? `
+              <div style="margin-top: 10px; border-top: 1px dashed #cbd5e1; padding-top: 8px;">
+                <span style="font-size: 0.6875rem; font-weight: 800; color: #64748b; text-transform: uppercase;">Histórico de Alterações:</span>
+                <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px; font-size: 0.75rem; color: #475569;">
+                  ${history.map(h => `
+                    <div>• <strong>${(h.status || '').toUpperCase()}</strong> em ${formatDate(h.timestamp)} ${h.notes ? `(${h.notes})` : ''}</div>
+                  `).join('')}
+                </div>
+              </div>
+            ` : ''}
           </div>
 
-          <div style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; background: #ffffff;">
-            <div style="font-size: 0.8125rem; font-weight: 800; margin-bottom: 8px;">Resumo Financeiro</div>
-            <div style="display:flex; justify-content:space-between; font-size:0.875rem; margin-bottom:4px;">
-              <span>Subtotal:</span>
-              <strong>${formatPrice(order.subtotal || order.total)}</strong>
-            </div>
-            <div style="display:flex; justify-content:space-between; font-size:1rem; font-weight:900; color:#1d4ed8; border-top:1px solid #f1f5f9; padding-top:6px;">
-              <span>Total Oficial:</span>
-              <span>${formatPrice(order.total)}</span>
-            </div>
-          </div>
-
-          <div class="admin-modal-footer" style="padding: 0; margin-top: 10px;">
+          <div class="admin-modal-footer" style="padding: 0; margin-top: 4px;">
             <button class="btn btn-secondary close-modal-btn">Fechar</button>
-            <button id="saveOrderStatusBtn" class="btn btn-primary">Salvar Novo Status</button>
+            <button id="saveOrderStatusBtn" class="btn btn-primary" style="padding: 10px 24px; font-weight: 800;">
+              Salvar Alterações Operacionais
+            </button>
           </div>
         </div>
       </div>
@@ -2214,15 +3353,23 @@ export function renderAdminView() {
     modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 
     modal.querySelector('#saveOrderStatusBtn').addEventListener('click', async () => {
+      const saveBtn = modal.querySelector('#saveOrderStatusBtn');
       const newStatus = modal.querySelector('#modalOrderStatusSelect').value;
+      const notes = modal.querySelector('#modalOrderNotesInput')?.value.trim() || '';
+
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = 'Salvando no banco...';
+
       try {
-        await Api.orders.updateStatus(order.id, newStatus);
-        Toast.show('Status do pedido atualizado com sucesso!', 'success');
+        await Api.orders.updateStatus(order.id, newStatus, notes);
+        Toast.show('Status do pedido atualizado e sincronizado com o cliente com sucesso!', 'success');
         modal.remove();
         await loadAllData();
         render();
       } catch (err) {
         Toast.show(err.message || 'Erro ao atualizar pedido.', 'error');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = 'Salvar Alterações Operacionais';
       }
     });
   }
@@ -2242,12 +3389,12 @@ export function renderAdminView() {
         <form id="productForm" class="admin-modal-body">
           <div class="admin-form-grid-2">
             <div class="form-group">
-              <label class="form-label">Nome do Produto</label>
+              <label class="form-label">Nome do Produto *</label>
               <input type="text" id="pName" class="form-input" value="${prod?.name || ''}" placeholder="Ex: iPhone 16 Pro Max 256GB" required />
             </div>
             <div class="form-group">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <label class="form-label" style="margin-bottom:0;">Código SKU</label>
+                <label class="form-label" style="margin-bottom:0;">Código SKU *</label>
                 <button type="button" id="btnGenSku" style="background:none; border:none; color:#2563eb; font-size:0.75rem; font-weight:700; cursor:pointer;">
                   ⚡ Gerar SKU
                 </button>
@@ -2256,13 +3403,43 @@ export function renderAdminView() {
             </div>
           </div>
 
+          <!-- Classificação Obrigatória Sequencial: Primeiro a Categoria, e DEPOIS aparece a Subcategoria -->
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px; margin-bottom: 14px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; font-weight: 700;">
+                <span>1. Categoria Principal *</span>
+                <span style="font-size: 0.75rem; color: #dc2626; font-weight: 600;">Obrigatório</span>
+              </label>
+              <select id="pCategory" class="admin-filter-select" style="width: 100%; font-weight: 600;" required>
+                <option value="">Selecione primeiro a categoria...</option>
+                ${categoriesList.map(c => `
+                  <option value="${c.id}" ${String(prod?.category_id) === String(c.id) ? 'selected' : ''}>${c.name}</option>
+                `).join('')}
+              </select>
+            </div>
+
+            <!-- Este bloco fica OCULTO até que a Categoria seja selecionada -->
+            <div id="pSubcategoryWrapper" style="display: none; margin-top: 14px; padding-top: 14px; border-top: 1px dashed #cbd5e1;">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label id="pSubcategoryLabel" class="form-label" style="display: flex; align-items: center; justify-content: space-between; font-weight: 700;">
+                  <span>2. Subcategoria Vinculada *</span>
+                  <span style="font-size: 0.75rem; color: #dc2626; font-weight: 600;">Obrigatório</span>
+                </label>
+                <select id="pSubcategory" class="admin-filter-select" style="width: 100%; font-weight: 600;" required>
+                  <option value="">Selecione a subcategoria...</option>
+                </select>
+                <div id="pSubcategoryNotice" style="margin-top: 6px; font-size: 0.75rem;"></div>
+              </div>
+            </div>
+          </div>
+
           <div class="admin-form-grid-3">
             <div class="form-group">
-              <label class="form-label">Marca</label>
-              <input type="text" id="pBrand" class="form-input" value="${prod?.brand || 'Apple'}" required />
+              <label class="form-label">Marca *</label>
+              <input type="text" id="pBrand" class="form-input" value="${prod?.brand || 'NovaTech'}" required />
             </div>
             <div class="form-group">
-              <label class="form-label">Preço Normal (Kz)</label>
+              <label class="form-label">Preço Normal (Kz) *</label>
               <input type="number" id="pPrice" class="form-input" value="${prod?.price || ''}" placeholder="2798750" required />
             </div>
             <div class="form-group">
@@ -2271,22 +3448,13 @@ export function renderAdminView() {
             </div>
           </div>
 
-          <div class="admin-form-grid-3">
+          <div class="admin-form-grid-2">
             <div class="form-group">
-              <label class="form-label">Categoria</label>
-              <select id="pCategory" class="admin-filter-select" style="width:100%;">
-                <option value="">Selecione a categoria</option>
-                ${categoriesList.map(c => `
-                  <option value="${c.id}" ${prod?.category_id === c.id ? 'selected' : ''}>${c.name}</option>
-                `).join('')}
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Estoque Atual</label>
+              <label class="form-label">Estoque Atual *</label>
               <input type="number" id="pStock" class="form-input" value="${prod?.stock !== undefined ? prod.stock : 10}" required />
             </div>
             <div class="form-group">
-              <label class="form-label">Estoque Mínimo</label>
+              <label class="form-label">Estoque Mínimo *</label>
               <input type="number" id="pStockMin" class="form-input" value="${prod?.stock_min || 2}" required />
             </div>
           </div>
@@ -2317,13 +3485,105 @@ export function renderAdminView() {
 
           <div class="admin-modal-footer" style="padding: 0; margin-top: 10px;">
             <button type="button" class="btn btn-secondary close-modal-btn">Cancelar</button>
-            <button type="submit" class="btn btn-primary">${isEdit ? 'Salvar Alterações' : 'Cadastrar Produto'}</button>
+            <button type="submit" id="saveProductBtn" class="btn btn-primary">${isEdit ? 'Salvar Alterações' : 'Cadastrar Produto'}</button>
           </div>
         </form>
       </div>
     `;
 
     document.body.appendChild(modal);
+
+    const catSelect = modal.querySelector('#pCategory');
+    const subWrapper = modal.querySelector('#pSubcategoryWrapper');
+    const subLabel = modal.querySelector('#pSubcategoryLabel');
+    const subSelect = modal.querySelector('#pSubcategory');
+    const subNotice = modal.querySelector('#pSubcategoryNotice');
+
+    function populateSubcategories(catId, preselectedSubId = null, preselectedSubName = null) {
+      if (!catId) {
+        // Inicialmente ou se desmarcar categoria: campo de subcategoria fica totalmente OCULTO
+        subWrapper.style.display = 'none';
+        subSelect.innerHTML = '<option value="">Selecione primeiro a categoria...</option>';
+        subSelect.value = '';
+        subNotice.innerHTML = '';
+        return;
+      }
+
+      const category = categoriesList.find(c => String(c.id) === String(catId));
+      if (!category) {
+        subWrapper.style.display = 'none';
+        return;
+      }
+
+      // APARECE o campo de subcategoria dinamicamente
+      subWrapper.style.display = 'block';
+      subLabel.innerHTML = `
+        <span>2. Subcategoria de <strong style="color:#2563eb;">${category.name}</strong> *</span>
+        <span style="font-size: 0.75rem; color: #dc2626; font-weight: 600;">Obrigatório</span>
+      `;
+
+      const subs = Array.isArray(category?.subcategories) ? category.subcategories : [];
+
+      if (subs.length === 0) {
+        subSelect.style.display = 'none';
+        subSelect.value = '';
+        subNotice.innerHTML = `
+          <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:10px 12px;">
+            <div style="color:#b91c1c; font-weight:700; font-size:0.8125rem;">⚠️ A categoria "${category.name}" não possui nenhuma subcategoria cadastrada.</div>
+            <div style="font-size:0.75rem; color:#475569; margin-top:3px;">
+              Como o produto exige subcategoria obrigatória, cadastre uma subcategoria para esta categoria:
+            </div>
+            <button type="button" id="btnQuickAddSubToCat" class="btn btn-primary btn-sm" style="margin-top:8px; font-weight:700; background:#2563eb;">
+              + Cadastrar Subcategoria em ${category.name}
+            </button>
+          </div>
+        `;
+        const quickAddBtn = subNotice.querySelector('#btnQuickAddSubToCat');
+        if (quickAddBtn) {
+          quickAddBtn.addEventListener('click', () => {
+            openSubcategoryModal({ parent_id: category.id });
+          });
+        }
+        return;
+      }
+
+      subSelect.style.display = 'block';
+      subSelect.disabled = false;
+      subSelect.innerHTML = `<option value="">Selecione a subcategoria de "${category.name}"...</option>` +
+        subs.map(s => {
+          const isSelected = (preselectedSubId && String(s.id) === String(preselectedSubId)) ||
+            (preselectedSubName && s.name.toLowerCase() === preselectedSubName.toLowerCase());
+          return `<option value="${s.id}" data-name="${s.name}" ${isSelected ? 'selected' : ''}>${s.name}</option>`;
+        }).join('');
+
+      subNotice.innerHTML = `<span style="color:#15803d; font-size:0.75rem; font-weight:600;">✓ Subcategorias de "${category.name}" carregadas (${subs.length} disponíveis).</span>`;
+    }
+
+    catSelect.addEventListener('change', () => {
+      populateSubcategories(catSelect.value);
+    });
+
+    if (prod?.category_id) {
+      populateSubcategories(prod.category_id, prod.subcategory_id, prod.subcategory_name || prod.subcategory);
+    }
+
+    const onCategoriesUpdated = () => {
+      const currentCatVal = catSelect.value;
+      const currentSubVal = subSelect.value;
+      catSelect.innerHTML = '<option value="">Selecione primeiro a categoria...</option>' +
+        categoriesList.map(c => `
+          <option value="${c.id}" ${String(currentCatVal) === String(c.id) ? 'selected' : ''}>${c.name}</option>
+        `).join('');
+      if (currentCatVal) {
+        populateSubcategories(currentCatVal, currentSubVal);
+      }
+    };
+    window.addEventListener('categories-updated', onCategoriesUpdated);
+
+    const closeModal = () => {
+      window.removeEventListener('categories-updated', onCategoriesUpdated);
+      modal.remove();
+    };
 
     const prodImgUploader = createImageUploader({
       id: 'prodImgUpload',
@@ -2343,18 +3603,58 @@ export function renderAdminView() {
       modal.querySelector('#pSku').value = `NV-${brandCode}-${nameCode}-${rand}`;
     });
 
-    modal.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', () => modal.remove()));
-    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+    modal.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', closeModal));
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
     modal.querySelector('#productForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const saveBtn = modal.querySelector('#saveProductBtn');
+
+      const nameVal = modal.querySelector('#pName').value.trim();
+      const skuVal = modal.querySelector('#pSku').value.trim();
+      const catVal = catSelect.value;
+      const subVal = subSelect.value;
+
+      if (!nameVal) {
+        Toast.show('O nome do produto é obrigatório.', 'warning');
+        modal.querySelector('#pName').focus();
+        return;
+      }
+
+      if (!skuVal) {
+        Toast.show('O código SKU do produto é obrigatório.', 'warning');
+        modal.querySelector('#pSku').focus();
+        return;
+      }
+
+      if (!catVal) {
+        Toast.show('Primeiro selecione a Categoria do produto.', 'warning');
+        catSelect.focus();
+        return;
+      }
+
+      if (subWrapper.style.display === 'none' || !subVal || subSelect.style.display === 'none') {
+        Toast.show('Selecione obrigatoriamente a Subcategoria vinculada a esta categoria.', 'warning');
+        if (subSelect.style.display !== 'none') subSelect.focus();
+        return;
+      }
+
+      const selectedSubOption = subSelect.options[subSelect.selectedIndex];
+      const subName = selectedSubOption?.dataset?.name || selectedSubOption?.text || '';
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Salvando produto no banco...';
+
       const payload = {
-        name: modal.querySelector('#pName').value.trim(),
-        sku: modal.querySelector('#pSku').value.trim(),
+        name: nameVal,
+        sku: skuVal,
         brand: modal.querySelector('#pBrand').value.trim(),
         price: Number(modal.querySelector('#pPrice').value),
         old_price: modal.querySelector('#pOldPrice').value ? Number(modal.querySelector('#pOldPrice').value) : null,
-        category_id: modal.querySelector('#pCategory').value ? Number(modal.querySelector('#pCategory').value) : null,
+        category_id: Number(catVal),
+        subcategory_id: subVal,
+        subcategory_name: subName,
+        subcategory: subName,
         stock: Number(modal.querySelector('#pStock').value),
         stock_min: Number(modal.querySelector('#pStockMin').value),
         image: prodImgUploader.getValue().trim() || null,
@@ -2368,29 +3668,45 @@ export function renderAdminView() {
       try {
         if (isEdit) {
           await Api.products.update(prod.id, payload);
-          Toast.show('Produto atualizado com sucesso!', 'success');
+          Toast.show('Produto atualizado com sucesso no banco de dados!', 'success');
         } else {
           await Api.products.create(payload);
-          Toast.show('Produto cadastrado com sucesso!', 'success');
+          Toast.show('Produto cadastrado com sucesso no banco de dados!', 'success');
         }
-        modal.remove();
+        closeModal();
         await loadAllData();
         render();
       } catch (err) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = isEdit ? 'Salvar Alterações' : 'Cadastrar Produto';
         Toast.show(err.message || 'Erro ao salvar produto.', 'error');
       }
     });
   }
 
-  // 3. Duplicar Produto Rápido
+  // 3. Duplicar Produto Rápido (Preservando Subcategoria e Integridade - BUG-014)
   async function duplicateProduct(prod) {
     try {
       const rand = Math.floor(1000 + Math.random() * 9000);
       const payload = {
-        ...prod,
         name: `${prod.name} (Cópia)`,
         sku: `${prod.sku || 'NV'}-CPY-${rand}`,
-        id: undefined
+        slug: prod.slug ? `${prod.slug}-copia-${rand}` : undefined,
+        brand: prod.brand || 'NovaTech',
+        price: Number(prod.price || 0),
+        old_price: prod.old_price || prod.oldPrice ? Number(prod.old_price || prod.oldPrice) : null,
+        category_id: prod.category_id ? Number(prod.category_id) : null,
+        subcategory_id: prod.subcategory_id || prod.subcategoria_id || null,
+        subcategory_name: prod.subcategory_name || prod.subcategory || null,
+        subcategory: prod.subcategory || prod.subcategory_name || null,
+        stock: prod.stock !== undefined ? Number(prod.stock) : 10,
+        stock_min: prod.stock_min !== undefined ? Number(prod.stock_min) : 2,
+        image: prod.image || null,
+        description: prod.description || '',
+        is_deal: Boolean(prod.is_deal),
+        is_new: Boolean(prod.is_new),
+        is_featured: Boolean(prod.is_featured),
+        is_active: true
       };
       await Api.products.create(payload);
       Toast.show('Produto duplicado com sucesso!', 'success');
@@ -2401,69 +3717,49 @@ export function renderAdminView() {
     }
   }
 
-  // 4. Modal de Categoria
+  // 4. Modal de Categoria (Simples, Direto e Sem Ícones)
   function openCategoryModal(cat = null) {
     const isEdit = Boolean(cat);
     const modal = document.createElement('div');
     modal.className = 'admin-modal-overlay';
     modal.innerHTML = `
-      <div class="admin-modal-dialog">
+      <div class="admin-modal-dialog" style="max-width:500px;">
         <div class="admin-modal-header">
-          <h3 class="admin-modal-title">${isEdit ? 'Editar Categoria' : 'Nova Categoria ou Subcategoria'}</h3>
+          <h3 class="admin-modal-title">${isEdit ? 'Editar Categoria' : 'Nova Categoria'}</h3>
           <button class="btn btn-secondary btn-sm close-modal-btn">✕</button>
         </div>
 
         <form id="categoryForm" class="admin-modal-body">
-          <div class="admin-form-grid-2">
-            <div class="form-group">
-              <label class="form-label">Nome da Categoria</label>
-              <input type="text" id="catName" class="form-input" value="${cat?.name || ''}" placeholder="Ex: Smartphones" required />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Slug (URL amigável)</label>
-              <input type="text" id="catSlug" class="form-input" value="${cat?.slug || ''}" placeholder="smartphones" />
-            </div>
+          <div class="form-group">
+            <label class="form-label">Nome da Categoria *</label>
+            <input type="text" id="catName" class="form-input" value="${cat?.name || ''}" placeholder="Ex: Smartphones, Computadores, Acessórios..." required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Descrição (Opcional)</label>
+            <textarea id="catDesc" class="form-input" rows="2" placeholder="Breve descrição dos produtos desta categoria...">${cat?.description || ''}</textarea>
           </div>
 
           <div class="admin-form-grid-2">
             <div class="form-group">
-              <label class="form-label">Categoria Pai (Deixe vazio para Principal)</label>
-              <select id="catParent" class="admin-filter-select" style="width:100%;">
-                <option value="">Nenhuma (Categoria Principal)</option>
-                ${categoriesList.filter(c => !cat || c.id !== cat.id).map(c => `
-                  <option value="${c.id}" ${cat?.parent_id === c.id ? 'selected' : ''}>${c.name}</option>
-                `).join('')}
-              </select>
+              <label class="form-label">Ordem de Exibição (Opcional)</label>
+              <input type="number" id="catOrder" class="form-input" value="${cat?.display_order !== undefined ? cat.display_order : (categoriesList.length + 1)}" min="1" />
             </div>
+
             <div class="form-group">
-              <label class="form-label">Ícone do Sistema</label>
-              <select id="catIcon" class="admin-filter-select" style="width:100%;">
-                <option value="smartphone" ${cat?.icon_name === 'smartphone' ? 'selected' : ''}>Smartphone / Celular</option>
-                <option value="laptop" ${cat?.icon_name === 'laptop' ? 'selected' : ''}>Computador / Laptop</option>
-                <option value="gamepad" ${cat?.icon_name === 'gamepad' ? 'selected' : ''}>Gaming / Games</option>
-                <option value="tv" ${cat?.icon_name === 'tv' ? 'selected' : ''}>Televisões & Vídeo</option>
-                <option value="headphones" ${cat?.icon_name === 'headphones' ? 'selected' : ''}>Áudio & Auscultadores</option>
-                <option value="watch" ${cat?.icon_name === 'watch' ? 'selected' : ''}>Smartwatches / Wearables</option>
-                <option value="package" ${cat?.icon_name === 'package' ? 'selected' : ''}>Geral / Variados</option>
+              <label class="form-label">Status *</label>
+              <select id="catStatus" class="admin-filter-select" style="width:100%;">
+                <option value="true" ${cat?.is_active !== false ? 'selected' : ''}>Ativa</option>
+                <option value="false" ${cat?.is_active === false ? 'selected' : ''}>Inativa</option>
               </select>
             </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Ordem de Exibição</label>
-            <input type="number" id="catOrder" class="form-input" value="${cat?.display_order || (categoriesList.length + 1)}" required />
-          </div>
-
-          <div id="categoryImageUploaderMount" style="margin-bottom: 8px;"></div>
-
-          <div class="form-group">
-            <label class="form-label">Descrição da Categoria (SEO)</label>
-            <textarea id="catDesc" class="form-input" rows="2" placeholder="Breve descrição da categoria...">${cat?.description || ''}</textarea>
-          </div>
-
-          <div class="admin-modal-footer" style="padding: 0;">
+          <div class="admin-modal-footer" style="padding: 0; margin-top: 14px;">
             <button type="button" class="btn btn-secondary close-modal-btn">Cancelar</button>
-            <button type="submit" class="btn btn-primary">${isEdit ? 'Salvar' : 'Criar Categoria'}</button>
+            <button type="submit" id="saveCategoryBtn" class="btn btn-primary" style="padding: 10px 24px; font-weight:700;">
+              ${isEdit ? 'Salvar Alterações' : 'Salvar Categoria'}
+            </button>
           </div>
         </form>
       </div>
@@ -2471,57 +3767,160 @@ export function renderAdminView() {
 
     document.body.appendChild(modal);
 
-    const catImgUploader = createImageUploader({
-      id: 'catImgUpload',
-      label: 'Foto ou Ícone Gráfico da Categoria',
-      initialUrl: cat?.image_url || '',
-      helperText: 'Tire uma foto ou escolha da galeria/computador. Formatos: JPG, PNG, WEBP.',
-      maxDimension: 800
-    });
-    modal.querySelector('#categoryImageUploaderMount').appendChild(catImgUploader.element);
-
-    const nameInput = modal.querySelector('#catName');
-    const slugInput = modal.querySelector('#catSlug');
-    nameInput.addEventListener('input', () => {
-      if (!isEdit || !slugInput.value) {
-        slugInput.value = nameInput.value
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/(^-|-$)+/g, '');
-      }
-    });
-
     modal.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', () => modal.remove()));
     modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 
     modal.querySelector('#categoryForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const saveBtn = modal.querySelector('#saveCategoryBtn');
+      const name = modal.querySelector('#catName').value.trim();
+
+      if (!name) {
+        Toast.show('O nome da categoria é obrigatório.', 'warning');
+        return;
+      }
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Gravando no banco...';
+
       const payload = {
-        name: modal.querySelector('#catName').value.trim(),
-        slug: modal.querySelector('#catSlug').value.trim() || undefined,
-        parent_id: modal.querySelector('#catParent').value ? Number(modal.querySelector('#catParent').value) : null,
-        icon_name: modal.querySelector('#catIcon').value,
-        display_order: Number(modal.querySelector('#catOrder').value),
-        image_url: catImgUploader.getValue().trim() || null,
+        name,
         description: modal.querySelector('#catDesc').value.trim(),
-        is_active: true
+        display_order: Number(modal.querySelector('#catOrder').value || 1),
+        is_active: modal.querySelector('#catStatus').value === 'true'
       };
 
       try {
         if (isEdit) {
           await Api.categories.update(cat.id, payload);
-          Toast.show('Categoria atualizada com sucesso!', 'success');
+          Toast.show('Categoria atualizada com sucesso no banco de dados!', 'success');
         } else {
           await Api.categories.create(payload);
-          Toast.show('Categoria criada com sucesso!', 'success');
+          Toast.show('Categoria criada com sucesso no banco de dados!', 'success');
         }
         modal.remove();
         await loadAllData();
         render();
       } catch (err) {
-        Toast.show(err.message || 'Erro ao salvar categoria.', 'error');
+        saveBtn.disabled = false;
+        saveBtn.textContent = isEdit ? 'Salvar Alterações' : 'Salvar Categoria';
+        Toast.show(err.message || 'Erro ao gravar categoria.', 'error');
+      }
+    });
+  }
+
+  // 4.1. Modal de Subcategoria (Vinculada à Categoria Pai, Sem Ícones)
+  function openSubcategoryModal({ parent_id = null, sub = null } = {}) {
+    const isEdit = Boolean(sub);
+    const selectedParentId = parent_id || (sub ? categoriesList.find(c => (c.subcategories || []).some(s => String(s.id) === String(sub.id)))?.id : '');
+
+    const modal = document.createElement('div');
+    modal.className = 'admin-modal-overlay';
+    modal.innerHTML = `
+      <div class="admin-modal-dialog" style="max-width:500px;">
+        <div class="admin-modal-header">
+          <h3 class="admin-modal-title">${isEdit ? 'Editar Subcategoria' : 'Nova Subcategoria'}</h3>
+          <button class="btn btn-secondary btn-sm close-modal-btn">✕</button>
+        </div>
+
+        <form id="subcategoryForm" class="admin-modal-body">
+          <div class="form-group">
+            <label class="form-label">Categoria Pai *</label>
+            <select id="subParentSelect" class="admin-filter-select" style="width:100%;" required ${isEdit ? 'disabled' : ''}>
+              <option value="">Selecione a categoria pai...</option>
+              ${categoriesList.map(c => `
+                <option value="${c.id}" ${String(c.id) === String(selectedParentId) ? 'selected' : ''}>${c.name}</option>
+              `).join('')}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Nome da Subcategoria *</label>
+            <input type="text" id="subName" class="form-input" value="${sub?.name || ''}" placeholder="Ex: iPhones, Monitores, Carregadores..." required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Descrição (Opcional)</label>
+            <textarea id="subDesc" class="form-input" rows="2" placeholder="Breve descrição da subcategoria...">${sub?.description || ''}</textarea>
+          </div>
+
+          <div class="admin-form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Ordem de Exibição (Opcional)</label>
+              <input type="number" id="subOrder" class="form-input" value="${sub?.display_order !== undefined ? sub.display_order : 1}" min="1" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Status *</label>
+              <select id="subStatus" class="admin-filter-select" style="width:100%;">
+                <option value="true" ${sub?.is_active !== false ? 'selected' : ''}>Ativa</option>
+                <option value="false" ${sub?.is_active === false ? 'selected' : ''}>Inativa</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="admin-modal-footer" style="padding: 0; margin-top: 14px;">
+            <button type="button" class="btn btn-secondary close-modal-btn">Cancelar</button>
+            <button type="submit" id="saveSubcategoryBtn" class="btn btn-primary" style="padding: 10px 24px; font-weight:700;">
+              ${isEdit ? 'Salvar Alterações' : 'Salvar Subcategoria'}
+            </button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', () => modal.remove()));
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+    modal.querySelector('#subcategoryForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const parentId = modal.querySelector('#subParentSelect').value;
+      const name = modal.querySelector('#subName').value.trim();
+      const saveBtn = modal.querySelector('#saveSubcategoryBtn');
+
+      if (!parentId) {
+        Toast.show('Selecione uma categoria pai obrigatória.', 'warning');
+        return;
+      }
+      if (!name) {
+        Toast.show('O nome da subcategoria é obrigatório.', 'warning');
+        return;
+      }
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Gravando no banco...';
+
+      const payload = {
+        name,
+        description: modal.querySelector('#subDesc').value.trim(),
+        display_order: Number(modal.querySelector('#subOrder').value || 1),
+        is_active: modal.querySelector('#subStatus').value === 'true'
+      };
+
+      try {
+        if (isEdit) {
+          await Api.categories.updateSubcategory({
+            category_id: selectedParentId,
+            subcategory_id: sub.id,
+            ...payload
+          });
+          Toast.show('Subcategoria atualizada com sucesso no banco de dados!', 'success');
+        } else {
+          await Api.categories.createSubcategory({
+            parent_id: parentId,
+            ...payload
+          });
+          Toast.show('Subcategoria vinculada com sucesso no banco de dados!', 'success');
+        }
+        modal.remove();
+        await loadAllData();
+        render();
+      } catch (err) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = isEdit ? 'Salvar Alterações' : 'Salvar Subcategoria';
+        Toast.show(err.message || 'Erro ao gravar subcategoria.', 'error');
       }
     });
   }
@@ -2657,58 +4056,87 @@ export function renderAdminView() {
     });
   }
 
-  // 6. Modal de Cupom
-  function openCouponModal() {
+  // 6. Modal de Cupom (Criação & Edição com Validação de Datas - BUG-007, BUG-024, BUG-026)
+  function openCouponModal(coupon = null) {
+    const isEdit = Boolean(coupon);
     const modal = document.createElement('div');
     modal.className = 'admin-modal-overlay';
+    
+    // Normalização das datas para o input date (YYYY-MM-DD)
+    const formatDateInput = (d) => {
+      if (!d) return '';
+      try {
+        const dt = new Date(d);
+        return !isNaN(dt.getTime()) ? dt.toISOString().split('T')[0] : '';
+      } catch {
+        return '';
+      }
+    };
+
+    const initialStartDate = formatDateInput(coupon?.start_date || coupon?.data_inicio);
+    const initialEndDate = formatDateInput(coupon?.end_date || coupon?.data_fim || coupon?.expires_at);
+
     modal.innerHTML = `
-      <div class="admin-modal-dialog">
+      <div class="admin-modal-dialog" style="max-width:560px;">
         <div class="admin-modal-header">
-          <h3 class="admin-modal-title">Novo Cupom de Desconto</h3>
+          <h3 class="admin-modal-title">${isEdit ? `Editar Cupom: ${coupon.code}` : 'Novo Cupom de Desconto'}</h3>
           <button class="btn btn-secondary btn-sm close-modal-btn">✕</button>
         </div>
 
         <form id="couponForm" class="admin-modal-body">
           <div class="admin-form-grid-2">
             <div class="form-group">
-              <label class="form-label">Código do Cupom</label>
-              <input type="text" id="cpCode" class="form-input" placeholder="Ex: NOVATECH10" style="text-transform:uppercase; font-weight:800;" required />
+              <label class="form-label">Código do Cupom *</label>
+              <input type="text" id="cpCode" class="form-input" value="${coupon?.code || ''}" placeholder="Ex: NOVATECH10" style="text-transform:uppercase; font-weight:800;" required />
             </div>
             <div class="form-group">
-              <label class="form-label">Tipo de Desconto</label>
+              <label class="form-label">Tipo de Desconto *</label>
               <select id="cpType" class="admin-filter-select" style="width:100%;">
-                <option value="percent">Porcentagem (%)</option>
-                <option value="fixed">Valor Fixo em Kwanzas (Kz)</option>
-                <option value="free_shipping">Frete Grátis</option>
+                <option value="percent" ${coupon?.discount_type === 'percent' ? 'selected' : ''}>Porcentagem (%)</option>
+                <option value="fixed" ${coupon?.discount_type === 'fixed' ? 'selected' : ''}>Valor Fixo em Kwanzas (Kz)</option>
+                <option value="free_shipping" ${coupon?.discount_type === 'free_shipping' ? 'selected' : ''}>Frete Grátis</option>
               </select>
             </div>
           </div>
 
           <div class="admin-form-grid-2">
             <div class="form-group">
-              <label class="form-label">Valor do Desconto</label>
-              <input type="number" id="cpValue" class="form-input" placeholder="Ex: 10 para 10% ou 5000 para Kz 5.000" required />
+              <label class="form-label" id="cpValueLabel">Valor do Desconto *</label>
+              <input type="number" id="cpValue" class="form-input" value="${coupon?.discount_value !== undefined ? coupon.discount_value : ''}" placeholder="Ex: 10 para 10% ou 5000 para Kz 5.000" ${coupon?.discount_type === 'free_shipping' ? 'disabled value="0"' : 'required'} />
             </div>
             <div class="form-group">
               <label class="form-label">Valor Mínimo do Pedido (Kz)</label>
-              <input type="number" id="cpMinOrder" class="form-input" placeholder="0 = Sem mínimo" />
+              <input type="number" id="cpMinOrder" class="form-input" value="${coupon?.min_order_value || 0}" placeholder="0 = Sem mínimo" />
             </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Limite Total de Usos</label>
+            <input type="number" id="cpLimit" class="form-input" value="${coupon?.usage_limit || ''}" placeholder="Vazio = Ilimitado" />
           </div>
 
           <div class="admin-form-grid-2">
             <div class="form-group">
-              <label class="form-label">Limite Total de Usos</label>
-              <input type="number" id="cpLimit" class="form-input" placeholder="Ex: 100 (vazio = ilimitado)" />
+              <label class="form-label">Data de Início da Validade</label>
+              <input type="date" id="cpStartDate" class="form-input" value="${initialStartDate}" />
             </div>
             <div class="form-group">
-              <label class="form-label">Data de Expiração</label>
-              <input type="date" id="cpExpiry" class="form-input" />
+              <label class="form-label">Data de Término / Expiração</label>
+              <input type="date" id="cpEndDate" class="form-input" value="${initialEndDate}" />
             </div>
           </div>
 
-          <div class="admin-modal-footer" style="padding: 0;">
+          <div class="form-group">
+            <label class="form-label">Status do Cupom</label>
+            <select id="cpIsActive" class="admin-filter-select" style="width:100%;">
+              <option value="true" ${coupon?.is_active !== false ? 'selected' : ''}>Ativo (Disponível para clientes)</option>
+              <option value="false" ${coupon?.is_active === false ? 'selected' : ''}>Pausado / Inativo</option>
+            </select>
+          </div>
+
+          <div class="admin-modal-footer" style="padding: 0; margin-top: 14px;">
             <button type="button" class="btn btn-secondary close-modal-btn">Cancelar</button>
-            <button type="submit" class="btn btn-primary">Criar Cupom</button>
+            <button type="submit" id="saveCouponBtn" class="btn btn-primary">${isEdit ? 'Salvar Alterações' : 'Criar Cupom'}</button>
           </div>
         </form>
       </div>
@@ -2716,29 +4144,71 @@ export function renderAdminView() {
 
     document.body.appendChild(modal);
 
+    const typeSelect = modal.querySelector('#cpType');
+    const valInput = modal.querySelector('#cpValue');
+
+    typeSelect.addEventListener('change', () => {
+      if (typeSelect.value === 'free_shipping') {
+        valInput.value = '0';
+        valInput.disabled = true;
+        valInput.required = false;
+      } else {
+        valInput.disabled = false;
+        valInput.required = true;
+        if (valInput.value === '0') valInput.value = '';
+      }
+    });
+
     modal.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', () => modal.remove()));
     modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 
     modal.querySelector('#couponForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const code = modal.querySelector('#cpCode').value.trim().toUpperCase();
+      const discountType = modal.querySelector('#cpType').value;
+      const discountVal = discountType === 'free_shipping' ? 0 : Number(modal.querySelector('#cpValue').value);
+      const startDate = modal.querySelector('#cpStartDate').value || null;
+      const endDate = modal.querySelector('#cpEndDate').value || null;
+
+      // Validação de datas BUG-026: data_fim >= data_inicio
+      if (startDate && endDate) {
+        if (new Date(endDate) < new Date(startDate)) {
+          Toast.show('A data de término não pode ser anterior à data de início do cupom.', 'warning');
+          return;
+        }
+      }
+
       const payload = {
-        code: modal.querySelector('#cpCode').value.trim().toUpperCase(),
-        discount_type: modal.querySelector('#cpType').value,
-        discount_value: Number(modal.querySelector('#cpValue').value),
+        code,
+        discount_type: discountType,
+        discount_value: discountVal,
         min_order_value: modal.querySelector('#cpMinOrder').value ? Number(modal.querySelector('#cpMinOrder').value) : 0,
         usage_limit: modal.querySelector('#cpLimit').value ? Number(modal.querySelector('#cpLimit').value) : null,
-        expires_at: modal.querySelector('#cpExpiry').value || null,
-        is_active: true
+        start_date: startDate,
+        end_date: endDate,
+        expires_at: endDate,
+        is_active: modal.querySelector('#cpIsActive').value === 'true'
       };
 
+      const saveBtn = modal.querySelector('#saveCouponBtn');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Salvando cupom...';
+
       try {
-        await Api.coupons.create(payload);
-        Toast.show('Cupom criado com sucesso!', 'success');
+        if (isEdit) {
+          await Api.coupons.update(coupon.id, payload);
+          Toast.show('Cupom atualizado com sucesso no banco de dados!', 'success');
+        } else {
+          await Api.coupons.create(payload);
+          Toast.show('Cupom criado com sucesso no banco de dados!', 'success');
+        }
         modal.remove();
         await loadAllData();
         render();
       } catch (err) {
-        Toast.show(err.message || 'Erro ao criar cupom.', 'error');
+        saveBtn.disabled = false;
+        saveBtn.textContent = isEdit ? 'Salvar Alterações' : 'Criar Cupom';
+        Toast.show(err.message || 'Erro ao salvar cupom.', 'error');
       }
     });
   }

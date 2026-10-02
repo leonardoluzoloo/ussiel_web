@@ -4,7 +4,7 @@
 
 import { Icons } from '../utils/icons.js';
 import { formatPrice, calcDiscountPercent, renderStars, formatDate } from '../utils/format.js';
-import { ProductsData } from '../data/products.js';
+// ProductsData removido: produtos são carregados dinamicamente do Supabase
 import { Storage } from '../services/storage.js';
 import { Toast } from '../components/Toast.js';
 import { createProductCard } from '../components/ProductCard.js';
@@ -14,7 +14,8 @@ export function renderProductDetailView(productSlug) {
   const container = document.createElement('div');
   container.className = 'container';
 
-  let product = ProductsData.find(p => p.slug === productSlug || String(p.id) === String(productSlug));
+  let product = null; // Carregado dinamicamente via Supabase
+  let allProducts = []; // Para produtos relacionados
 
   // State
   let selectedColor = product?.variants?.colors?.[0]?.name || '';
@@ -22,14 +23,7 @@ export function renderProductDetailView(productSlug) {
   let quantity = 1;
   let activeTab = 'desc'; // 'desc' | 'specs' | 'reviews' | 'shipping'
   let currentImage = product?.gallery?.[0] || product?.image || '';
-
-  function getProductReviews(prodId, defaultReviews = []) {
-    try {
-      const data = localStorage.getItem(`novatech_reviews_${prodId}`);
-      if (data) return JSON.parse(data);
-    } catch {}
-    return defaultReviews || [];
-  }
+  let reviewRating = 5; // estrelas selecionadas pelo usuário no form
 
   async function syncProduct() {
     try {
@@ -47,11 +41,26 @@ export function renderProductDetailView(productSlug) {
           variants: (typeof realProd.variants === 'object' && realProd.variants !== null) ? realProd.variants : (realProd.variants ? JSON.parse(realProd.variants) : {}),
           specs: (typeof realProd.specs === 'object' && realProd.specs !== null) ? realProd.specs : (realProd.specs ? JSON.parse(realProd.specs) : {})
         };
-        product.reviews = getProductReviews(product.id, product.reviews || []);
+        // Carregar avaliações do Supabase (fonte de verdade)
+        try {
+          product.reviews = await Api.reviews.getByProduct(product.id);
+        } catch {
+          product.reviews = [];
+        }
         product.reviewCount = product.reviews.length;
+        // Recalcular rating médio localmente com dados frescos
+        if (product.reviews.length > 0) {
+          product.rating = product.reviews.reduce((sum, r) => sum + (r.rating || 5), 0) / product.reviews.length;
+        }
         if (!selectedColor && product.variants?.colors?.[0]?.name) selectedColor = product.variants.colors[0].name;
         if (!selectedStorage && product.variants?.storage?.[0]) selectedStorage = product.variants.storage[0];
         if (!currentImage) currentImage = product.gallery?.[0] || product.image;
+        // Carregar todos os produtos para relacionados
+        try {
+          allProducts = await Api.products.getAll({ all: false });
+        } catch {
+          allProducts = [];
+        }
         render();
       }
     } catch (e) {
@@ -60,6 +69,16 @@ export function renderProductDetailView(productSlug) {
   }
 
   syncProduct();
+
+  // Sincronização em tempo real das alterações do Admin (Preço, Estoque, Imagens, Status)
+  const onProductUpdated = (e) => {
+    const detail = e.detail;
+    if (!detail || !detail.product || String(detail.product.id) === String(product?.id) || detail.product.slug === productSlug) {
+      syncProduct();
+    }
+  };
+  window.addEventListener('products-updated', onProductUpdated);
+  window.addEventListener('stock-updated', syncProduct);
 
   function render() {
     if (!product) {
@@ -140,8 +159,24 @@ export function renderProductDetailView(productSlug) {
             <span>•</span>
             <span>Código / SKU: <strong>${product.sku}</strong></span>
             <span>•</span>
-            <span style="color: var(--accent-emerald); font-weight: 700;">● ${product.stock > 0 ? 'EM STOCK' : 'ESGOTADO'}</span>
+            ${(product.is_active === false || product.ativo === false) ? `
+              <span style="color: #ef4444; font-weight: 700;">● INDISPONÍVEL</span>
+            ` : (product.stock > 0) ? `
+              <span style="color: var(--accent-emerald); font-weight: 700;">● EM STOCK (${product.stock} un.)</span>
+            ` : `
+              <span style="color: #ef4444; font-weight: 700;">● ESGOTADO</span>
+            `}
           </div>
+
+          ${(product.is_active === false || product.ativo === false) ? `
+            <div style="background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; padding: 12px 16px; border-radius: var(--radius-sm); font-weight: 700; font-size: 0.875rem; margin-top: 12px;">
+              ⚠️ Este produto foi desativado temporariamente pela loja e não está disponível para compra.
+            </div>
+          ` : (product.stock <= 0) ? `
+            <div style="background: #fffbeb; border: 1px solid #fef3c7; color: #b45309; padding: 12px 16px; border-radius: var(--radius-sm); font-weight: 700; font-size: 0.875rem; margin-top: 12px;">
+              📦 Produto esgotado no momento. Nova remessa a caminho em Luanda!
+            </div>
+          ` : ''}
 
           <h1 class="pdp-title">${product.name}</h1>
 
@@ -195,8 +230,8 @@ export function renderProductDetailView(productSlug) {
                 </div>
                 <div class="variant-pills">
                   ${product.variants.storage.map(s => {
-      const sPrice = product.variants.storagePrices?.[s];
-      return `
+                    const sPrice = product.variants.storagePrices?.[s];
+                    return `
                       <div class="variant-pill ${s === selectedStorage ? 'active' : ''}" data-storage-val="${s}">
                         <span style="font-weight: 700;">${s}</span>
                         ${sPrice ? `
@@ -206,7 +241,7 @@ export function renderProductDetailView(productSlug) {
                         ` : ''}
                       </div>
                     `;
-    }).join('')}
+                  }).join('')}
                 </div>
               </div>
             ` : ''}
@@ -214,20 +249,29 @@ export function renderProductDetailView(productSlug) {
 
           <!-- Quantity and Action Buttons -->
           <div class="pdp-cta-row">
-            <div class="pdp-qty-wrap">
-              <button class="pdp-qty-btn" id="pdpQtyDec">-</button>
-              <input type="text" class="pdp-qty-input" id="pdpQtyVal" value="${quantity}" readonly />
-              <button class="pdp-qty-btn" id="pdpQtyInc">+</button>
-            </div>
+            ${(product.is_active !== false && product.ativo !== false && product.stock > 0) ? `
+              <div class="pdp-qty-wrap">
+                <button class="pdp-qty-btn" id="pdpQtyDec">-</button>
+                <input type="text" class="pdp-qty-input" id="pdpQtyVal" value="${quantity}" readonly />
+                <button class="pdp-qty-btn" id="pdpQtyInc">+</button>
+              </div>
 
-            <button class="btn-pdp-cart" id="pdpAddToCartBtn">
-              ${Icons.cart(20, '#ffffff')}
-              <span>Adicionar ao Carrinho</span>
-            </button>
+              <button class="btn-pdp-cart" id="pdpAddToCartBtn">
+                ${Icons.cart(20, '#ffffff')}
+                <span>Adicionar ao Carrinho</span>
+              </button>
 
-            <button class="btn-pdp-buy-now" id="pdpBuyNowBtn">
-              Comprar Agora
-            </button>
+              <button class="btn-pdp-buy-now" id="pdpBuyNowBtn">
+                Comprar Agora
+              </button>
+            ` : `
+              <button class="btn-pdp-cart" id="pdpAddToCartBtn" disabled style="opacity: 0.6; cursor: not-allowed; background: #94a3b8; border-color: #94a3b8;">
+                <span>${(product.is_active === false || product.ativo === false) ? 'Produto Desativado' : 'Produto Esgotado'}</span>
+              </button>
+              <button class="btn-pdp-buy-now" id="pdpBuyNowBtn" disabled style="opacity: 0.6; cursor: not-allowed; background: #cbd5e1; color: #475569;">
+                Sem Disponibilidade
+              </button>
+            `}
 
             <button class="btn-pdp-wishlist ${isWishlisted ? 'active' : ''}" id="pdpWishlistBtn" title="Favoritar">
               ${Icons.heart(20, isWishlisted ? '#ef4444' : 'currentColor', isWishlisted ? '#ef4444' : 'none')}
@@ -313,6 +357,16 @@ export function renderProductDetailView(productSlug) {
                 <h4 style="font-weight: 700; margin-bottom: 12px;">Deixe a sua opinião sobre este produto</h4>
                 <div style="display: flex; flex-direction: column; gap: 12px;">
                   <input type="text" id="newReviewName" placeholder="Seu nome completo" class="form-input" />
+                  <!-- Seleção de estrelas -->
+                  <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 0.875rem; font-weight: 600; color: var(--text-main);">Sua avaliação</label>
+                    <div id="reviewStarPicker" style="display: flex; gap: 6px; cursor: pointer;">
+                      ${[1,2,3,4,5].map(s => `
+                        <span class="review-star-pick" data-star="${s}" style="font-size: 1.75rem; color: ${s <= reviewRating ? '#f59e0b' : '#d1d5db'}; transition: color 0.15s; user-select: none;">★</span>
+                      `).join('')}
+                    </div>
+                    <input type="hidden" id="newReviewRating" value="${reviewRating}" />
+                  </div>
                   <textarea id="newReviewComment" rows="3" placeholder="O que achou do produto, desempenho e entrega?" class="form-input" style="height: auto; padding: 10px;"></textarea>
                   <button class="btn btn-accent" id="submitReviewBtn" style="align-self: flex-start;">
                     Publicar Avaliação
@@ -407,20 +461,23 @@ export function renderProductDetailView(productSlug) {
       </section>
     `;
 
-    // Render related products
+    // Render related products (dinâmico via Supabase)
     const relatedGrid = container.querySelector('#relatedProductsGrid');
     if (relatedGrid) {
-      const related = ProductsData.filter(p => p.category === product.category && p.id !== product.id).slice(0, 4);
-      if (related.length === 0) {
-        ProductsData.slice(0, 4).forEach(p => relatedGrid.appendChild(createProductCard(p)));
-      } else {
-        related.forEach(p => relatedGrid.appendChild(createProductCard(p)));
-      }
+      const related = allProducts
+        .filter(p => p.is_active !== false && p.ativo !== false &&
+          (String(p.category_id) === String(product.category_id) || p.category === product.category) &&
+          String(p.id) !== String(product.id))
+        .slice(0, 4);
+      const relatedToShow = related.length > 0 ? related : allProducts.filter(p => String(p.id) !== String(product.id)).slice(0, 4);
+      relatedToShow.forEach(p => relatedGrid.appendChild(createProductCard(p)));
     }
 
     const alsoBoughtGrid = container.querySelector('#alsoBoughtProductsGrid');
     if (alsoBoughtGrid) {
-      const alsoBought = ProductsData.filter(p => p.id !== product.id).slice(2, 6);
+      const alsoBought = allProducts
+        .filter(p => p.is_active !== false && p.ativo !== false && String(p.id) !== String(product.id))
+        .slice(0, 4);
       alsoBought.forEach(p => alsoBoughtGrid.appendChild(createProductCard(p)));
     }
 
@@ -496,6 +553,15 @@ export function renderProductDetailView(productSlug) {
     const addBtn = container.querySelector('#pdpAddToCartBtn');
     if (addBtn) {
       addBtn.onclick = () => {
+        if (product.is_active === false || product.ativo === false) {
+          Toast.show({ title: 'Produto Indisponível', message: 'Este produto foi desativado temporariamente pela loja.', type: 'error' });
+          return;
+        }
+        if (product.stock <= 0) {
+          Toast.show({ title: 'Produto Esgotado', message: 'Este produto está sem unidades em estoque no momento.', type: 'warning' });
+          return;
+        }
+
         const itemProduct = {
           ...product,
           price: currentPrice
@@ -515,6 +581,15 @@ export function renderProductDetailView(productSlug) {
     const buyBtn = container.querySelector('#pdpBuyNowBtn');
     if (buyBtn) {
       buyBtn.onclick = () => {
+        if (product.is_active === false || product.ativo === false) {
+          Toast.show({ title: 'Produto Indisponível', message: 'Este produto foi desativado temporariamente pela loja.', type: 'error' });
+          return;
+        }
+        if (product.stock <= 0) {
+          Toast.show({ title: 'Produto Esgotado', message: 'Este produto está sem unidades em estoque no momento.', type: 'warning' });
+          return;
+        }
+
         const itemProduct = {
           ...product,
           price: currentPrice
@@ -570,29 +645,73 @@ export function renderProductDetailView(productSlug) {
       };
     }
 
+    // Seleção de estrelas no form
+    const starPicker = container.querySelector('#reviewStarPicker');
+    if (starPicker) {
+      starPicker.querySelectorAll('.review-star-pick').forEach(star => {
+        star.onmouseenter = () => {
+          const hoverVal = Number(star.dataset.star);
+          starPicker.querySelectorAll('.review-star-pick').forEach(s => {
+            s.style.color = Number(s.dataset.star) <= hoverVal ? '#f59e0b' : '#d1d5db';
+          });
+        };
+        star.onmouseleave = () => {
+          starPicker.querySelectorAll('.review-star-pick').forEach(s => {
+            s.style.color = Number(s.dataset.star) <= reviewRating ? '#f59e0b' : '#d1d5db';
+          });
+        };
+        star.onclick = () => {
+          reviewRating = Number(star.dataset.star);
+          const ratingInput = container.querySelector('#newReviewRating');
+          if (ratingInput) ratingInput.value = reviewRating;
+          starPicker.querySelectorAll('.review-star-pick').forEach(s => {
+            s.style.color = Number(s.dataset.star) <= reviewRating ? '#f59e0b' : '#d1d5db';
+          });
+        };
+      });
+    }
+
     const submitReviewBtn = container.querySelector('#submitReviewBtn');
     if (submitReviewBtn) {
-      submitReviewBtn.onclick = () => {
+      submitReviewBtn.onclick = async () => {
         const name = container.querySelector('#newReviewName').value.trim();
         const comment = container.querySelector('#newReviewComment').value.trim();
+        const ratingVal = Number(container.querySelector('#newReviewRating')?.value || reviewRating);
+
         if (!name || !comment) {
           Toast.show({ title: 'Preencha o seu nome e comentário', type: 'warning' });
           return;
         }
-        const currentReviews = getProductReviews(product.id, product.reviews || []);
-        currentReviews.unshift({
-          author: name,
-          rating: 5,
-          date: new Date().toISOString(),
-          comment
-        });
+
+        submitReviewBtn.disabled = true;
+        submitReviewBtn.textContent = 'Publicando...';
+
         try {
-          localStorage.setItem(`novatech_reviews_${product.id}`, JSON.stringify(currentReviews));
-        } catch {}
-        product.reviews = currentReviews;
-        product.reviewCount = currentReviews.length;
-        Toast.show({ title: 'Avaliação publicada com sucesso! 🎉', message: 'Obrigado pelo seu feedback.', type: 'success' });
-        render();
+          // Salvar no Supabase como fonte de verdade
+          const newReview = await Api.reviews.create({
+            productId: product.id,
+            author: name,
+            comment,
+            rating: ratingVal
+          });
+
+          // Atualizar estado local com os dados frescos do banco
+          if (!Array.isArray(product.reviews)) product.reviews = [];
+          product.reviews.unshift(newReview);
+          product.reviewCount = product.reviews.length;
+          // Recalcular rating médio localmente
+          if (product.reviews.length > 0) {
+            product.rating = Number((product.reviews.reduce((sum, r) => sum + (r.rating || 5), 0) / product.reviews.length).toFixed(1));
+          }
+
+          Toast.show({ title: 'Avaliação publicada com sucesso! 🎉', message: 'Obrigado pelo seu feedback.', type: 'success' });
+          reviewRating = 5; // reset
+          render();
+        } catch (err) {
+          Toast.show({ title: 'Erro ao publicar avaliação', message: err.message, type: 'error' });
+          submitReviewBtn.disabled = false;
+          submitReviewBtn.textContent = 'Publicar Avaliação';
+        }
       };
     }
 
@@ -607,3 +726,4 @@ export function renderProductDetailView(productSlug) {
   render();
   return container;
 }
+

@@ -10,11 +10,13 @@ export function setupMobileNav() {
     try {
       const realCats = await Api.categories.getAll();
       if (realCats && realCats.length > 0) {
-        categories = realCats.map(c => ({
-          ...c,
-          iconName: c.icon_name || c.iconName || 'package',
-          subcategories: Array.isArray(c.subcategories) ? c.subcategories : (c.subcategories ? (typeof c.subcategories === 'string' ? JSON.parse(c.subcategories) : c.subcategories) : [])
-        }));
+        categories = realCats
+          .filter(c => c.is_active !== false && c.ativo !== false)
+          .map(c => ({
+            ...c,
+            iconName: c.icon_name || c.iconName || 'package',
+            subcategories: Array.isArray(c.subcategories) ? c.subcategories : (c.subcategories ? (typeof c.subcategories === 'string' ? JSON.parse(c.subcategories) : c.subcategories) : [])
+          }));
         renderMobileDrawer();
       }
     } catch (e) {
@@ -23,6 +25,8 @@ export function setupMobileNav() {
   }
   syncCategories();
 
+  window.addEventListener('categories-updated', () => syncCategories());
+
   // 1. Mobile Bottom Bar
   const bottomBar = document.createElement('nav');
   bottomBar.className = 'mobile-bottom-bar';
@@ -30,13 +34,13 @@ export function setupMobileNav() {
   function renderBottomBar() {
     const currentHash = window.location.hash || '#/';
 
-    if (currentHash.startsWith('#/checkout')) {
+    if (currentHash.startsWith('#/checkout') || currentHash.startsWith('#/admin') || window.innerWidth > 768) {
       bottomBar.style.display = 'none';
-      document.body.classList.add('checkout-mode');
+      if (currentHash.startsWith('#/checkout')) document.body.classList.add('checkout-mode');
       return;
     }
 
-    bottomBar.style.display = 'flex';
+    bottomBar.style.display = '';
     document.body.classList.remove('checkout-mode');
 
     const cartCount = Storage.getCartCount();
@@ -79,7 +83,7 @@ export function setupMobileNav() {
         if (Storage.getUser()) {
           window.location.hash = '/minha-conta';
         } else {
-          window.dispatchEvent(new CustomEvent('open-auth-modal'));
+          window.location.hash = '/login';
         }
       };
     }
@@ -106,7 +110,7 @@ export function setupMobileNav() {
           </div>
           <div class="mobile-drawer-user-text">
             <div class="mobile-drawer-user-name">${user ? user.name : 'Olá, Visitante'}</div>
-            <div class="mobile-drawer-user-sub">${user ? user.email : 'Entre para uma melhor experiência'}</div>
+            <div class="mobile-drawer-user-sub">${user ? user.email : 'Entre para acompanhar seus pedidos'}</div>
           </div>
         </div>
         <button id="closeMobileDrawerBtn" class="mobile-drawer-close-btn" aria-label="Fechar menu lateral">
@@ -114,7 +118,18 @@ export function setupMobileNav() {
         </button>
       </div>
 
-      <!-- Corpo: Apenas Categorias de Produtos -->
+      <!-- Links Rápidos no Mobile (Rastrear Encomenda) -->
+      <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-light); background: var(--bg-alt, #f8fafc); display: flex; flex-direction: column; gap: 8px;">
+        <a href="#/pedidos" class="mobile-cat-header" style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 10px 14px; text-decoration: none; color: var(--text-main); font-weight: 700; font-size: 0.875rem;">
+          <div class="mobile-cat-left">
+            <span class="mobile-cat-icon" style="color: var(--primary-600);">${Icons.package(18)}</span>
+            <span>Rastrear Encomendas</span>
+          </div>
+          <span style="font-size: 0.75rem; color: var(--primary-600); font-weight: 800;">Acompanhar →</span>
+        </a>
+      </div>
+
+      <!-- Corpo: Categorias de Produtos -->
       <div class="mobile-drawer-body">
         <div class="mobile-drawer-section-label">
           <span>CATEGORIAS</span>
@@ -165,10 +180,10 @@ export function setupMobileNav() {
             Terminar Sessão
           </button>
         ` : `
-          <button id="mobileDrawerLoginBtn" class="btn btn-primary btn-full mobile-drawer-auth-btn">
+          <a href="#/login" class="btn btn-primary btn-full mobile-drawer-auth-btn">
             ${Icons.user(18)}
             <span>Iniciar Sessão / Criar Conta</span>
-          </button>
+          </a>
         `}
       </div>
     `;
@@ -185,7 +200,7 @@ export function setupMobileNav() {
         if (Storage.getUser()) {
           window.location.hash = '/minha-conta';
         } else {
-          window.dispatchEvent(new CustomEvent('open-auth-modal'));
+          window.location.hash = '/login';
         }
       };
     }
@@ -268,4 +283,5 @@ export function setupMobileNav() {
   window.addEventListener('cart-updated', renderBottomBar);
   window.addEventListener('wishlist-updated', renderBottomBar);
   window.addEventListener('hashchange', renderBottomBar);
+  window.addEventListener('resize', renderBottomBar);
 }

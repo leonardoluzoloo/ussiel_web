@@ -5,7 +5,7 @@
 
 import { Icons } from '../utils/icons.js';
 import { formatPrice, formatDate } from '../utils/format.js';
-import { Storage } from '../services/storage.js';
+import { Storage, normalizeOrderStatus } from '../services/storage.js';
 import { Api } from '../services/api.js';
 import { createProductCard } from '../components/ProductCard.js';
 import { Toast } from '../components/Toast.js';
@@ -15,25 +15,37 @@ export function renderAccountView(initialTab = 'orders') {
   container.className = 'container';
 
   let currentTab = initialTab; // 'orders' | 'profile' | 'wishlist' | 'addresses'
-  let ordersList = Storage.getOrders() || [];
+  // IMPORTANTE: Inicia com lista vazia. Nunca usa Storage.getOrders() diretamente
+  // pois aquele cache é compartilhado e pode conter pedidos de outros usuários.
+  // A fonte de verdade é sempre o Supabase via Api.orders.getMyOrders().
+  let ordersList = [];
   let availableProducts = [];
   let isSyncing = false;
 
   async function syncRealData() {
     const user = Storage.getUser();
-    if (!user) return;
+    if (!user) {
+      // Sem usuário logado: lista vazia (nunca mostrar pedidos do cache compartilhado)
+      ordersList = [];
+      render();
+      return;
+    }
 
     isSyncing = true;
     try {
       const [fetchedOrders, fetchedProducts] = await Promise.all([
-        Api.orders.getMyOrders(user.email).catch(() => []),
+        // Supabase = fonte de verdade. Fallback = lista vazia (nunca cache compartilhado)
+        Api.orders.getMyOrders({ userId: user.id, userEmail: user.email }).catch(e => {
+          console.warn('Erro ao buscar pedidos do usuário:', e.message);
+          return [];
+        }),
         Api.products.getAll({ all: true }).catch(() => [])
       ]);
 
-      if (fetchedOrders && fetchedOrders.length > 0) {
+      if (Array.isArray(fetchedOrders)) {
         ordersList = fetchedOrders;
       }
-      if (fetchedProducts && fetchedProducts.length > 0) {
+      if (Array.isArray(fetchedProducts)) {
         availableProducts = fetchedProducts;
       }
       render();
@@ -43,6 +55,14 @@ export function renderAccountView(initialTab = 'orders') {
       isSyncing = false;
     }
   }
+
+  // Sincronização em tempo real com eventos do Admin e Loja
+  const onOrdersUpdated = () => {
+    syncRealData();
+  };
+  window.addEventListener('orders-updated', onOrdersUpdated);
+  window.addEventListener('order-created', onOrdersUpdated);
+  window.addEventListener('products-updated', onOrdersUpdated);
 
   function render() {
     const user = Storage.getUser();
@@ -73,11 +93,11 @@ export function renderAccountView(initialTab = 'orders') {
 
       const loginBtn = container.querySelector('#accountLoginPromptBtn');
       if (loginBtn) {
-        loginBtn.onclick = () => window.dispatchEvent(new CustomEvent('open-auth-modal'));
+        loginBtn.onclick = () => { window.location.hash = '/login'; };
       }
       const regBtn = container.querySelector('#accountRegisterPromptBtn');
       if (regBtn) {
-        regBtn.onclick = () => window.dispatchEvent(new CustomEvent('open-auth-modal'));
+        regBtn.onclick = () => { window.location.hash = '/cadastro'; };
       }
       return;
     }
@@ -102,10 +122,10 @@ export function renderAccountView(initialTab = 'orders') {
         <aside class="admin-sidebar">
           <div style="text-align: center; padding-bottom: 20px; border-bottom: 1px solid var(--border-light); margin-bottom: 16px;">
             <div style="width: 60px; height: 60px; border-radius: 50%; background: var(--primary-100); color: var(--primary-700); display: flex; align-items: center; justify-content: center; margin: 0 auto 10px auto; font-weight: 800; font-size: 1.5rem;">
-              ${user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+              ${user.name ? user.name.split(' ')[0].charAt(0).toUpperCase() : 'U'}
             </div>
             <h3 style="font-size: 1rem; font-weight: 800; color: var(--text-main); margin-bottom: 2px;">
-              ${user.name || 'Cliente'}
+              ${user.name ? user.name.split(' ')[0] : 'Cliente'}
             </h3>
             <span style="font-size: 0.75rem; color: var(--text-muted);">${user.email || ''}</span>
           </div>
@@ -260,6 +280,27 @@ export function renderAccountView(initialTab = 'orders') {
                             }).join('')}
                           </div>
                         </div>
+
+                        <!-- Ações do Cliente / Confirmação de Entrega (FASE 10) -->
+                        ${normalizeOrderStatus(order.status || order.status_pedido) === 'shipped' ? `
+                          <div style="margin-top: 16px; padding: 16px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;">
+                            <div>
+                              <div style="font-weight: 800; color: #1e40af; font-size: 0.9375rem; display: flex; align-items: center; gap: 6px;">
+                                🚚 Sua encomenda está a caminho do seu endereço!
+                              </div>
+                              <p style="color: #3b82f6; font-size: 0.8125rem; margin: 4px 0 0 0;">
+                                O estafeta já saiu para entrega. Quando receber o pacote, clique no botão ao lado para confirmar.
+                              </p>
+                            </div>
+                            <button class="btn btn-primary btn-confirm-delivery" data-order-id="${order.id}" data-order-code="${orderCode}" style="background: #16a34a; border-color: #16a34a; padding: 10px 20px; font-weight: 800; font-size: 0.875rem; white-space: nowrap;">
+                              ✓ Confirmar Recebimento do Pedido
+                            </button>
+                          </div>
+                        ` : normalizeOrderStatus(order.status || order.status_pedido) === 'delivered' ? `
+                          <div style="margin-top: 16px; padding: 12px 16px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: var(--radius-sm); color: #065f46; font-weight: 700; font-size: 0.875rem; display: flex; align-items: center; gap: 8px;">
+                            <span>★ Encomenda entregue e finalizada com sucesso. Obrigado por confiar na NovaTech Angola!</span>
+                          </div>
+                        ` : ''}
                       </div>
                     `;
                   }).join('')}
@@ -389,28 +430,20 @@ export function renderAccountView(initialTab = 'orders') {
   }
 
   function getStatusStepIndex(status) {
-    switch (status) {
+    const canonical = normalizeOrderStatus(status);
+    switch (canonical) {
       case 'received':
-      case 'recebido':
         return 0;
       case 'confirmed':
-      case 'confirmado':
-      case 'paid':
-      case 'pago':
         return 1;
       case 'preparing':
-      case 'preparacao':
-      case 'em_preparacao':
         return 2;
       case 'shipped':
-      case 'enviado':
-        return 3;
-      case 'in_transit':
-      case 'em_transito':
         return 4;
       case 'delivered':
-      case 'entregue':
         return 5;
+      case 'cancelled':
+        return -1;
       default:
         return 1;
     }
@@ -424,9 +457,38 @@ export function renderAccountView(initialTab = 'orders') {
       };
     });
 
+    // Confirmação de recebimento pelo cliente (FASE 10)
+    container.querySelectorAll('.btn-confirm-delivery').forEach(btn => {
+      btn.onclick = async (e) => {
+        e.preventDefault();
+        const orderId = btn.dataset.orderId;
+        const orderCode = btn.dataset.orderCode || orderId;
+
+        if (!confirm(`Confirma que você recebeu o pedido #${orderCode} em mãos com todos os itens em conformidade?`)) {
+          return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = 'Processando confirmação...';
+
+        try {
+          await Api.orders.confirmDelivery(orderId, Storage.getUser());
+          Toast.show(`Recebimento do pedido #${orderCode} confirmado com sucesso!`, 'success');
+          await syncRealData();
+        } catch (err) {
+          Toast.show(err.message || 'Erro ao confirmar entrega.', 'error');
+          btn.disabled = false;
+          btn.textContent = '✓ Confirmar Recebimento do Pedido';
+        }
+      };
+    });
+
     const logoutBtn = container.querySelector('#accLogoutBtn');
     if (logoutBtn) {
-      logoutBtn.onclick = () => {
+      logoutBtn.onclick = async () => {
+        try {
+          await Api.auth.logout();
+        } catch {}
         Storage.logoutUser();
         window.location.hash = '/';
       };
@@ -438,7 +500,7 @@ export function renderAccountView(initialTab = 'orders') {
         refreshBtn.disabled = true;
         refreshBtn.innerHTML = 'Carregando...';
         await syncRealData();
-        Toast.show({ title: 'Status atualizado com sucesso!', type: 'success' });
+        Toast.show('Status de pedidos atualizado!', 'success');
       };
     }
 
@@ -457,7 +519,8 @@ export function renderAccountView(initialTab = 'orders') {
 
     const profForm = container.querySelector('#profileForm');
     if (profForm) {
-      profForm.onsubmit = async () => {
+      profForm.onsubmit = async (e) => {
+        if (e && e.preventDefault) e.preventDefault();
         const u = Storage.getUser() || {};
         const newName = container.querySelector('#profName').value.trim();
         const newPhone = container.querySelector('#profPhone').value.trim();

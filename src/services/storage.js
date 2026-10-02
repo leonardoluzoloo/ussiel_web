@@ -6,12 +6,47 @@ const STORAGE_KEYS = {
   CART: 'novatech_cart_v1',
   WISHLIST: 'novatech_wishlist_v1',
   USER: 'novatech_user_v1',
-  ORDERS: 'novatech_orders_v2',
   RECENT_SEARCHES: 'novatech_searches_v1',
   COUPON: 'novatech_coupon_v1'
 };
 
 export const FREE_SHIPPING_THRESHOLD = 1000000; // Kz 1.000.000 for free shipping
+
+// Mapeador e normalizador canônico de status de pedidos (PT <-> EN)
+export function normalizeOrderStatus(status) {
+  if (!status) return 'received';
+  const clean = String(status).toLowerCase().trim();
+  switch (clean) {
+    case 'recebido':
+    case 'received':
+      return 'received';
+    case 'confirmado':
+    case 'confirmed':
+    case 'paid':
+    case 'pago':
+      return 'confirmed';
+    case 'preparando':
+    case 'preparacao':
+    case 'em_preparacao':
+    case 'preparing':
+      return 'preparing';
+    case 'enviado':
+    case 'in_transit':
+    case 'em_transito':
+    case 'shipped':
+      return 'shipped';
+    case 'entregue':
+    case 'delivered':
+    case 'concluido':
+      return 'delivered';
+    case 'cancelado':
+    case 'cancelled':
+    case 'canceled':
+      return 'cancelled';
+    default:
+      return clean;
+  }
+}
 
 export const Storage = {
   // --- CART ---
@@ -32,12 +67,29 @@ export const Storage = {
   addToCart(product, quantity = 1, selectedVariant = {}) {
     const cart = this.getCart();
     const variantKey = `${product.id}-${selectedVariant.color || ''}-${selectedVariant.storage || ''}`;
-    
+    const maxStock = product.stock !== undefined ? Number(product.stock) : 999;
+    const allowNoStock = Boolean(product.allow_out_of_stock_sales);
+
+    // Validação de estoque real
+    if (!allowNoStock && maxStock <= 0) {
+      throw new Error('Este produto está temporariamente esgotado no estoque.');
+    }
+
     const existingIndex = cart.findIndex(item => item.key === variantKey);
 
     if (existingIndex > -1) {
-      cart[existingIndex].quantity += quantity;
+      const currentQty = cart[existingIndex].quantity;
+      const desiredQty = currentQty + quantity;
+
+      if (!allowNoStock && desiredQty > maxStock) {
+        cart[existingIndex].quantity = maxStock;
+        this.saveCart(cart);
+        throw new Error(`Estoque máximo atingido. Quantidade ajustada para ${maxStock} unidades.`);
+      }
+      cart[existingIndex].quantity = desiredQty;
+      cart[existingIndex].stock = maxStock;
     } else {
+      const finalQty = (!allowNoStock && quantity > maxStock) ? maxStock : quantity;
       cart.push({
         key: variantKey,
         id: product.id,
@@ -46,8 +98,8 @@ export const Storage = {
         price: product.price,
         image: product.image,
         variant: selectedVariant,
-        quantity: quantity,
-        stock: product.stock
+        quantity: finalQty,
+        stock: maxStock
       });
     }
 
@@ -60,10 +112,19 @@ export const Storage = {
     const item = cart.find(i => i.key === itemKey);
     if (!item) return cart;
 
-    item.quantity += delta;
-    if (item.quantity <= 0) {
-      cart = cart.filter(i => i.key !== itemKey);
+    const newQty = item.quantity + delta;
+    if (newQty <= 0) {
+      return this.removeFromCart(itemKey);
     }
+
+    // Não permite ultrapassar estoque disponível no carrinho
+    if (item.stock !== undefined && item.stock > 0 && newQty > item.stock) {
+      item.quantity = item.stock;
+      this.saveCart(cart);
+      throw new Error(`Estoque insuficiente. Apenas ${item.stock} unidades disponíveis.`);
+    }
+
+    item.quantity = newQty;
     this.saveCart(cart);
     return cart;
   },
@@ -89,10 +150,20 @@ export const Storage = {
     return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   },
 
-  // --- WISHLIST ---
+  // --- WISHLIST (ISOLADA POR CONTA DE USUÁRIO) ---
+  _getWishlistKey() {
+    const user = this.getUser();
+    if (user && (user.id || user.email)) {
+      const userKey = (user.id || user.email).toString().replace(/[^a-zA-Z0-9_-]/g, '_');
+      return `${STORAGE_KEYS.WISHLIST}_${userKey}`;
+    }
+    return STORAGE_KEYS.WISHLIST;
+  },
+
   getWishlist() {
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.WISHLIST);
+      const key = this._getWishlistKey();
+      const data = localStorage.getItem(key);
       return data ? JSON.parse(data) : [];
     } catch {
       return [];
@@ -102,20 +173,22 @@ export const Storage = {
   toggleWishlist(productId) {
     let list = this.getWishlist();
     let isAdded = false;
-    if (list.includes(productId)) {
-      list = list.filter(id => id !== productId);
+    if (list.includes(productId) || list.includes(String(productId)) || list.includes(Number(productId))) {
+      list = list.filter(id => String(id) !== String(productId));
       isAdded = false;
     } else {
       list.push(productId);
       isAdded = true;
     }
-    localStorage.setItem(STORAGE_KEYS.WISHLIST, JSON.stringify(list));
+    const key = this._getWishlistKey();
+    localStorage.setItem(key, JSON.stringify(list));
     window.dispatchEvent(new CustomEvent('wishlist-updated', { detail: { list, productId, isAdded } }));
     return isAdded;
   },
 
   isInWishlist(productId) {
-    return this.getWishlist().includes(productId);
+    const list = this.getWishlist();
+    return list.includes(productId) || list.includes(String(productId)) || list.includes(Number(productId));
   },
 
   // --- COUPONS ---
@@ -143,21 +216,6 @@ export const Storage = {
     }
     const clean = String(couponOrCode || '').trim().toUpperCase();
     if (!clean) return { success: false, message: 'Informe o código do cupom.' };
-
-    // Tenta resgatar cupons sincronizados localmente caso esteja offline
-    try {
-      const localCoupons = JSON.parse(localStorage.getItem('novatech_coupons_db') || '[]');
-      const found = localCoupons.find(c => c.code && c.code.toUpperCase() === clean);
-      if (found) {
-        return this.saveAppliedCoupon({
-          code: found.code,
-          type: found.discount_type || found.type || 'percent',
-          value: Number(found.discount_value || found.value || 0),
-          description: found.description || `Cupom ${found.code} aplicado`
-        });
-      }
-    } catch {}
-
     return { success: false, message: 'Cupom inválido ou não encontrado.' };
   },
 
@@ -183,40 +241,26 @@ export const Storage = {
 
   logoutUser() {
     localStorage.removeItem(STORAGE_KEYS.USER);
+    localStorage.removeItem('novatech_auth_token_v2');
     localStorage.removeItem('novatech_auth_token_v1');
+    localStorage.removeItem('novatech_admin_session');
+    localStorage.removeItem(STORAGE_KEYS.COUPON);
+
+    // Limpar todos os caches sensíveis associados a conta
+    localStorage.removeItem('novatech_admin_pedidos_v4_clean');
+    localStorage.removeItem('novatech_admin_orders_cache');
+    localStorage.removeItem('novatech_customer_orders_cache');
+    try {
+      Object.keys(localStorage)
+        .filter(k => k.startsWith('novatech_reviews_cache_') || k.startsWith('novatech_admin_'))
+        .forEach(k => localStorage.removeItem(k));
+    } catch {}
+
+    sessionStorage.clear();
     window.dispatchEvent(new CustomEvent('user-updated', { detail: { user: null } }));
   },
 
-  // --- ORDERS ---
-  getOrders() {
-    try {
-      localStorage.removeItem('novatech_orders_v1'); // Remove mock antigo
-      const data = localStorage.getItem(STORAGE_KEYS.ORDERS);
-      return data ? JSON.parse(data) : [];
-    } catch {
-      return [];
-    }
-  },
 
-  saveOrder(order) {
-    const orders = this.getOrders();
-    orders.unshift(order);
-    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
-    this.clearCart();
-    this.removeCoupon();
-    window.dispatchEvent(new CustomEvent('order-created', { detail: { order } }));
-    return order;
-  },
-
-  updateOrderStatus(orderId, newStatus) {
-    const orders = this.getOrders();
-    const order = orders.find(o => o.id === orderId);
-    if (order) {
-      order.status = newStatus;
-      localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
-      window.dispatchEvent(new CustomEvent('order-updated', { detail: { order } }));
-    }
-  },
 
   // --- RECENT SEARCHES ---
   getRecentSearches() {

@@ -51,19 +51,6 @@ export function setupMiniCart() {
         </button>
       </div>
 
-      <!-- Free Shipping Progress -->
-      <div class="shipping-progress-box">
-        <div class="shipping-progress-text">
-          ${remainingForFreeShipping > 0 
-            ? `Faltam <strong>${formatPrice(remainingForFreeShipping)}</strong> para ganhar <strong>FRETE GRÁTIS!</strong>`
-            : `🎉 <strong>Parabéns!</strong> Você ganhou <strong>FRETE GRÁTIS!</strong>`
-          }
-        </div>
-        <div class="shipping-progress-track">
-          <div class="shipping-progress-bar" style="width: ${shippingProgressPct}%"></div>
-        </div>
-      </div>
-
       <!-- Body / Items -->
       <div class="drawer-body">
         ${cart.length === 0 ? `
@@ -243,7 +230,7 @@ export function setupMiniCart() {
             message: 'Inicie sessão ou crie uma conta para finalizar a sua encomenda.',
             type: 'info'
           });
-          window.dispatchEvent(new CustomEvent('open-auth-modal'));
+          window.location.hash = '/login';
           const onLogin = () => {
             window.removeEventListener('user-updated', onLogin);
             window.location.hash = '/checkout';
