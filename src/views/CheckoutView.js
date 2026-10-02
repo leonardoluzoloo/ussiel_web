@@ -564,6 +564,11 @@ export function renderCheckoutView() {
         };
 
         try {
+          // Validação estrita de cupom de primeira compra por e-mail
+          if (appliedCoupon && appliedCoupon.code) {
+            await Api.coupons.validate(appliedCoupon.code, subtotal, formData.email);
+          }
+
           const apiOrder = await Api.orders.create(orderPayload);
           const orderCode = apiOrder.order_code || `NV-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
 

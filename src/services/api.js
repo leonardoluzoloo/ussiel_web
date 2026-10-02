@@ -1795,10 +1795,27 @@ export const Api = {
       return getLocalData(LOCAL_STORAGE_KEYS.COUPONS, []);
     },
 
-    async validate(code, cartTotal) {
+    async validate(code, cartTotal, customerEmailOrId = null) {
       const clean = String(code || '').trim().toUpperCase();
       const list = await this.getAll();
-      const c = list.find(item => item.code && item.code.toUpperCase() === clean);
+      let c = list.find(item => item.code && item.code.toUpperCase() === clean);
+
+      // Garante suporte nativo ao cupom oficial de boas-vindas NOVATECH10
+      if (!c && clean === 'NOVATECH10') {
+        c = {
+          id: 'novatech10-official',
+          code: 'NOVATECH10',
+          discount_type: 'fixed',
+          discount_value: 10000,
+          value: 10000,
+          min_spend: 30000,
+          min_order_value: 30000,
+          is_active: true,
+          first_purchase_only: true,
+          usage_limit: 10000,
+          times_used: 0
+        };
+      }
 
       if (!c) throw new Error('Cupom não encontrado ou inválido.');
       if (!c.is_active) throw new Error('Este cupom foi pausado ou desativado.');
@@ -1813,7 +1830,6 @@ export const Api = {
       }
       if (c.end_date) {
         const endDate = new Date(c.end_date);
-        // Define fim do dia caso seja apenas data
         if (!isNaN(endDate.getTime())) {
           if (c.end_date.length === 10) endDate.setHours(23, 59, 59, 999);
           if (now > endDate) {
@@ -1822,12 +1838,55 @@ export const Api = {
         }
       }
 
-      // Validação de limite de utilizações (BUG-002)
+      // Validação de limite global de utilizações
       if (c.usage_limit && (c.times_used || 0) >= c.usage_limit) {
         throw new Error('Este cupom atingiu o limite máximo de utilizações permitido.');
       }
-      if (c.min_spend && cartTotal < c.min_spend) {
-        throw new Error(`O valor mínimo do pedido para este cupom é de ${c.min_spend.toLocaleString()} Kz.`);
+      
+      const minSpend = Number(c.min_spend || c.min_order_value || 0);
+      if (minSpend > 0 && cartTotal < minSpend) {
+        throw new Error(`O valor mínimo do pedido para este cupom é de ${minSpend.toLocaleString()} Kz.`);
+      }
+
+      // REGRA DE PRIMEIRA COMPRA / 1 USO POR CLIENTE (NOVATECH10)
+      const isFirstPurchaseCoupon = clean === 'NOVATECH10' || c.first_purchase_only === true;
+      if (isFirstPurchaseCoupon) {
+        const currentUser = Storage.getUser();
+        const targetEmail = String(customerEmailOrId || currentUser?.email || '').trim().toLowerCase();
+
+        if (targetEmail) {
+          // 1. Verifica pedidos no Supabase associados a este e-mail
+          if (isSupabaseConfigured() && supabase) {
+            try {
+              const { data: userOrders, error: ordErr } = await supabase
+                .from('pedidos')
+                .select('id, codigo_pedido, status_pedido')
+                .eq('email_cliente', targetEmail)
+                .neq('status_pedido', 'cancelled')
+                .limit(1);
+
+              if (!ordErr && userOrders && userOrders.length > 0) {
+                throw new Error('O cupom NOVATECH10 é exclusivo para clientes em sua primeira compra.');
+              }
+            } catch (queryErr) {
+              if (queryErr.message && queryErr.message.includes('exclusivo para clientes')) {
+                throw queryErr;
+              }
+            }
+          }
+
+          // 2. Verifica no histórico local de pedidos
+          const localOrders = getLocalData(LOCAL_STORAGE_KEYS.ORDERS, []);
+          const hasExistingOrder = localOrders.some(o => {
+            const oEmail = String(o?.customer?.email || o?.email_cliente || '').toLowerCase().trim();
+            const oStatus = o?.status || o?.status_pedido || '';
+            return oEmail === targetEmail && oStatus !== 'cancelled';
+          });
+
+          if (hasExistingOrder) {
+            throw new Error('O cupom NOVATECH10 só pode ser utilizado uma única vez na primeira compra.');
+          }
+        }
       }
 
       return c;
