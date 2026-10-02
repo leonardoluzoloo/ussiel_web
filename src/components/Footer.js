@@ -28,7 +28,7 @@ export function createFooter() {
             <input 
               type="email" 
               id="newsletterEmail" 
-              placeholder="Digite o seu melhor e-mail..." 
+              placeholder="Insira o seu e-mail..." 
               class="newsletter-input" 
               required 
             />
