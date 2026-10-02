@@ -477,97 +477,97 @@ export function renderAdminView() {
     const descText = !hasAdmin ? 'Nenhum administrador detectado. Configure o gestor principal da plataforma.' : 'Cadastre um novo perfil de gestor da plataforma.';
 
     container.innerHTML = `
-      <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 12px; background: #0b0f19; box-sizing: border-box;">
-        <div style="background: #111827; border: 1px solid #1f2937; border-radius: 16px; padding: 22px 20px; width: 100%; max-width: 440px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); color: #f9fafb; box-sizing: border-box;">
+      <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; background: radial-gradient(circle at 50% 20%, #172554 0%, #080c14 70%); box-sizing: border-box;">
+        <div style="background: rgba(17, 24, 39, 0.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px; padding: 28px 24px; width: 100%; max-width: 440px; box-shadow: 0 20px 50px rgba(0,0,0,0.6); color: #f9fafb; box-sizing: border-box;">
           
-          <div style="text-align: center; margin-bottom: 14px;">
-            <div style="width: 42px; height: 42px; background: linear-gradient(135deg, #10b981, #2563eb); color: #fff; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 4px 15px rgba(16,185,129,0.4);">
-              ${Icons.user(20)}
+          <div style="text-align: center; margin-bottom: 20px;">
+            <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #10b981, #2563eb); color: #fff; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 10px; box-shadow: 0 6px 20px rgba(16,185,129,0.35);">
+              ${Icons.user(22)}
             </div>
-            <h2 style="font-size: 1.1875rem; font-weight: 800; color: #ffffff; letter-spacing: -0.02em; margin-bottom: 2px;">${titleText}</h2>
-            <p style="font-size: 0.75rem; color: #9ca3af; margin: 0;">${descText}</p>
+            <h2 style="font-size: 1.25rem; font-weight: 800; color: #ffffff; letter-spacing: -0.02em; margin-bottom: 4px;">${titleText}</h2>
+            <p style="font-size: 0.8125rem; color: #94a3b8; margin: 0; line-height: 1.4;">${descText}</p>
           </div>
 
-          <form id="adminRegisterForm" style="display: flex; flex-direction: column; gap: 10px;">
+          <form id="adminRegisterForm" style="display: flex; flex-direction: column; gap: 12px;">
             <div class="form-group" style="margin-bottom: 0; width: 100%;">
-              <label class="form-label" style="color: #d1d5db; font-size: 0.75rem; font-weight: 600; margin-bottom: 3px;">Nome Completo *</label>
+              <label class="form-label" style="color: #cbd5e1; font-size: 0.78125rem; font-weight: 600; margin-bottom: 4px; display: block;">Nome Completo *</label>
               <input 
                 type="text" 
                 id="regName" 
                 class="form-input" 
                 placeholder="Ex: Leonardo Adriano" 
-                style="background: #1f2937; border: 1px solid #374151; color: #ffffff; width: 100%; padding: 8px 12px; border-radius: 8px; font-size: 0.8125rem; box-sizing: border-box;" 
+                style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.12); color: #ffffff; width: 100%; height: 44px; padding: 0 14px; border-radius: 10px; font-size: 0.875rem; box-sizing: border-box;" 
                 required 
                 minlength="2"
               />
             </div>
 
             <div class="form-group" style="margin-bottom: 0; width: 100%;">
-              <label class="form-label" style="color: #d1d5db; font-size: 0.75rem; font-weight: 600; margin-bottom: 3px;">E-mail Profissional *</label>
+              <label class="form-label" style="color: #cbd5e1; font-size: 0.78125rem; font-weight: 600; margin-bottom: 4px; display: block;">E-mail Profissional *</label>
               <input 
                 type="email" 
                 id="regEmail" 
                 class="form-input" 
                 placeholder="gestor@novatech.co.ao" 
-                style="background: #1f2937; border: 1px solid #374151; color: #ffffff; width: 100%; padding: 8px 12px; border-radius: 8px; font-size: 0.8125rem; box-sizing: border-box;" 
+                style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.12); color: #ffffff; width: 100%; height: 44px; padding: 0 14px; border-radius: 10px; font-size: 0.875rem; box-sizing: border-box;" 
                 required 
               />
             </div>
 
             <div class="form-group" style="margin-bottom: 0; width: 100%;">
-              <label class="form-label" style="color: #d1d5db; font-size: 0.75rem; font-weight: 600; margin-bottom: 3px;">Telefone / WhatsApp</label>
+              <label class="form-label" style="color: #cbd5e1; font-size: 0.78125rem; font-weight: 600; margin-bottom: 4px; display: block;">Telefone / WhatsApp</label>
               <input 
                 type="tel" 
                 id="regPhone" 
                 class="form-input" 
                 placeholder="+244 923 000 000" 
-                style="background: #1f2937; border: 1px solid #374151; color: #ffffff; width: 100%; padding: 8px 12px; border-radius: 8px; font-size: 0.8125rem; box-sizing: border-box;" 
+                style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.12); color: #ffffff; width: 100%; height: 44px; padding: 0 14px; border-radius: 10px; font-size: 0.875rem; box-sizing: border-box;" 
               />
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; box-sizing: border-box;">
               <div class="form-group" style="margin-bottom: 0; min-width: 0;">
-                <label class="form-label" style="color: #d1d5db; font-size: 0.75rem; font-weight: 600; margin-bottom: 3px;">Senha *</label>
+                <label class="form-label" style="color: #cbd5e1; font-size: 0.78125rem; font-weight: 600; margin-bottom: 4px; display: block;">Senha *</label>
                 <div style="position: relative; width: 100%; display: flex; align-items: center;">
                   <input 
                     type="password" 
                     id="regPassword" 
                     class="form-input" 
                     placeholder="Mín. 6 dígitos" 
-                    style="background: #1f2937; border: 1px solid #374151; color: #ffffff; width: 100%; padding: 8px 34px 8px 10px; border-radius: 8px; font-size: 0.8125rem; box-sizing: border-box;" 
+                    style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.12); color: #ffffff; width: 100%; height: 44px; padding: 0 36px 0 12px; border-radius: 10px; font-size: 0.875rem; box-sizing: border-box;" 
                     required 
                     minlength="6"
                   />
-                  <button type="button" class="toggle-reg-pwd-btn" data-target="regPassword" style="position: absolute; right: 8px; background: none; border: none; color: #9ca3af; cursor: pointer; padding: 2px; line-height: 1;" title="Mostrar/ocultar senha">👁</button>
+                  <button type="button" class="toggle-reg-pwd-btn" data-target="regPassword" style="position: absolute; right: 10px; background: none; border: none; color: #94a3b8; cursor: pointer; padding: 2px; font-size: 1rem; line-height: 1;" title="Mostrar/ocultar senha">👁</button>
                 </div>
               </div>
 
               <div class="form-group" style="margin-bottom: 0; min-width: 0;">
-                <label class="form-label" style="color: #d1d5db; font-size: 0.75rem; font-weight: 600; margin-bottom: 3px;">Confirmar Senha *</label>
+                <label class="form-label" style="color: #cbd5e1; font-size: 0.78125rem; font-weight: 600; margin-bottom: 4px; display: block;">Confirmar Senha *</label>
                 <div style="position: relative; width: 100%; display: flex; align-items: center;">
                   <input 
                     type="password" 
                     id="regPasswordConfirm" 
                     class="form-input" 
                     placeholder="Repita a senha" 
-                    style="background: #1f2937; border: 1px solid #374151; color: #ffffff; width: 100%; padding: 8px 34px 8px 10px; border-radius: 8px; font-size: 0.8125rem; box-sizing: border-box;" 
+                    style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.12); color: #ffffff; width: 100%; height: 44px; padding: 0 36px 0 12px; border-radius: 10px; font-size: 0.875rem; box-sizing: border-box;" 
                     required 
                     minlength="6"
                   />
-                  <button type="button" class="toggle-reg-pwd-btn" data-target="regPasswordConfirm" style="position: absolute; right: 8px; background: none; border: none; color: #9ca3af; cursor: pointer; padding: 2px; line-height: 1;" title="Mostrar/ocultar senha">👁</button>
+                  <button type="button" class="toggle-reg-pwd-btn" data-target="regPasswordConfirm" style="position: absolute; right: 10px; background: none; border: none; color: #94a3b8; cursor: pointer; padding: 2px; font-size: 1rem; line-height: 1;" title="Mostrar/ocultar senha">👁</button>
                 </div>
               </div>
             </div>
 
-            <button type="submit" id="adminRegisterSubmitBtn" class="btn btn-primary" style="width: 100%; padding: 10px; font-weight: 700; margin-top: 4px; background: #2563eb; border: none; border-radius: 8px; font-size: 0.84375rem; cursor: pointer;">
+            <button type="submit" id="adminRegisterSubmitBtn" class="btn btn-primary" style="width: 100%; height: 46px; font-weight: 700; margin-top: 6px; background: linear-gradient(135deg, #2563eb, #1d4ed8); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; font-size: 0.875rem; cursor: pointer; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35); transition: all 0.2s;">
               Cadastrar Administrador
             </button>
 
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; font-size: 0.8125rem; border-top: 1px solid #1f2937; padding-top: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; font-size: 0.8125rem; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 12px;">
               <a href="#/admin/login" style="color: #38bdf8; text-decoration: none; font-weight: 600;">
                 Já possuo conta. Entrar →
               </a>
-              <a href="#/" style="color: #9ca3af; text-decoration: none; font-weight: 500;">
+              <a href="#/" style="color: #94a3b8; text-decoration: none; font-weight: 500;">
                 ← Voltar para a Loja
               </a>
             </div>

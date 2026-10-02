@@ -513,29 +513,51 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
             </div>
           </div>
 
-          <!-- Products Grid / Empty state -->
+          <!-- Products Grid / Empty state Premium -->
           ${filtered.length === 0 ? `
-            <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 64px 24px; text-align: center;">
-              <div style="margin-bottom: 16px; opacity: 0.5;">
-                ${Icons.package(48, 'var(--text-muted)')}
+            <div class="catalog-empty-container">
+              <div class="catalog-empty-icon-wrap">
+                <div class="catalog-empty-icon-bg">
+                  ${Icons.package(36, '#2563eb')}
+                </div>
+                <span class="catalog-empty-badge">CATÁLOGO EM ATUALIZAÇÃO</span>
               </div>
-              <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin-bottom: 8px;">
-                ${activeProducts.length === 0 ? 'Novidades em Breve' : 'Nenhum produto encontrado'}
+
+              <h3 class="catalog-empty-title">
+                ${activeProducts.length === 0 ? 'Novidades Tecnológicas Chegando' : 'Nenhum produto com esses filtros'}
               </h3>
-              <p style="color: var(--text-secondary); font-size: 0.9375rem; max-width: 460px; margin: 0 auto 20px auto; line-height: 1.6;">
+
+              <p class="catalog-empty-desc">
                 ${activeProducts.length === 0
-                  ? 'Estamos preparando lançamentos e ofertas exclusivas de tecnologia para você. Volte a consultar em breve!'
-                  : 'Não encontramos nenhum produto correspondente aos filtros selecionados.'}
+                  ? 'Estamos atualizando o estoque com lançamentos e ofertas exclusivas de tecnologia com garantia oficial. Explore outras categorias ou volte ao início.'
+                  : 'Não encontramos nenhum produto que coincida com a pesquisa ou os filtros ativos. Tente redefinir os filtros.'}
               </p>
-              ${activeProducts.length === 0 ? `
-                <a href="#/" class="btn btn-primary" style="padding: 12px 28px;">
-                  Voltar ao Início
-                </a>
-              ` : `
-                <button class="btn btn-primary" id="emptyClearFiltersBtn">
-                  Redefinir Filtros
-                </button>
-              `}
+
+              <div class="catalog-empty-actions">
+                ${activeProducts.length === 0 ? `
+                  <a href="#/" class="btn btn-primary" style="padding: 11px 24px; font-weight: 700; border-radius: 10px; display: inline-flex; align-items: center; gap: 8px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                    Voltar ao Início da Loja
+                  </a>
+                  <a href="https://wa.me/244923179192?text=Olá,%20gostaria%20de%20consultar%20a%20disponibilidade%20de%20produtos%20na%20NovaTech" target="_blank" class="btn btn-outline" style="padding: 11px 20px; font-weight: 700; border-radius: 10px; display: inline-flex; align-items: center; gap: 8px; border-color: #10b981; color: #10b981;">
+                    ${Icons.whatsapp ? Icons.whatsapp(18, '#10b981') : '💬'} Consultar Encomenda
+                  </a>
+                ` : `
+                  <button class="btn btn-primary" id="emptyClearFiltersBtn" style="padding: 11px 24px; font-weight: 700; border-radius: 10px;">
+                    Limpar Filtros e Ver Todos
+                  </button>
+                `}
+              </div>
+
+              <div class="catalog-empty-quick-categories">
+                <span class="quick-cat-label">Navegar por categorias populares:</span>
+                <div class="quick-cat-chips">
+                  <a href="#/catalogo?category=smartphones" class="quick-chip">📱 Smartphones</a>
+                  <a href="#/catalogo?category=computadores-laptops" class="quick-chip">💻 Laptops</a>
+                  <a href="#/catalogo?category=audio-som" class="quick-chip">🎧 Áudio</a>
+                  <a href="#/catalogo?category=gaming-consolas" class="quick-chip">🎮 Gaming</a>
+                </div>
+              </div>
             </div>
           ` : `
             <div class="products-grid" id="catalogProductsGrid">
