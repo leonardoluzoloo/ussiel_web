@@ -5386,6 +5386,10 @@ img {
   flex-wrap: wrap;
 }
 
+.pdp-qty-wishlist-row {
+  display: contents;
+}
+
 .pdp-qty-wrap {
   display: flex;
   align-items: center;
@@ -5488,39 +5492,62 @@ img {
 
 /* 4. REGRAS RESPONSIVAS MOBILE ESPECÍFICAS (max-width: 768px) */
 @media (max-width: 768px) {
+  /* Layout Base & Container Mobile Shield */
+  html, body, #app {
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
 
-  /* WhatsApp no Mobile (acima da barra inferior de navegação) */
+  .container {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  /* WhatsApp no Mobile (acima da barra inferior de navegação sem tampar CTAs) */
   .whatsapp-float-wrap {
-    bottom: 84px !important;
-    right: 16px !important;
+    bottom: calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 14px) !important;
+    right: 14px !important;
+    z-index: 80 !important;
   }
 
   .whatsapp-btn {
-    width: 56px !important;
-    height: 56px !important;
+    width: 48px !important;
+    height: 48px !important;
     padding: 0 !important;
     border-radius: 50% !important;
     justify-content: center !important;
+    box-shadow: 0 4px 14px rgba(37, 211, 102, 0.45) !important;
   }
 
   .whatsapp-btn-text {
     display: none !important;
   }
 
+  .whatsapp-btn svg {
+    width: 24px !important;
+    height: 24px !important;
+  }
+
   /* Newsletter no Mobile - Totalmente Visível e Amplo */
   .footer-newsletter-wrap {
-    padding: 32px 16px !important;
+    padding: 28px 14px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
 
   .newsletter-form {
     flex-direction: column !important;
     width: 100% !important;
     gap: 12px !important;
+    box-sizing: border-box !important;
   }
 
   .newsletter-input {
     width: 100% !important;
-    height: 52px !important;
+    height: 50px !important;
     font-size: 1rem !important;
     padding: 0 16px !important;
     background: #ffffff !important;
@@ -5538,75 +5565,174 @@ img {
 
   .newsletter-btn {
     width: 100% !important;
-    height: 52px !important;
-    font-size: 1.0625rem !important;
+    height: 50px !important;
+    font-size: 1.05rem !important;
     font-weight: 800 !important;
     border-radius: var(--radius-sm) !important;
     box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4) !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+    box-sizing: border-box !important;
   }
 
-  /* Botões da PDP no Mobile - Organizados, Grandes e Sem Texto Bagunçado */
+  /* Botões da PDP no Mobile - Organizados em Coluna e Sub-Row Perfeita */
+  .pdp-grid {
+    grid-template-columns: 1fr !important;
+    padding: 16px 14px !important;
+    gap: 20px !important;
+    margin-top: 12px !important;
+    margin-bottom: 24px !important;
+    border-radius: var(--radius-md) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  .pdp-gallery {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .pdp-main-image-wrap {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 280px !important;
+    max-height: 44vh !important;
+    box-sizing: border-box !important;
+  }
+
+  .pdp-details {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
   .pdp-cta-row {
-    display: grid !important;
-    grid-template-columns: 1fr 52px !important;
+    display: flex !important;
+    flex-direction: column !important;
     gap: 12px !important;
     width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    margin-bottom: 24px !important;
+  }
+
+  .pdp-qty-wishlist-row {
+    display: flex !important;
+    gap: 10px !important;
+    width: 100% !important;
+    align-items: center !important;
     box-sizing: border-box !important;
   }
 
   .pdp-qty-wrap {
-    grid-column: 1 / 2 !important;
-    width: 100% !important;
-    height: 52px !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+    width: auto !important;
+    height: 50px !important;
+    display: flex !important;
+    align-items: center !important;
     justify-content: space-between !important;
+    border: 1.5px solid var(--border-light) !important;
+    border-radius: var(--radius-sm) !important;
+    background: #ffffff !important;
     box-sizing: border-box !important;
   }
 
   .pdp-qty-btn {
-    width: 52px !important;
+    width: 48px !important;
+    height: 100% !important;
     font-size: 1.35rem !important;
+    font-weight: 700 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   .pdp-qty-input {
     flex: 1 !important;
+    min-width: 0 !important;
     width: auto !important;
+    text-align: center !important;
     font-size: 1.125rem !important;
+    font-weight: 800 !important;
   }
 
   .btn-pdp-wishlist {
-    grid-column: 2 / 3 !important;
-    width: 52px !important;
-    height: 52px !important;
+    width: 50px !important;
+    height: 50px !important;
+    min-width: 50px !important;
+    flex-shrink: 0 !important;
+    border-radius: var(--radius-sm) !important;
     box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   .btn-pdp-cart {
-    grid-column: 1 / -1 !important;
     width: 100% !important;
-    height: 54px !important;
-    font-size: 1.0625rem !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 52px !important;
+    font-size: 1.05rem !important;
     font-weight: 800 !important;
     white-space: nowrap !important;
-    gap: 12px !important;
+    gap: 10px !important;
     box-sizing: border-box !important;
+    border-radius: var(--radius-sm) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   .btn-pdp-cart svg {
-    width: 24px !important;
-    height: 24px !important;
+    width: 22px !important;
+    height: 22px !important;
   }
 
   .btn-pdp-buy-now {
-    grid-column: 1 / -1 !important;
     width: 100% !important;
-    height: 54px !important;
-    font-size: 1.0625rem !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 52px !important;
+    font-size: 1.05rem !important;
     font-weight: 800 !important;
     white-space: nowrap !important;
     box-sizing: border-box !important;
+    border-radius: var(--radius-sm) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Order Timeline Mobile Scroll */
+  .order-timeline {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 12px 6px 16px 6px !important;
+    gap: 12px !important;
+    justify-content: flex-start !important;
+    scrollbar-width: none !important;
+  }
+
+  .order-timeline::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .timeline-step {
+    flex-shrink: 0 !important;
+    width: 80px !important;
+  }
+
+  /* Painel do Cliente / Admin Layout Mobile */
+  .admin-layout {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+    margin: 16px 0 40px 0 !important;
   }
 
   /* Formulários em Mobile - Sem Cortes ou Quebras */
@@ -5664,6 +5790,109 @@ img {
     box-sizing: border-box !important;
     overflow: hidden !important;
   }
+
+  /* Static Pages & Institutional Mobile */
+  .static-page-card {
+    margin: 20px auto 36px auto !important;
+    padding: 20px 16px !important;
+    border-radius: var(--radius-md) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .about-mission-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+    margin: 20px 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .contact-layout-grid {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .checkout-success-card {
+    margin: 16px auto 36px auto !important;
+    padding: 20px 14px !important;
+    border-radius: var(--radius-md) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .checkout-success-details-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+    padding: 16px 12px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .checkout-success-actions {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 10px !important;
+    box-sizing: border-box !important;
+  }
+
+  .checkout-success-actions .btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+/* Static Pages & Institutional Desktop */
+.static-page-card {
+  margin: 48px auto;
+  max-width: 860px;
+  background: #ffffff;
+  padding: 40px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+}
+
+.about-mission-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin: 32px 0;
+}
+
+.contact-layout-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+
+.checkout-success-card {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 48px 36px;
+  margin: 40px auto 64px auto;
+  max-width: 860px;
+  box-shadow: var(--shadow-md);
+}
+
+.checkout-success-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  background: #f8fafc;
+  border-radius: var(--radius-md);
+  padding: 24px;
+  margin-bottom: 32px;
+}
+
+.checkout-success-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 /* ===================================================================

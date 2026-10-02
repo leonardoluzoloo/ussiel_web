@@ -631,24 +631,24 @@ export function renderCheckoutView() {
 
   function renderSuccessScreen(order) {
     container.innerHTML = `
-      <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 48px 36px; margin: 40px auto 64px auto; max-width: 860px; box-shadow: var(--shadow-md);">
-        <div style="text-align: center; margin-bottom: 32px;">
-          <div style="width: 72px; height: 72px; border-radius: 50%; background: #ecfdf5; color: #047857; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
+      <div class="checkout-success-card">
+        <div style="text-align: center; margin-bottom: 28px;">
+          <div style="width: 68px; height: 68px; border-radius: 50%; background: #ecfdf5; color: #047857; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
             ${Icons.check(36)}
           </div>
-          <h1 style="font-family: var(--font-display); font-size: 2rem; font-weight: 900; color: var(--text-main); margin-bottom: 8px;">
+          <h1 style="font-family: var(--font-display); font-size: 1.85rem; font-weight: 900; color: var(--text-main); margin-bottom: 8px;">
             PEDIDO REALIZADO COM SUCESSO!
           </h1>
-          <p style="font-size: 1.0625rem; color: var(--text-secondary);">
+          <p style="font-size: 1rem; color: var(--text-secondary); line-height: 1.6;">
             Muito obrigado pela sua preferência, <strong>${order.customer.name}</strong>. Acompanhe abaixo o status do seu pedido.
           </p>
-          <div style="display: inline-block; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; padding: 8px 24px; border-radius: var(--radius-full); margin-top: 14px;">
+          <div style="display: inline-block; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; font-family: var(--font-display); font-size: 1.15rem; font-weight: 800; padding: 8px 20px; border-radius: var(--radius-full); margin-top: 14px;">
             Código do Pedido: ${order.id}
           </div>
         </div>
 
         <!-- Visual Timeline Status Tracker -->
-        <div style="margin: 40px 0;">
+        <div style="margin: 32px 0;">
           <div style="font-size: 0.8125rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); text-align: center; margin-bottom: 16px; letter-spacing: 0.06em;">
             Status do Envio em Tempo Real
           </div>
@@ -681,7 +681,7 @@ export function renderCheckoutView() {
         </div>
 
         <!-- Order Details Summary -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; background: #f8fafc; border-radius: var(--radius-md); padding: 24px; margin-bottom: 32px;">
+        <div class="checkout-success-details-grid">
           <div>
             <h4 style="font-weight: 700; color: var(--text-main); margin-bottom: 8px;">Dados de Entrega:</h4>
             <div style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6;">
@@ -703,7 +703,7 @@ export function renderCheckoutView() {
         </div>
 
         <!-- Action Buttons -->
-        <div style="display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;">
+        <div class="checkout-success-actions">
           <a href="#/minha-conta/pedidos" class="btn btn-primary" style="padding: 12px 28px;">
             Acompanhar Meus Pedidos
           </a>

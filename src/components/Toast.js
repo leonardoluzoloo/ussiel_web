@@ -15,20 +15,43 @@ function ensureContainer() {
 }
 
 export const Toast = {
-  show({ title, message, type = 'success', duration = 4000, actionLabel, onAction }) {
+  show(options, typeFallback = 'success') {
     ensureContainer();
+
+    let title = '';
+    let message = '';
+    let type = typeFallback;
+    let duration = 4000;
+    let actionLabel = null;
+    let onAction = null;
+
+    if (typeof options === 'string') {
+      title = options;
+      type = typeFallback;
+    } else if (typeof options === 'object' && options !== null) {
+      title = options.title || options.message || '';
+      message = options.message && options.title && options.title !== options.message ? options.message : (options.description || '');
+      type = options.type || typeFallback;
+      duration = options.duration || 4000;
+      actionLabel = options.actionLabel || null;
+      onAction = options.onAction || null;
+    }
 
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
     
-    const icon = type === 'success' ? Icons.check(18) : Icons.shieldCheck(18);
+    const icon = type === 'success' 
+      ? Icons.check(18) 
+      : type === 'error' 
+      ? Icons.alertCircle ? Icons.alertCircle(18) : Icons.close(18) 
+      : Icons.shieldCheck(18);
 
     toast.innerHTML = `
       <div class="toast-icon">
         ${icon}
       </div>
       <div class="toast-content">
-        <div class="toast-title">${title}</div>
+        <div class="toast-title">${title || 'Notificação'}</div>
         ${message ? `<div class="toast-desc">${message}</div>` : ''}
         ${actionLabel ? `
           <div class="toast-actions">

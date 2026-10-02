@@ -102,26 +102,40 @@ export function renderProductDetailView(productSlug) {
     }
 
     const isWishlisted = Storage.isInWishlist(product.id);
+    const basePrice = Number(product.price || product.preco || 0);
     const currentPrice = (selectedStorage && product.variants?.storagePrices?.[selectedStorage])
-      ? product.variants.storagePrices[selectedStorage]
-      : product.price;
+      ? Number(product.variants.storagePrices[selectedStorage])
+      : basePrice;
 
-    const currentOldPrice = (product.oldPrice && product.price)
-      ? Math.round(currentPrice * (product.oldPrice / product.price))
+    const currentOldPrice = (product.oldPrice && basePrice > 0)
+      ? Math.round(currentPrice * (Number(product.oldPrice) / basePrice))
       : null;
 
-    const discountPct = currentOldPrice ? calcDiscountPercent(currentOldPrice, currentPrice) : 0;
+    const discountPct = (currentOldPrice && currentOldPrice > currentPrice) ? calcDiscountPercent(currentOldPrice, currentPrice) : 0;
+    const catSlug = (product.category && product.category !== 'null' && product.category !== 'undefined') 
+      ? product.category 
+      : (product.category_id ? `cat-${product.category_id}` : 'produtos');
+    const catDisplayName = (product.category_name && product.category_name !== 'null')
+      ? product.category_name
+      : ((product.category && product.category !== 'null') ? product.category : 'Catálogo');
+    const productDesc = (product.description && product.description !== 'undefined' && product.description !== 'null')
+      ? product.description
+      : ((product.descricao && product.descricao !== 'undefined' && product.descricao !== 'null')
+        ? product.descricao
+        : ((product.detalhes && product.detalhes !== 'undefined')
+          ? product.detalhes
+          : 'Equipamento de alta tecnologia e performance com garantia oficial NovaTech Angola. Produto 100% original, homologado e com suporte técnico especializado em Luanda.'));
 
     container.innerHTML = `
       <!-- Breadcrumbs -->
-      <nav style="display: flex; align-items: center; gap: 8px; font-size: 0.8125rem; color: var(--text-muted); margin-top: 20px;">
+      <nav style="display: flex; align-items: center; gap: 8px; font-size: 0.8125rem; color: var(--text-muted); margin-top: 20px; flex-wrap: wrap;">
         <a href="#/" style="color: var(--text-secondary);">Início</a>
         <span>/</span>
-        <a href="#/categoria/${product.category || 'geral'}" style="color: var(--text-secondary); text-transform: capitalize;">${product.category || 'Catálogo'}</a>
+        <a href="#/categoria/${catSlug}" style="color: var(--text-secondary); text-transform: capitalize;">${catDisplayName}</a>
         <span>/</span>
         <span style="color: var(--text-main); font-weight: 600;">${product.brand || 'NovaTech'}</span>
         <span>/</span>
-        <span style="color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px;">${product.name}</span>
+        <span style="color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${product.name || 'Produto'}</span>
       </nav>
 
       <!-- Main PDP Grid -->
@@ -130,12 +144,12 @@ export function renderProductDetailView(productSlug) {
         <div class="pdp-gallery">
           <div class="pdp-main-image-wrap" id="mainImageWrap">
             ${currentImage ? `
-              <img src="${currentImage}" alt="${product.name}" class="pdp-main-image" id="mainPdpImage" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';" />
-              <div style="display: none; width: 100%; height: 320px; background: #f8fafc; align-items: center; justify-content: center; color: var(--text-muted);">
+              <img src="${currentImage}" alt="${product.name || 'Produto'}" class="pdp-main-image" id="mainPdpImage" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';" />
+              <div style="display: none; width: 100%; height: 100%; min-height: 280px; background: #f8fafc; align-items: center; justify-content: center; color: var(--text-muted);">
                 ${Icons.package(48)}
               </div>
             ` : `
-              <div style="display: flex; width: 100%; height: 320px; background: #f8fafc; align-items: center; justify-content: center; color: var(--text-muted);">
+              <div style="display: flex; width: 100%; height: 100%; min-height: 280px; background: #f8fafc; align-items: center; justify-content: center; color: var(--text-muted);">
                 ${Icons.package(48)}
               </div>
             `}
@@ -155,9 +169,9 @@ export function renderProductDetailView(productSlug) {
         <!-- Details (Right) -->
         <div class="pdp-details">
           <div class="pdp-brand-sku">
-            <span>Marca: <strong>${product.brand}</strong></span>
+            <span>Marca: <strong>${product.brand || 'NovaTech'}</strong></span>
             <span>•</span>
-            <span>Código / SKU: <strong>${product.sku}</strong></span>
+            <span>Código / SKU: <strong>${product.sku || ('NV-' + (product.id || 'PROD'))}</strong></span>
             <span>•</span>
             ${(product.is_active === false || product.ativo === false) ? `
               <span style="color: #ef4444; font-weight: 700;">● INDISPONÍVEL</span>
@@ -182,9 +196,9 @@ export function renderProductDetailView(productSlug) {
 
           <!-- Ratings -->
           <div class="pdp-rating-row">
-            <div class="stars">${renderStars(product.rating)}</div>
-            <span style="font-weight: 700; color: var(--text-main); font-size: 0.875rem;">${product.rating.toFixed(1)}</span>
-            <span style="color: var(--text-muted); font-size: 0.8125rem;">(${product.reviewCount} avaliações de clientes verificados)</span>
+            <div class="stars">${renderStars(product.rating || 5)}</div>
+            <span style="font-weight: 700; color: var(--text-main); font-size: 0.875rem;">${(product.rating || 5).toFixed(1)}</span>
+            <span style="color: var(--text-muted); font-size: 0.8125rem;">(${product.reviewCount || 0} avaliações de clientes verificados)</span>
           </div>
 
           <!-- Price Box -->
@@ -250,10 +264,15 @@ export function renderProductDetailView(productSlug) {
           <!-- Quantity and Action Buttons -->
           <div class="pdp-cta-row">
             ${(product.is_active !== false && product.ativo !== false && product.stock > 0) ? `
-              <div class="pdp-qty-wrap">
-                <button class="pdp-qty-btn" id="pdpQtyDec">-</button>
-                <input type="text" class="pdp-qty-input" id="pdpQtyVal" value="${quantity}" readonly />
-                <button class="pdp-qty-btn" id="pdpQtyInc">+</button>
+              <div class="pdp-qty-wishlist-row">
+                <div class="pdp-qty-wrap">
+                  <button class="pdp-qty-btn" id="pdpQtyDec" aria-label="Diminuir quantidade">-</button>
+                  <input type="text" class="pdp-qty-input" id="pdpQtyVal" value="${quantity}" readonly aria-label="Quantidade selecionada" />
+                  <button class="pdp-qty-btn" id="pdpQtyInc" aria-label="Aumentar quantidade">+</button>
+                </div>
+                <button class="btn-pdp-wishlist ${isWishlisted ? 'active' : ''}" id="pdpWishlistBtn" title="Favoritar">
+                  ${Icons.heart(20, isWishlisted ? '#ef4444' : 'currentColor', isWishlisted ? '#ef4444' : 'none')}
+                </button>
               </div>
 
               <button class="btn-pdp-cart" id="pdpAddToCartBtn">
@@ -272,10 +291,6 @@ export function renderProductDetailView(productSlug) {
                 Sem Disponibilidade
               </button>
             `}
-
-            <button class="btn-pdp-wishlist ${isWishlisted ? 'active' : ''}" id="pdpWishlistBtn" title="Favoritar">
-              ${Icons.heart(20, isWishlisted ? '#ef4444' : 'currentColor', isWishlisted ? '#ef4444' : 'none')}
-            </button>
           </div>
 
           <!-- Trust Perks -->
@@ -309,10 +324,10 @@ export function renderProductDetailView(productSlug) {
           ${activeTab === 'desc' ? `
             <div style="max-width: 840px;">
               <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin-bottom: 12px;">
-                Visão Geral: ${product.name}
+                Visão Geral: ${product.name || 'Detalhes do Equipamento'}
               </h3>
-              <p style="margin-bottom: 16px; font-size: 1rem; line-height: 1.8;">
-                ${product.description}
+              <p style="margin-bottom: 16px; font-size: 1rem; line-height: 1.8; color: var(--text-secondary); white-space: pre-line;">
+                ${productDesc}
               </p>
               <div style="background: #f8fafc; border-left: 4px solid var(--primary-600); padding: 16px 20px; border-radius: 4px; margin-top: 20px;">
                 <h4 style="font-weight: 700; color: var(--text-main); margin-bottom: 6px;">Por que comprar na NovaTech Angola?</h4>
@@ -326,16 +341,22 @@ export function renderProductDetailView(productSlug) {
               <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin-bottom: 16px;">
                 Especificações Técnicas Detalhadas
               </h3>
-              <table class="tech-specs-table">
-                <tbody>
-                  ${Object.entries(product.specs || {}).map(([key, val]) => `
-                    <tr>
-                      <td>${key}</td>
-                      <td>${val}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
+              ${(product.specs && Object.keys(product.specs).length > 0) ? `
+                <table class="tech-specs-table">
+                  <tbody>
+                    ${Object.entries(product.specs).map(([key, val]) => `
+                      <tr>
+                        <td>${key}</td>
+                        <td>${val}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              ` : `
+                <div style="padding: 24px; background: #f8fafc; border-radius: var(--radius-sm); color: var(--text-muted); text-align: center;">
+                  As especificações detalhadas deste item estão sendo catalogadas. Para cotações empresariais e dúvidas técnicas, fale com nossa equipa no WhatsApp.
+                </div>
+              `}
             </div>
           ` : activeTab === 'reviews' ? `
             <div>
@@ -343,8 +364,8 @@ export function renderProductDetailView(productSlug) {
                 <div>
                   <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main);">Avaliações de Clientes Verificados</h3>
                   <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
-                    <div class="stars">${renderStars(product.rating)}</div>
-                    <span style="font-weight: 800;">${product.rating.toFixed(1)} de 5.0 estrelas</span>
+                    <div class="stars">${renderStars(product.rating || 5)}</div>
+                    <span style="font-weight: 800;">${(product.rating || 5).toFixed(1)} de 5.0 estrelas</span>
                   </div>
                 </div>
                 <button class="btn btn-primary" id="openReviewFormBtn">
@@ -435,14 +456,14 @@ export function renderProductDetailView(productSlug) {
       </div>
 
       <!-- Related Products: "Você Também Pode Gostar" -->
-      <section style="margin-bottom: 48px;">
+      <section style="margin-bottom: 48px;" id="relatedSection">
         <div class="section-head">
           <div class="section-title-wrap">
             <span class="section-tag">Recomendações</span>
             <h2 class="section-title">Você Também Pode Gostar</h2>
           </div>
-          <a href="#/categoria/${product.category}" class="section-view-all">
-            <span>Ver mais em ${product.category}</span>
+          <a href="#/categoria/${catSlug}" class="section-view-all">
+            <span>Ver mais em ${catDisplayName}</span>
             ${Icons.arrowRight(18)}
           </a>
         </div>
@@ -450,7 +471,7 @@ export function renderProductDetailView(productSlug) {
       </section>
 
       <!-- Complementary Products: "Quem Comprou Este Produto Também Comprou" -->
-      <section style="margin-bottom: 64px;">
+      <section style="margin-bottom: 64px;" id="alsoBoughtSection">
         <div class="section-head">
           <div class="section-title-wrap">
             <span class="section-tag">Combinações Perfeitas</span>
@@ -462,23 +483,35 @@ export function renderProductDetailView(productSlug) {
     `;
 
     // Render related products (dinâmico via Supabase)
+    const relatedSection = container.querySelector('#relatedSection');
     const relatedGrid = container.querySelector('#relatedProductsGrid');
-    if (relatedGrid) {
+    if (relatedGrid && relatedSection) {
       const related = allProducts
         .filter(p => p.is_active !== false && p.ativo !== false &&
           (String(p.category_id) === String(product.category_id) || p.category === product.category) &&
           String(p.id) !== String(product.id))
         .slice(0, 4);
-      const relatedToShow = related.length > 0 ? related : allProducts.filter(p => String(p.id) !== String(product.id)).slice(0, 4);
-      relatedToShow.forEach(p => relatedGrid.appendChild(createProductCard(p)));
+      const relatedToShow = related.length > 0 ? related : allProducts.filter(p => p.is_active !== false && p.ativo !== false && String(p.id) !== String(product.id)).slice(0, 4);
+      if (relatedToShow.length > 0) {
+        relatedToShow.forEach(p => relatedGrid.appendChild(createProductCard(p)));
+        relatedSection.style.display = 'block';
+      } else {
+        relatedSection.style.display = 'none';
+      }
     }
 
+    const alsoBoughtSection = container.querySelector('#alsoBoughtSection');
     const alsoBoughtGrid = container.querySelector('#alsoBoughtProductsGrid');
-    if (alsoBoughtGrid) {
+    if (alsoBoughtGrid && alsoBoughtSection) {
       const alsoBought = allProducts
         .filter(p => p.is_active !== false && p.ativo !== false && String(p.id) !== String(product.id))
         .slice(0, 4);
-      alsoBought.forEach(p => alsoBoughtGrid.appendChild(createProductCard(p)));
+      if (alsoBought.length > 0) {
+        alsoBought.forEach(p => alsoBoughtGrid.appendChild(createProductCard(p)));
+        alsoBoughtSection.style.display = 'block';
+      } else {
+        alsoBoughtSection.style.display = 'none';
+      }
     }
 
     attachPDPEvents();

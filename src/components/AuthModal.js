@@ -6,6 +6,7 @@ import { Icons } from '../utils/icons.js';
 import { Storage } from '../services/storage.js';
 import { Api } from '../services/api.js';
 import { Toast } from './Toast.js';
+import { formatAuthError } from '../utils/format.js';
 
 export function setupAuthModal() {
   const backdrop = document.createElement('div');
@@ -200,17 +201,19 @@ export function setupAuthModal() {
         try {
           const result = await Api.auth.login(email, password);
           Storage.saveUser(result.user);
+          const userName = result.user?.name || email.split('@')[0];
           Toast.show({
-            title: 'Sessão iniciada com sucesso!',
-            message: `Bem-vindo de volta, ${result.user.name}`,
+            title: 'Sessão iniciada com sucesso! 🚀',
+            message: `Seja bem-vindo de volta, ${userName}!`,
             type: 'success'
           });
           closeModal();
         } catch (err) {
           Toast.show({
             title: 'Erro de Autenticação',
-            message: err.message || 'E-mail ou senha incorretos.',
-            type: 'error'
+            message: formatAuthError(err),
+            type: 'error',
+            duration: 6000
           });
         } finally {
           if (submitBtn) {
@@ -264,18 +267,31 @@ export function setupAuthModal() {
             endereco: address,
             ponto_referencia: referencePoint
           });
-          Storage.saveUser(result.user);
-          Toast.show({
-            title: 'Conta criada com sucesso! 🎉',
-            message: `Seja muito bem-vindo à NovaTech, ${name}!`,
-            type: 'success'
-          });
-          closeModal();
+
+          if (result.requiresEmailConfirmation) {
+            Toast.show({
+              title: 'Conta Criada! Confirme seu E-mail ✉️',
+              message: `Enviamos um link de ativação para ${email}. Por favor, acesse seu e-mail e clique no link para ativar sua conta.`,
+              type: 'info',
+              duration: 9000
+            });
+            currentTab = 'login';
+            render();
+          } else {
+            Storage.saveUser(result.user);
+            Toast.show({
+              title: 'Conta criada com sucesso! 🎉',
+              message: `Seja muito bem-vindo à NovaTech, ${name || 'Cliente'}!`,
+              type: 'success'
+            });
+            closeModal();
+          }
         } catch (err) {
           Toast.show({
             title: 'Erro no Cadastro',
-            message: err.message || 'Não foi possível registrar a conta.',
-            type: 'error'
+            message: formatAuthError(err),
+            type: 'error',
+            duration: 6000
           });
         } finally {
           if (submitBtn) {
@@ -289,15 +305,40 @@ export function setupAuthModal() {
     // Forgot submit
     const forgotForm = modal.querySelector('#authForgotForm');
     if (forgotForm) {
-      forgotForm.onsubmit = () => {
-        const email = modal.querySelector('#forgotEmail').value;
-        Toast.show({
-          title: 'Código enviado!',
-          message: `Instruções de redefinição foram enviadas para ${email}.`,
-          type: 'info'
-        });
-        currentTab = 'login';
-        render();
+      forgotForm.onsubmit = async (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        const email = modal.querySelector('#forgotEmail').value.trim();
+        const submitBtn = forgotForm.querySelector('button[type="submit"]');
+
+        const originalBtnText = submitBtn ? submitBtn.innerHTML : 'Enviar Link de Recuperação';
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = 'Enviando instruções...';
+        }
+
+        try {
+          await Api.auth.forgotPassword(email);
+          Toast.show({
+            title: 'Instruções Enviadas! ✉️',
+            message: `Enviamos o link de recuperação para ${email}. Verifique a sua caixa de entrada e pasta de spam.`,
+            type: 'info',
+            duration: 7000
+          });
+          currentTab = 'login';
+          render();
+        } catch (err) {
+          Toast.show({
+            title: 'Erro na Recuperação',
+            message: formatAuthError(err),
+            type: 'error',
+            duration: 6000
+          });
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+          }
+        }
       };
     }
   }

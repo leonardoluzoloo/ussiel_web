@@ -45,3 +45,41 @@ export function formatDate(dateString) {
     year: 'numeric'
   });
 }
+
+/**
+ * Converte erros técnicos do Supabase Auth em mensagens claras em português.
+ */
+export function formatAuthError(error) {
+  if (!error) return 'Ocorreu um erro inesperado. Tente novamente.';
+  const msg = (typeof error === 'string' ? error : error.message || error.error_description || '').toLowerCase();
+
+  if (msg.includes('invalid login credentials') || msg.includes('invalid_credentials')) {
+    return 'E-mail ou senha incorretos. Por favor, verifique os dados e tente novamente.';
+  }
+  if (msg.includes('email not confirmed') || msg.includes('email_not_confirmed')) {
+    return 'E-mail ainda não confirmado! Por favor, verifique sua caixa de entrada e clique no link de ativação enviado para o seu e-mail.';
+  }
+  if (msg.includes('user already registered') || msg.includes('already exists') || msg.includes('user_already_exists')) {
+    return 'Este e-mail já está cadastrado no sistema. Tente iniciar sessão ou recupere sua senha.';
+  }
+  if (msg.includes('password should be at least 6 characters') || msg.includes('password is too short')) {
+    return 'A senha deve conter no mínimo 6 caracteres.';
+  }
+  if (msg.includes('signup requires a valid password') || msg.includes('missing password')) {
+    return 'Por favor, informe uma senha válida de acesso.';
+  }
+  if (msg.includes('invalid format') || msg.includes('unable to validate email') || msg.includes('valid email')) {
+    return 'O formato do e-mail é inválido. Digite um e-mail no formato seu.nome@exemplo.com.';
+  }
+  if (msg.includes('rate limit') || msg.includes('over_email_send_rate_limit') || msg.includes('too many requests')) {
+    return 'Muitas tentativas em pouco tempo. Por motivos de segurança, aguarde alguns instantes antes de tentar novamente.';
+  }
+  if (msg.includes('only request this once every') || msg.includes('slow down')) {
+    return 'Por motivos de segurança, você só pode solicitar um novo e-mail a cada 60 segundos. Verifique sua caixa de entrada.';
+  }
+  if (msg.includes('network') || msg.includes('failed to fetch') || msg.includes('timeout')) {
+    return 'Não foi possível conectar ao servidor. Verifique sua conexão com a internet e tente novamente.';
+  }
+
+  return error.message || 'Não foi possível concluir a operação. Verifique os dados e tente novamente.';
+}

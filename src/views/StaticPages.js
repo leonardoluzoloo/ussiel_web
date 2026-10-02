@@ -9,7 +9,7 @@ export function renderAboutView() {
   const el = document.createElement('div');
   el.className = 'container';
   el.innerHTML = `
-    <div style="margin: 48px auto; max-width: 860px; background: #ffffff; padding: 40px; border-radius: var(--radius-lg); border: 1px solid var(--border-light);">
+    <div class="static-page-card">
       <span class="badge" style="background: var(--primary-600); color: #ffffff; margin-bottom: 12px; display: inline-block;">SOBRE A NOVATECH</span>
       <h1 style="font-family: var(--font-display); font-size: 2.25rem; font-weight: 900; margin-bottom: 16px;">
         A Maior Referência em Tecnologia & Eletrônicos em Angola
@@ -18,7 +18,7 @@ export function renderAboutView() {
         Fundada em Luanda com o compromisso de democratizar o acesso à tecnologia topo de gama, a <strong>NovaTech Angola</strong> é pioneira no comércio eletrônico profissional de tecnologia, oferecendo marcas globais como Apple, Samsung, Sony, Dell, Microsoft e Asus com garantia oficial e suporte humanizado.
       </p>
 
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 32px 0;">
+      <div class="about-mission-grid">
         <div style="background: #f8fafc; padding: 24px; border-radius: var(--radius-md); border-left: 4px solid var(--primary-600);">
           <h3 style="font-weight: 800; margin-bottom: 8px;">Nossa Missão</h3>
           <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6;">
@@ -46,15 +46,15 @@ export function renderContactView() {
   const el = document.createElement('div');
   el.className = 'container';
   el.innerHTML = `
-    <div style="margin: 48px auto; max-width: 960px;">
+    <div style="margin: 32px auto 48px auto; max-width: 960px;">
       <h1 style="font-family: var(--font-display); font-size: 2.25rem; font-weight: 900; margin-bottom: 8px;">
         Fale com a Nossa Equipa
       </h1>
-      <p style="color: var(--text-secondary); margin-bottom: 32px;">
+      <p style="color: var(--text-secondary); margin-bottom: 24px;">
         Estamos sempre disponíveis para esclarecer dúvidas sobre produtos, entregas e suporte técnico.
       </p>
 
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
+      <div class="contact-layout-grid">
         <!-- Contact Form -->
         <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 32px;">
           <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 16px;">Envie uma Mensagem</h3>
@@ -214,7 +214,7 @@ export function renderPolicyView(type) {
   }
 
   el.innerHTML = `
-    <div style="margin: 48px auto; max-width: 860px; background: #ffffff; padding: 40px; border-radius: var(--radius-lg); border: 1px solid var(--border-light);">
+    <div class="static-page-card">
       <h1 style="font-family: var(--font-display); font-size: 2rem; font-weight: 900; margin-bottom: 20px;">
         ${title}
       </h1>

@@ -7,6 +7,7 @@
 
 import { supabase, isSupabaseConfigured } from './supabaseClient.js';
 import { Storage, normalizeOrderStatus } from './storage.js';
+import { formatAuthError } from '../utils/format.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const TOKEN_KEY = 'novatech_auth_token_v2';
@@ -446,13 +447,18 @@ export const Api = {
     async register(name, email, password, phone = '', extra = {}) {
       const endereco = extra.endereco || '';
       const pontoReferencia = extra.ponto_referencia || '';
+      const cleanEmail = String(email || '').trim().toLowerCase();
 
       if (isSupabaseConfigured() && supabase) {
         try {
+          // Garante que o link de confirmação do e-mail redireciona para a porta e URL reais da aplicação
+          const redirectTo = window.location.origin + window.location.pathname + '#/';
+
           const { data, error } = await supabase.auth.signUp({
-            email,
+            email: cleanEmail,
             password,
             options: {
+              emailRedirectTo: redirectTo,
               data: {
                 name,
                 phone,
@@ -462,14 +468,22 @@ export const Api = {
               }
             }
           });
-          if (error) throw error;
+
+          if (error) {
+            throw new Error(formatAuthError(error));
+          }
+
+          // Se a conta já existia com e-mail não confirmado ou duplicado
+          if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+            throw new Error('Este e-mail já está cadastrado no sistema. Inicie sessão ou use a recuperação de senha.');
+          }
 
           // Insere ou atualiza na tabela 'usuarios' em português
           try {
             await supabase.from('usuarios').upsert({
               auth_user_id: data.user?.id || null,
               nome: name,
-              email: email,
+              email: cleanEmail,
               telefone: phone,
               whatsapp: phone,
               endereco: endereco,
@@ -484,21 +498,28 @@ export const Api = {
 
           const user = {
             id: data.user?.id || Date.now(),
-            name,
-            email,
+            auth_user_id: data.user?.id || null,
+            name: name || cleanEmail.split('@')[0],
+            email: cleanEmail,
             phone,
             endereco,
             ponto_referencia: pontoReferencia,
             role: 'customer'
           };
 
+          const requiresEmailConfirmation = !data.session && Boolean(data.user);
+
           if (data.session?.access_token) {
             Api.setToken(data.session.access_token);
           }
-          return { access_token: data.session?.access_token || 'sb_token', user };
+          return {
+            access_token: data.session?.access_token || null,
+            user,
+            requiresEmailConfirmation
+          };
         } catch (sbErr) {
           console.error('Falha no cadastro via Supabase:', sbErr.message);
-          throw new Error(sbErr.message || 'Erro ao criar conta no servidor.');
+          throw new Error(formatAuthError(sbErr));
         }
       }
 
@@ -512,7 +533,7 @@ export const Api = {
         try {
           const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
           if (error) {
-            throw new Error(error.message || 'E-mail ou senha incorretos.');
+            throw new Error(formatAuthError(error));
           }
           if (data && data.user) {
             let userProfile = null;
