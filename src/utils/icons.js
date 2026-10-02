@@ -9,11 +9,11 @@ export const Icons = {
       <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
     </svg>
   `,
-  cart: (size = 20, stroke = 'currentColor') => `
-    <svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="9" cy="21" r="1"></circle>
-      <circle cx="20" cy="21" r="1"></circle>
-      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+  cart: (size = 20, stroke = 'currentColor', fill = 'none') => `
+    <svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${fill}" stroke="${stroke}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="8" cy="21" r="1.75" fill="${stroke}"></circle>
+      <circle cx="19" cy="21" r="1.75" fill="${stroke}"></circle>
+      <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"></path>
     </svg>
   `,
   heart: (size = 20, stroke = 'currentColor', fill = 'none') => `
