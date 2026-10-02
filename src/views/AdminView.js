@@ -4,7 +4,7 @@
 // ===================================================================
 
 import { Icons } from '../utils/icons.js';
-import { formatPrice, formatDate } from '../utils/format.js';
+import { formatPrice, formatDate, formatAuthError } from '../utils/format.js';
 import { Storage } from '../services/storage.js';
 import { Api } from '../services/api.js';
 import { Toast } from '../components/Toast.js';
@@ -266,8 +266,25 @@ export function renderAdminView() {
 
       try {
         const res = await Api.admin.setup({ name, email, password });
-        Storage.saveUser(res.user);
-        Toast.show('Administrador criado com sucesso!', 'success');
+        if (res.requiresEmailConfirmation) {
+          Toast.show({
+            title: 'Conta criada! Confirme seu e-mail ✉️',
+            message: `Enviamos um link de confirmação para ${email}. Acesse sua caixa de entrada para ativar o acesso.`,
+            type: 'info',
+            duration: 8000
+          });
+          window.location.hash = '#/admin/login';
+          return;
+        }
+
+        if (res?.user) {
+          Storage.saveUser(res.user);
+        }
+        Toast.show({
+          title: 'Administrador configurado com sucesso! 🎉',
+          message: `Bem-vindo(a), ${res?.user?.name || name}!`,
+          type: 'success'
+        });
         systemStatus.has_admin = true;
         window.location.hash = '#/admin/dashboard';
         await loadAllData();
@@ -275,7 +292,11 @@ export function renderAdminView() {
       } catch (err) {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Criar Conta e Acessar Painel';
-        Toast.show(err.message || 'Erro ao criar conta administrativa.', 'error');
+        Toast.show({
+          title: 'Não foi possível criar a conta',
+          message: formatAuthError(err),
+          type: 'error'
+        });
       }
     });
   }
@@ -386,14 +407,23 @@ export function renderAdminView() {
       try {
         const res = await Api.auth.adminLogin(email, password);
         Storage.saveUser(res.user);
-        Toast.show(`Bem-vindo, ${res.user.name}!`, 'success');
+        const userName = res?.user?.name || 'Administrador';
+        Toast.show({
+          title: 'Login realizado com sucesso! 🎉',
+          message: `Bem-vindo(a), ${userName}!`,
+          type: 'success'
+        });
         window.location.hash = '#/admin/dashboard';
         await loadAllData();
         render();
       } catch (err) {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Entrar no Painel';
-        Toast.show(err.message || 'Não foi possível entrar. Verifique seu e-mail e senha.', 'error');
+        Toast.show({
+          title: 'Falha no login administrativo',
+          message: formatAuthError(err),
+          type: 'error'
+        });
       }
     });
   }
@@ -568,7 +598,11 @@ export function renderAdminView() {
       const confirmPassword = container.querySelector('#regPasswordConfirm').value;
 
       if (password !== confirmPassword) {
-        Toast.show('As senhas digitadas não coincidem.', 'warning');
+        Toast.show({
+          title: 'Senhas não coincidem',
+          message: 'A confirmação de senha digitada não é igual à senha informada.',
+          type: 'warning'
+        });
         return;
       }
 
@@ -577,15 +611,36 @@ export function renderAdminView() {
 
       try {
         const res = await Api.auth.registerAdmin({ name, email, password, phone });
-        Storage.saveUser(res.user);
-        Toast.show('Conta administrativa criada com sucesso!', 'success');
+        if (res.requiresEmailConfirmation) {
+          Toast.show({
+            title: 'Conta criada! Confirme seu e-mail ✉️',
+            message: `Enviamos um link de ativação para ${email}. Acesse sua caixa de entrada para liberar o acesso.`,
+            type: 'info',
+            duration: 8000
+          });
+          window.location.hash = '#/admin/login';
+          return;
+        }
+
+        if (res?.user) {
+          Storage.saveUser(res.user);
+        }
+        Toast.show({
+          title: 'Conta administrativa criada com sucesso! 🎉',
+          message: `Bem-vindo(a), ${res?.user?.name || name}!`,
+          type: 'success'
+        });
         window.location.hash = '#/admin/dashboard';
         await loadAllData();
         render();
       } catch (err) {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Cadastrar Administrador';
-        Toast.show(err.message || 'Erro ao registrar administrador.', 'error');
+        Toast.show({
+          title: 'Erro ao cadastrar administrador',
+          message: formatAuthError(err),
+          type: 'error'
+        });
       }
     });
   }
@@ -641,7 +696,11 @@ export function renderAdminView() {
 
       try {
         const res = await Api.auth.forgotPassword(email);
-        Toast.show(res.message || 'Se existir uma conta associada a este e-mail, enviaremos as instruções.', 'success');
+        Toast.show({
+          title: 'Instruções Enviadas',
+          message: res?.message || 'Se existir uma conta associada a este e-mail, enviaremos as instruções.',
+          type: 'success'
+        });
         container.querySelector('#adminForgotForm').innerHTML = `
           <div style="text-align: center; padding: 10px 0;">
             <div style="font-size: 2rem; margin-bottom: 8px;">📬</div>
@@ -657,7 +716,11 @@ export function renderAdminView() {
       } catch (err) {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Enviar Link de Recuperação';
-        Toast.show(err.message || 'Erro ao solicitar recuperação de senha.', 'error');
+        Toast.show({
+          title: 'Erro na solicitação',
+          message: formatAuthError(err),
+          type: 'error'
+        });
       }
     });
   }
@@ -724,7 +787,11 @@ export function renderAdminView() {
       const confirmPassword = container.querySelector('#resetPasswordConfirm').value;
 
       if (password !== confirmPassword) {
-        Toast.show('As senhas digitadas não coincidem.', 'warning');
+        Toast.show({
+          title: 'Senhas não coincidem',
+          message: 'A confirmação de senha digitada não é igual à senha informada.',
+          type: 'warning'
+        });
         return;
       }
 
@@ -733,13 +800,21 @@ export function renderAdminView() {
 
       try {
         await Api.auth.resetPassword(password);
-        Toast.show('Senha alterada com sucesso! Faça login com a nova senha.', 'success');
+        Toast.show({
+          title: 'Senha alterada com sucesso! 🎉',
+          message: 'Faça login com a sua nova senha.',
+          type: 'success'
+        });
         window.location.hash = '#/admin/login';
         render();
       } catch (err) {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Salvar Nova Senha';
-        Toast.show(err.message || 'Erro ao redefinir senha.', 'error');
+        Toast.show({
+          title: 'Erro ao redefinir senha',
+          message: formatAuthError(err),
+          type: 'error'
+        });
       }
     });
   }

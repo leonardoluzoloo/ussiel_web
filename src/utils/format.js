@@ -47,11 +47,29 @@ export function formatDate(dateString) {
 }
 
 /**
- * Converte erros técnicos do Supabase Auth em mensagens claras em português.
+ * Converte erros técnicos do Supabase Auth e Banco de Dados em mensagens claras em português.
  */
 export function formatAuthError(error) {
-  if (!error) return 'Ocorreu um erro inesperado. Tente novamente.';
-  const msg = (typeof error === 'string' ? error : error.message || error.error_description || '').toLowerCase();
+  if (!error) return 'Ocorreu um erro inesperado. Verifique os dados e tente novamente.';
+  
+  let rawMsg = '';
+  if (typeof error === 'string') {
+    rawMsg = error;
+  } else if (typeof error === 'object' && error !== null) {
+    rawMsg = error.message || error.error_description || error.details || error.hint || error.error || '';
+    if (typeof rawMsg !== 'string') {
+      try {
+        rawMsg = JSON.stringify(rawMsg);
+      } catch (e) {
+        rawMsg = '';
+      }
+    }
+  }
+
+  const msg = rawMsg.toLowerCase().trim();
+  if (!msg || msg === 'undefined' || msg === 'null' || msg === '[object object]') {
+    return 'Não foi possível concluir a operação. Verifique os dados informados e tente novamente.';
+  }
 
   if (msg.includes('invalid login credentials') || msg.includes('invalid_credentials')) {
     return 'E-mail ou senha incorretos. Por favor, verifique os dados e tente novamente.';
@@ -59,10 +77,10 @@ export function formatAuthError(error) {
   if (msg.includes('email not confirmed') || msg.includes('email_not_confirmed')) {
     return 'E-mail ainda não confirmado! Por favor, verifique sua caixa de entrada e clique no link de ativação enviado para o seu e-mail.';
   }
-  if (msg.includes('user already registered') || msg.includes('already exists') || msg.includes('user_already_exists')) {
+  if (msg.includes('user already registered') || msg.includes('already exists') || msg.includes('user_already_exists') || msg.includes('already registered')) {
     return 'Este e-mail já está cadastrado no sistema. Tente iniciar sessão ou recupere sua senha.';
   }
-  if (msg.includes('password should be at least 6 characters') || msg.includes('password is too short')) {
+  if (msg.includes('password should be at least 6 characters') || msg.includes('password is too short') || msg.includes('at least 6 characters')) {
     return 'A senha deve conter no mínimo 6 caracteres.';
   }
   if (msg.includes('signup requires a valid password') || msg.includes('missing password')) {
@@ -77,9 +95,12 @@ export function formatAuthError(error) {
   if (msg.includes('only request this once every') || msg.includes('slow down')) {
     return 'Por motivos de segurança, você só pode solicitar um novo e-mail a cada 60 segundos. Verifique sua caixa de entrada.';
   }
-  if (msg.includes('network') || msg.includes('failed to fetch') || msg.includes('timeout')) {
+  if (msg.includes('row-level security') || msg.includes('permission denied') || msg.includes('not authorized')) {
+    return 'Permissão negada. Apenas administradores autenticados podem realizar esta ação.';
+  }
+  if (msg.includes('network') || msg.includes('failed to fetch') || msg.includes('timeout') || msg.includes('networkerror')) {
     return 'Não foi possível conectar ao servidor. Verifique sua conexão com a internet e tente novamente.';
   }
 
-  return error.message || 'Não foi possível concluir a operação. Verifique os dados e tente novamente.';
+  return rawMsg;
 }

@@ -633,48 +633,68 @@ export const Api = {
       }
 
       // 4. Se já há administradores e o usuário logado É administrador, cria o novo admin
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name,
-            phone,
-            role: 'admin'
+      try {
+        const redirectTo = typeof window !== 'undefined'
+          ? (window.location.origin + window.location.pathname + '#/admin/login').replace(/\/+/g, '/').replace(':/', '://')
+          : undefined;
+
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: redirectTo,
+            data: {
+              name,
+              phone,
+              role: 'admin'
+            }
           }
+        });
+
+        if (error) {
+          throw new Error(formatAuthError(error));
         }
-      });
 
-      if (error) {
-        throw new Error(error.message || 'Erro ao registrar administrador no sistema de autenticação.');
+        if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+          throw new Error('Este e-mail já está cadastrado no sistema. Inicie sessão ou recupere sua senha.');
+        }
+
+        // Como o chamador é admin autenticado, o trigger proteger_nivel_acesso_usuario permite o nível 'admin'
+        const { error: upsertErr } = await supabase.from('usuarios').upsert({
+          auth_user_id: data.user?.id || null,
+          nome: name,
+          email: email,
+          telefone: phone,
+          whatsapp: phone,
+          nivel_acesso: 'admin',
+          status: 'ativo',
+          ativo: true
+        }, { onConflict: 'email' });
+
+        if (upsertErr) {
+          console.warn('Aviso ao sincronizar administrador no banco:', upsertErr.message);
+        }
+
+        const newAdminUser = {
+          id: data.user?.id || Date.now(),
+          auth_user_id: data.user?.id || null,
+          name: name || email.split('@')[0],
+          email,
+          phone,
+          role: 'admin'
+        };
+
+        const sessionToken = data.session?.access_token || null;
+        const requiresEmailConfirmation = !sessionToken && Boolean(data.user);
+
+        return { 
+          access_token: sessionToken, 
+          user: newAdminUser,
+          requiresEmailConfirmation
+        };
+      } catch (err) {
+        throw new Error(formatAuthError(err));
       }
-
-      // Como o chamador é admin autenticado, o trigger proteger_nivel_acesso_usuario permite o nível 'admin'
-      const { error: upsertErr } = await supabase.from('usuarios').upsert({
-        auth_user_id: data.user?.id || null,
-        nome: name,
-        email: email,
-        telefone: phone,
-        whatsapp: phone,
-        nivel_acesso: 'admin',
-        status: 'ativo',
-        ativo: true
-      }, { onConflict: 'email' });
-
-      if (upsertErr) {
-        throw new Error('Erro ao registrar privilégios de administrador no banco: ' + upsertErr.message);
-      }
-
-      const newAdminUser = {
-        id: data.user?.id || Date.now(),
-        auth_user_id: data.user?.id,
-        name,
-        email,
-        phone,
-        role: 'admin'
-      };
-
-      return { access_token: data.session?.access_token || null, user: newAdminUser };
     },
 
     async forgotPassword(email) {
@@ -2594,11 +2614,16 @@ export const Api = {
 
       if (isSupabaseConfigured() && supabase) {
         try {
+          const redirectTo = typeof window !== 'undefined'
+            ? (window.location.origin + window.location.pathname + '#/admin/login').replace(/\/+/g, '/').replace(':/', '://')
+            : undefined;
+
           // 1. Cria o usuário no Supabase Auth
           const { data: authData, error: authError } = await supabase.auth.signUp({
             email: cleanEmail,
             password: password,
             options: {
+              emailRedirectTo: redirectTo,
               data: {
                 name: cleanName,
                 phone: phone,
@@ -2609,6 +2634,11 @@ export const Api = {
             }
           });
           if (authError) throw authError;
+
+          // Se já existia usuário registrado com este e-mail
+          if (authData?.user && Array.isArray(authData.user.identities) && authData.user.identities.length === 0) {
+            throw new Error('Este e-mail já está cadastrado no sistema. Inicie sessão ou utilize a recuperação de senha.');
+          }
 
           // 2. Usa RPC segura bootstrap_first_admin para promover no banco
           // Esta RPC só funciona se NÃO existir nenhum admin cadastrado
@@ -2622,7 +2652,7 @@ export const Api = {
             if (bootstrapError) {
               // Se já existe admin, o bootstrap falha — isso é esperado
               console.warn('bootstrap_first_admin:', bootstrapError.message);
-              // Tenta upsert normal (o trigger vai forçar nivel_acesso='cliente' se não for admin autenticado)
+              // Tenta upsert normal
               await supabase.from('usuarios').upsert({
                 auth_user_id: authData?.user?.id || null,
                 nome: cleanName,
@@ -2659,6 +2689,33 @@ export const Api = {
             }, { onConflict: 'email' });
           }
 
+          let sessionToken = authData?.session?.access_token || null;
+          let requiresEmailConfirmation = false;
+
+          // Se não retornou sessão direta no signUp, tenta autenticar com signInWithPassword
+          if (!sessionToken) {
+            try {
+              const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+                email: cleanEmail,
+                password: password
+              });
+              if (!signInErr && signInData?.session?.access_token) {
+                sessionToken = signInData.session.access_token;
+              } else if (signInErr) {
+                const errMsg = (signInErr.message || '').toLowerCase();
+                if (errMsg.includes('confirm') || errMsg.includes('email_not_confirmed')) {
+                  requiresEmailConfirmation = true;
+                }
+              }
+            } catch (ignore) {}
+          }
+
+          if (sessionToken) {
+            Api.setToken(sessionToken);
+          } else if (!requiresEmailConfirmation && !authData?.session) {
+            requiresEmailConfirmation = true;
+          }
+
           const user = {
             id: authData?.user?.id || Date.now(),
             auth_user_id: authData?.user?.id || null,
@@ -2669,18 +2726,20 @@ export const Api = {
             ponto_referencia: pontoReferencia,
             role: 'admin'
           };
-          if (authData?.session?.access_token) {
-            Api.setToken(authData.session.access_token);
-          }
 
           // Registrar no cache local
           const localUsers = getLocalData(LOCAL_STORAGE_KEYS.CUSTOMERS, []);
           setLocalData(LOCAL_STORAGE_KEYS.CUSTOMERS, [user, ...localUsers.filter(u => u.email !== user.email)]);
           Storage.saveUser(user);
 
-          return { user };
+          return { 
+            access_token: sessionToken, 
+            user, 
+            requiresEmailConfirmation 
+          };
         } catch (sbErr) {
-          throw sbErr;
+          console.error('Falha no setup de admin:', sbErr);
+          throw new Error(formatAuthError(sbErr));
         }
       }
 

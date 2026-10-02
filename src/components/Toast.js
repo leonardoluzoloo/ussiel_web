@@ -37,6 +37,13 @@ export const Toast = {
       onAction = options.onAction || null;
     }
 
+    if (!title || String(title).trim().toLowerCase() === 'undefined') {
+      title = type === 'error' ? 'Não foi possível concluir' : 'Notificação';
+    }
+    if (String(message).trim().toLowerCase() === 'undefined') {
+      message = '';
+    }
+
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
     
