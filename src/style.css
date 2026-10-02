@@ -5143,7 +5143,8 @@ img {
   }
 
   .admin-sidebar {
-    display: none; /* Sidebar oculta no mobile em favor das abas rápidas */
+    display: none;
+    /* Sidebar oculta no mobile em favor das abas rápidas */
   }
 
   .admin-mobile-tabs-bar {
@@ -5406,6 +5407,7 @@ img {
 
 /* 4. REGRAS RESPONSIVAS MOBILE ESPECÍFICAS (max-width: 768px) */
 @media (max-width: 768px) {
+
   /* WhatsApp no Mobile (acima da barra inferior de navegação) */
   .whatsapp-float-wrap {
     bottom: 84px !important;
@@ -5564,7 +5566,8 @@ img {
   textarea.form-input {
     width: 100% !important;
     box-sizing: border-box !important;
-    font-size: 1rem !important; /* evita zoom no iOS */
+    font-size: 1rem !important;
+    /* evita zoom no iOS */
   }
 
   .checkout-grid {
@@ -5723,8 +5726,17 @@ body.admin-backoffice-mode #mainContentArea {
 }
 
 @keyframes pulseDot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.85); }
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
 }
 
 .admin-enterprise-actions {
@@ -6041,12 +6053,259 @@ body.admin-backoffice-mode #mainContentArea {
   margin: 0 auto;
 }
 
-/* Responsividade do Painel */
+/* Responsividade do Painel Administrativo Corporativo */
+.admin-desktop-only {
+  display: block;
+}
+
+.admin-mobile-only {
+  display: none !important;
+}
+
+/* Lista de Cards para Telas Mobile */
+.admin-mobile-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.admin-res-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.admin-res-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.admin-res-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: #475569;
+}
+
+.admin-res-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-res-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+}
+
+.admin-res-card-actions .btn {
+  flex: 1;
+  min-width: 80px;
+  justify-content: center;
+  font-size: 0.8125rem;
+  padding: 8px 10px;
+}
+
+/* Grid Visual de Banners */
+.admin-banners-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.admin-banner-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.admin-banner-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.admin-banner-card-img-wrap {
+  width: 100%;
+  height: 140px;
+  background: #090d16;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-banner-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-banner-card-order-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.admin-banner-card-body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.admin-banner-card-title {
+  font-size: 0.9375rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.3;
+}
+
+.admin-banner-card-link {
+  font-size: 0.75rem;
+  color: #2563eb;
+  font-family: monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Grid de Campanhas / Catálogos */
+.admin-catalogs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.admin-catalog-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* Grid de Cupons Promocionais */
+.admin-coupons-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+  width: 100%;
+}
+
+.admin-coupon-ticket {
+  background: #ffffff;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  background-color: #fafafa;
+}
+
+/* Estado Vazio Compacto */
+.admin-empty-state {
+  text-align: center;
+  padding: 36px 20px;
+  background: #ffffff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 8px 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.admin-empty-state-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.admin-empty-state-title {
+  font-size: 0.9375rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.admin-empty-state-desc {
+  font-size: 0.8125rem;
+  color: #64748b;
+  max-width: 360px;
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+/* Skeletons de Carregamento Elegantes */
+.admin-skeleton {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: adminShimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+@keyframes adminShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 @media (max-width: 991px) {
   .admin-enterprise-body {
     grid-template-columns: 1fr;
-    padding: 16px 12px;
-    gap: 16px;
+    padding: 14px 12px;
+    gap: 14px;
   }
 
   .admin-enterprise-sidebar {
@@ -6057,35 +6316,162 @@ body.admin-backoffice-mode #mainContentArea {
     display: inline-flex;
   }
 
-  .admin-mobile-tabs-bar {
-    display: flex !important;
-  }
-
   .desktop-only-txt {
     display: none;
   }
 }
 
-@media (max-width: 576px) {
+@media (max-width: 768px) {
+  .admin-desktop-only {
+    display: none !important;
+  }
+
+  .admin-mobile-only {
+    display: flex !important;
+  }
+
+  .admin-card {
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .admin-card-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .admin-card-header .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .admin-stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .stat-card {
+    padding: 12px;
+    border-radius: 10px;
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+    margin-bottom: 2px;
+  }
+
+  .stat-val {
+    font-size: 1.125rem;
+  }
+
+  .admin-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .admin-search-wrapper {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-filter-select {
+    width: 100%;
+  }
+
+  .admin-modal-overlay {
+    padding: 8px;
+    align-items: center;
+  }
+
+  .admin-modal-dialog {
+    max-width: 100%;
+    width: 100%;
+    max-height: 92vh;
+    border-radius: 16px;
+  }
+
+  .admin-modal-header {
+    padding: 14px 16px;
+  }
+
+  .admin-modal-body {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .admin-modal-footer {
+    padding: 12px 16px;
+    flex-direction: column;
+  }
+
+  .admin-modal-footer .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .admin-form-grid-2,
+  .admin-form-grid-3 {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .admin-banners-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
   .admin-enterprise-topbar {
-    padding: 10px 12px;
+    padding: 8px 10px;
+  }
+
+  .admin-brand-title {
+    font-size: 1rem;
+  }
+
+  .admin-brand-subtitle {
+    font-size: 0.5625rem;
+  }
+
+  .admin-brand-icon {
+    width: 32px;
+    height: 32px;
   }
 
   .admin-sys-status-pill {
     display: none;
   }
 
-  .admin-profile-name, .admin-profile-role {
+  .admin-profile-name,
+  .admin-profile-role {
     display: none;
   }
 
   .admin-profile-chip {
-    padding: 4px;
+    padding: 2px;
     margin-left: 2px;
+    background: none;
+    border: none;
+  }
+
+  .admin-stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .stat-card {
+    padding: 10px 8px;
+  }
+
+  .stat-val {
+    font-size: 1rem;
   }
 
   .hero-clean-banner-img {
-    min-height: 160px;
-    max-height: 260px;
+    min-height: 150px;
+    max-height: 240px;
   }
 }

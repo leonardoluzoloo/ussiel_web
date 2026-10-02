@@ -1,6 +1,6 @@
 // ===================================================================
-// ADMIN DASHBOARD VIEW (Complete Operational Backoffice Suite)
-// 10 Módulos de Administração Total • Mobile & Notebook Responsive
+// ADMIN DASHBOARD VIEW (Enterprise Backoffice Suite)
+// 100% Responsivo • Mobile-First • Sem SQL Exposto • UX Corporativa
 // ===================================================================
 
 import { Icons } from '../utils/icons.js';
@@ -8,7 +8,6 @@ import { formatPrice, formatDate } from '../utils/format.js';
 import { Storage } from '../services/storage.js';
 import { Api } from '../services/api.js';
 import { Toast } from '../components/Toast.js';
-import { SCHEMA_SQL } from '../data/schemaSql.js';
 import { isSupabaseConfigured } from '../services/supabaseClient.js';
 import { createImageUploader } from '../utils/imageUpload.js';
 
@@ -16,16 +15,14 @@ export function renderAdminView() {
   const container = document.createElement('div');
   container.className = 'admin-backoffice-page';
 
-  // Abas operacionais:
-  // 'dashboard' | 'orders' | 'products' | 'categories' | 'catalogs' |
-  // 'coupons' | 'customers' | 'stock' | 'banners' | 'settings' | 'database'
+  // Abas operacionais permitidas:
+  // 'dashboard' | 'products' | 'categories' | 'banners' | 'orders' |
+  // 'customers' | 'stock' | 'coupons' | 'catalogs' | 'settings'
   let currentTab = 'dashboard';
   let isLoading = true;
   let systemStatus = { has_admin: true, total_admins: 1 };
-  let dbCheckResult = null;
-  let isCheckingDb = false;
 
-  // Estados dos dados carregados
+  // Estados dos dados
   let stats = null;
   let ordersList = [];
   let productsList = [];
@@ -44,8 +41,9 @@ export function renderAdminView() {
   let productCategoryFilter = 'all';
   let productStockFilter = 'all';
   let customerSearchQuery = '';
+  let dashboardPeriod = 'today'; // 'today' | '7d' | '30d' | 'all'
 
-  // 1. Inicialização e Checagem de Acesso
+  // 1. Inicialização
   async function init() {
     try {
       const statusRes = await Api.admin.getStatus();
@@ -67,7 +65,7 @@ export function renderAdminView() {
           }
         }
       } catch (err) {
-        console.warn('Sessão expirada ou erro no perfil:', err.message);
+        console.warn('Sessão expirada:', err.message);
       }
     }
 
@@ -113,7 +111,7 @@ export function renderAdminView() {
       bannersList = allBanners || [];
       storeSettings = settings || {};
     } catch (err) {
-      console.warn('Erro ao carregar dados operacionais:', err.message);
+      console.warn('Erro ao carregar dados:', err.message);
     }
   }
 
@@ -124,12 +122,7 @@ export function renderAdminView() {
     const isAdmin = currentUser && currentUser.role === 'admin';
 
     if (isLoading) {
-      container.innerHTML = `
-        <div style="min-height: 480px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;">
-          <div style="width: 44px; height: 44px; border: 4px solid var(--border-light); border-top-color: var(--primary-600); border-radius: 50%; animation: spin 1s linear infinite;"></div>
-          <span style="font-size: 0.9375rem; color: var(--text-muted); font-weight: 600;">Carregando Central de Operações da NovaTech...</span>
-        </div>
-      `;
+      renderLoadingSkeleton();
       return;
     }
 
@@ -146,137 +139,114 @@ export function renderAdminView() {
     renderDashboardLayout();
   }
 
-  // --- TELA DE CONFIGURAÇÃO DO PRIMEIRO ADMIN ---
+  // Skeleton de Carregamento Elegante
+  function renderLoadingSkeleton() {
+    container.innerHTML = `
+      <div style="min-height: 100vh; padding: 24px; max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px;">
+        <div class="admin-skeleton" style="height: 64px; width: 100%;"></div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+          <div class="admin-skeleton" style="height: 100px;"></div>
+          <div class="admin-skeleton" style="height: 100px;"></div>
+          <div class="admin-skeleton" style="height: 100px;"></div>
+          <div class="admin-skeleton" style="height: 100px;"></div>
+        </div>
+        <div class="admin-skeleton" style="height: 380px; width: 100%;"></div>
+      </div>
+    `;
+  }
+
+  // Tela de Criação do Primeiro Administrador
   function renderSetupScreen() {
     container.innerHTML = `
-      <div style="max-width: 580px; margin: 48px auto 80px auto; background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 40px 32px; box-shadow: var(--shadow-md);">
-        <div style="text-align: center; margin-bottom: 28px;">
-          <div style="width: 64px; height: 64px; border-radius: 50%; background: #eff6ff; color: var(--primary-600); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
-            ${Icons.user(32)}
-          </div>
-          <span class="badge" style="background: var(--accent-emerald); color: #ffffff; margin-bottom: 8px;">PRIMEIRA CONFIGURAÇÃO</span>
-          <h2 style="font-family: var(--font-display); font-size: 1.75rem; font-weight: 900; color: var(--text-main); margin-bottom: 8px;">
-            Configurar Administrador Master
-          </h2>
-          <p style="color: var(--text-secondary); font-size: 0.9375rem; line-height: 1.6;">
-            Bem-vindo à <strong>NovaTech Angola</strong>! Cadastre seus dados abaixo para ativar o controle total da loja.
-          </p>
-        </div>
-
-        <form id="adminSetupForm" style="display: flex; flex-direction: column; gap: 16px;">
-          <div class="form-group">
-            <label class="form-label">Nome Completo</label>
-            <input type="text" id="setupName" class="form-input" placeholder="Ex: Administrador Geral" required />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Seu E-mail de Acesso</label>
-            <input type="email" id="setupEmail" class="form-input" placeholder="admin@novatech.co.ao" required />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Telefone / WhatsApp</label>
-            <input type="tel" id="setupPhone" class="form-input" placeholder="+244 923 179 192" required />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Senha de Acesso</label>
-            <input type="password" id="setupPassword" class="form-input" placeholder="Mínimo 6 caracteres" required />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Endereço Completo</label>
-            <input type="text" id="setupEndereco" class="form-input" placeholder="Ex: Luanda, Talatona, Rua Principal, nº 10" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Ponto de Referência</label>
-            <input type="text" id="setupPontoReferencia" class="form-input" placeholder="Ex: Próximo ao Belas Shopping" />
+      <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background: #f8fafc;">
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px 24px; width: 100%; max-width: 440px; box-shadow: 0 4px 20px rgba(0,0,0,0.06);">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <div style="width: 52px; height: 52px; background: #2563eb; color: #fff; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+              ${Icons.user(28)}
+            </div>
+            <h2 style="font-size: 1.25rem; font-weight: 800; color: #0f172a; margin-bottom: 4px;">Configuração Inicial</h2>
+            <p style="font-size: 0.8125rem; color: #64748b;">Cadastre a conta mestre para gerenciar a loja.</p>
           </div>
 
-          <button type="submit" class="btn btn-primary btn-full" style="padding: 14px; font-weight: 800; font-size: 1rem; margin-top: 8px;">
-            Criar Administrador e Iniciar Operação →
-          </button>
-        </form>
-
-        <div style="margin-top: 24px; text-align: center;">
-          <a href="#/" style="font-size: 0.8125rem; color: var(--text-muted); text-decoration: underline;">
-            ← Voltar para a Loja
-          </a>
+          <form id="adminSetupForm" style="display: flex; flex-direction: column; gap: 14px;">
+            <div class="form-group">
+              <label class="form-label">Nome Completo</label>
+              <input type="text" id="setupName" class="form-input" placeholder="Ex: Leonardo Adriano" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">E-mail Profissional</label>
+              <input type="email" id="setupEmail" class="form-input" placeholder="admin@novatech.co.ao" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Senha de Acesso</label>
+              <input type="password" id="setupPassword" class="form-input" placeholder="Mínimo de 6 dígitos" minlength="6" required />
+            </div>
+            <button type="submit" class="btn btn-primary" style="padding: 12px; font-weight: 700; margin-top: 6px;">
+              Criar Conta e Acessar Painel
+            </button>
+          </form>
         </div>
       </div>
     `;
 
-    const form = container.querySelector('#adminSetupForm');
-    form.addEventListener('submit', async (e) => {
+    container.querySelector('#adminSetupForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const name = container.querySelector('#setupName').value.trim();
       const email = container.querySelector('#setupEmail').value.trim();
-      const phone = container.querySelector('#setupPhone').value.trim();
       const password = container.querySelector('#setupPassword').value;
-      const endereco = container.querySelector('#setupEndereco')?.value.trim() || '';
-      const pontoReferencia = container.querySelector('#setupPontoReferencia')?.value.trim() || '';
 
       try {
-        const res = await Api.admin.setup(name, email, password, phone, { endereco, ponto_referencia: pontoReferencia });
+        const res = await Api.admin.setup({ name, email, password });
         Storage.saveUser(res.user);
-        Toast.show('Administrador Master criado com sucesso!', 'success');
+        Toast.show('Administrador criado com sucesso!', 'success');
         systemStatus.has_admin = true;
         await loadAllData();
         render();
       } catch (err) {
-        Toast.show(err.message || 'Erro ao criar administrador.', 'error');
+        Toast.show(err.message || 'Erro ao criar conta administrativa.', 'error');
       }
     });
   }
 
-  // --- TELA DE LOGIN DO ADMINISTRADOR ---
+  // Tela de Autenticação
   function renderLoginScreen() {
-    const currentUser = Storage.getUser();
     container.innerHTML = `
-      <div style="max-width: 520px; margin: 48px auto 80px auto; background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 40px 32px; box-shadow: var(--shadow-md);">
-        <div style="text-align: center; margin-bottom: 28px;">
-          <div style="width: 60px; height: 60px; border-radius: 50%; background: #1e293b; color: #ffffff; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
-            ${Icons.user(28)}
-          </div>
-          <span class="badge" style="background: var(--primary-600); color: #ffffff; margin-bottom: 8px;">ÁREA RESTRITA</span>
-          <h2 style="font-family: var(--font-display); font-size: 1.5rem; font-weight: 900; color: var(--text-main); margin-bottom: 8px;">
-            Acesso ao Painel Administrativo
-          </h2>
-          <p style="color: var(--text-secondary); font-size: 0.875rem;">
-            Entre com suas credenciais de Administrador da NovaTech.
-          </p>
-          ${(currentUser && currentUser.role !== 'admin') ? `
-            <div style="margin-top: 16px; padding: 12px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: var(--radius-sm); font-size: 0.8125rem; color: #be123c;">
-              Você está autenticado como <strong>${currentUser.email}</strong>, mas esta conta não possui privilégios de Administrador.
+      <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background: #f8fafc;">
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px 24px; width: 100%; max-width: 420px; box-shadow: 0 4px 20px rgba(0,0,0,0.06);">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <div style="width: 48px; height: 48px; background: #090d16; color: #38bdf8; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+              ${Icons.user(24)}
             </div>
-          ` : ''}
-        </div>
-
-        <form id="adminLoginForm" style="display: flex; flex-direction: column; gap: 16px;">
-          <div class="form-group">
-            <label class="form-label">E-mail do Administrador</label>
-            <input type="email" id="adminLogEmail" class="form-input" placeholder="admin@novatech.co.ao" required />
+            <h2 style="font-size: 1.25rem; font-weight: 800; color: #0f172a; margin-bottom: 4px;">Painel Administrativo</h2>
+            <p style="font-size: 0.8125rem; color: #64748b;">Acesse com suas credenciais de gestor.</p>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Senha</label>
-            <input type="password" id="adminLogPassword" class="form-input" placeholder="••••••••" required />
-          </div>
-
-          <button type="submit" class="btn btn-primary btn-full" style="padding: 13px; font-weight: 700; margin-top: 4px;">
-            Entrar na Central de Controle
-          </button>
-        </form>
-
-        <div style="margin-top: 24px; text-align: center; font-size: 0.8125rem;">
-          <a href="#/" style="color: var(--text-secondary); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
-            ← Voltar para a Loja Oficial
-          </a>
+          <form id="adminLoginForm" style="display: flex; flex-direction: column; gap: 14px;">
+            <div class="form-group">
+              <label class="form-label">E-mail</label>
+              <input type="email" id="loginEmail" class="form-input" placeholder="seu-email@novatech.co.ao" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Senha</label>
+              <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required />
+            </div>
+            <button type="submit" class="btn btn-primary" style="padding: 12px; font-weight: 700; margin-top: 6px;">
+              Entrar no Painel
+            </button>
+            <div style="text-align: center; margin-top: 10px;">
+              <a href="#/" style="font-size: 0.8125rem; color: #2563eb; text-decoration: none; font-weight: 600;">
+                ← Voltar para a Loja
+              </a>
+            </div>
+          </form>
         </div>
       </div>
     `;
 
-    const form = container.querySelector('#adminLoginForm');
-    form.addEventListener('submit', async (e) => {
+    container.querySelector('#adminLoginForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const email = container.querySelector('#adminLogEmail').value.trim();
-      const password = container.querySelector('#adminLogPassword').value;
+      const email = container.querySelector('#loginEmail').value.trim();
+      const password = container.querySelector('#loginPassword').value;
 
       try {
         const res = await Api.auth.login(email, password);
@@ -290,7 +260,7 @@ export function renderAdminView() {
           render();
         }
       } catch (err) {
-        Toast.show(err.message || 'Erro ao realizar login.', 'error');
+        Toast.show(err.message || 'Credenciais inválidas.', 'error');
       }
     });
   }
@@ -307,12 +277,12 @@ export function renderAdminView() {
       <header class="admin-enterprise-topbar">
         <div class="admin-enterprise-topbar-inner">
           <div class="admin-enterprise-brand-group">
-            <button id="adminMobileDrawerToggleBtn" class="admin-mobile-drawer-btn" aria-label="Abrir Menu Administrativo" title="Menu de Módulos">
+            <button id="adminMobileDrawerToggleBtn" class="admin-mobile-drawer-btn" aria-label="Abrir Menu de Navegação" title="Menu">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
             </button>
             <div class="admin-enterprise-brand">
               <div class="admin-brand-icon">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
               </div>
               <div class="admin-brand-text">
                 <span class="admin-brand-title">NOVATECH</span>
@@ -326,7 +296,7 @@ export function renderAdminView() {
           </div>
 
           <div class="admin-enterprise-actions">
-            <a href="#/" class="admin-topbar-btn admin-topbar-btn-store" title="Visualizar a loja oficial como cliente">
+            <a href="#/" class="admin-topbar-btn admin-topbar-btn-store" title="Visualizar a loja oficial como cliente" target="_blank" rel="noopener">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
               <span>Ver Loja</span>
             </a>
@@ -334,11 +304,6 @@ export function renderAdminView() {
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
               <span class="desktop-only-txt">Sincronizar</span>
             </button>
-            <button id="adminClearCacheBtn" class="admin-topbar-btn admin-topbar-btn-danger" title="Zerar e Limpar Base Local">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-              <span class="desktop-only-txt">Limpar Base</span>
-            </button>
-            
             <div class="admin-profile-chip">
               <div class="admin-profile-avatar">${userInitials}</div>
               <div class="admin-profile-info">
@@ -354,164 +319,32 @@ export function renderAdminView() {
         </div>
       </header>
 
-      <!-- 2. Drawer Lateral para Mobile (< 992px) -->
+      <!-- 2. Drawer Lateral para Mobile (< 992px) - Sem barra horizontal de abas! -->
       <div class="admin-mobile-drawer-overlay" id="adminMobileDrawerOverlay"></div>
       <aside class="admin-mobile-drawer" id="adminMobileDrawer">
         <div class="admin-mobile-drawer-header">
           <div style="display:flex; align-items:center; gap:8px;">
-            <div class="admin-brand-icon" style="width:30px; height:30px;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            <div class="admin-brand-icon" style="width:28px; height:28px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
             </div>
-            <strong style="font-size:0.9375rem; color:#fff;">Módulos do Sistema</strong>
+            <strong style="font-size:0.9375rem; color:#fff;">Menu Administrativo</strong>
           </div>
-          <button id="adminMobileDrawerCloseBtn" style="background:none; border:none; color:#94a3b8; font-size:1.25rem; cursor:pointer; padding:4px;">✕</button>
+          <button id="adminMobileDrawerCloseBtn" style="background:none; border:none; color:#94a3b8; font-size:1.25rem; cursor:pointer; padding:4px;" aria-label="Fechar">✕</button>
         </div>
         <div class="admin-mobile-drawer-content">
-          <div class="admin-sidebar-group-title">Geral</div>
-          <div class="admin-nav-item ${currentTab === 'dashboard' ? 'active' : ''}" data-tab="dashboard">
-            <div class="admin-nav-item-left">${Icons.grid(18)}<span>Visão Geral</span></div>
-          </div>
-
-          <div class="admin-sidebar-group-title" style="margin-top:12px;">Cadastros da Loja</div>
-          <div class="admin-nav-item ${currentTab === 'products' ? 'active' : ''}" data-tab="products">
-            <div class="admin-nav-item-left">${Icons.cpu(18)}<span>Produtos</span></div>
-            <span class="admin-nav-pill-badge">${productsList.length}</span>
-          </div>
-          <div class="admin-nav-item ${currentTab === 'categories' ? 'active' : ''}" data-tab="categories">
-            <div class="admin-nav-item-left">${Icons.grid(18)}<span>Categorias</span></div>
-            <span class="admin-nav-pill-badge">${categoriesList.length}</span>
-          </div>
-          <div class="admin-nav-item ${currentTab === 'banners' ? 'active' : ''}" data-tab="banners">
-            <div class="admin-nav-item-left">${Icons.heart ? Icons.heart(18) : '🖼️'}<span>Banners da Vitrine</span></div>
-            <span class="admin-nav-pill-badge">${bannersList.length}</span>
-          </div>
-          <div class="admin-nav-item ${currentTab === 'catalogs' ? 'active' : ''}" data-tab="catalogs">
-            <div class="admin-nav-item-left">${Icons.tag(18)}<span>Catálogos</span></div>
-            <span class="admin-nav-pill-badge">${catalogsList.length}</span>
-          </div>
-
-          <div class="admin-sidebar-group-title" style="margin-top:12px;">Vendas & Operações</div>
-          <div class="admin-nav-item ${currentTab === 'orders' ? 'active' : ''}" data-tab="orders">
-            <div class="admin-nav-item-left">${Icons.package(18)}<span>Pedidos</span></div>
-            <span class="admin-nav-pill-badge" style="${pendingOrdersCount > 0 ? 'background:#f97316; color:#fff;' : ''}">${ordersList.length}</span>
-          </div>
-          <div class="admin-nav-item ${currentTab === 'stock' ? 'active' : ''}" data-tab="stock">
-            <div class="admin-nav-item-left">${Icons.truck(18)}<span>Gestão de Estoque</span></div>
-            ${lowStockCount > 0 ? `<span class="badge" style="background:#ef4444; color:#fff; font-size:0.6875rem;">${lowStockCount}⚠️</span>` : ''}
-          </div>
-          <div class="admin-nav-item ${currentTab === 'coupons' ? 'active' : ''}" data-tab="coupons">
-            <div class="admin-nav-item-left">${Icons.tag(18)}<span>Cupons & Promoções</span></div>
-            <span class="admin-nav-pill-badge">${couponsList.length}</span>
-          </div>
-          <div class="admin-nav-item ${currentTab === 'customers' ? 'active' : ''}" data-tab="customers">
-            <div class="admin-nav-item-left">${Icons.user(18)}<span>Clientes</span></div>
-            <span class="admin-nav-pill-badge">${customersList.length}</span>
-          </div>
-
-          <div class="admin-sidebar-group-title" style="margin-top:12px;">Sistema</div>
-          <div class="admin-nav-item ${currentTab === 'settings' ? 'active' : ''}" data-tab="settings">
-            <div class="admin-nav-item-left">${Icons.settings ? Icons.settings(18) : '⚙️'}<span>Configurações</span></div>
-          </div>
-          <div class="admin-nav-item ${currentTab === 'database' ? 'active' : ''}" data-tab="database">
-            <div class="admin-nav-item-left">${Icons.cpu(18)}<span>Banco SQL</span></div>
-          </div>
+          ${renderSidebarNavItems()}
         </div>
       </aside>
 
-      <!-- 3. Barra de Abas Rápidas para Mobile (< 992px) -->
-      <nav class="admin-mobile-tabs-bar" id="adminMobileTabsBar">
-        <button class="admin-mobile-tab-btn ${currentTab === 'dashboard' ? 'active' : ''}" data-tab="dashboard">
-          <span>📊 Visão Geral</span>
-        </button>
-        <button class="admin-mobile-tab-btn ${currentTab === 'products' ? 'active' : ''}" data-tab="products">
-          <span>📦 Produtos (${productsList.length})</span>
-        </button>
-        <button class="admin-mobile-tab-btn ${currentTab === 'categories' ? 'active' : ''}" data-tab="categories">
-          <span>📂 Categorias (${categoriesList.length})</span>
-        </button>
-        <button class="admin-mobile-tab-btn ${currentTab === 'banners' ? 'active' : ''}" data-tab="banners">
-          <span>🖼️ Banners (${bannersList.length})</span>
-        </button>
-        <button class="admin-mobile-tab-btn ${currentTab === 'orders' ? 'active' : ''}" data-tab="orders">
-          <span>🛒 Pedidos (${ordersList.length})</span>
-        </button>
-        <button class="admin-mobile-tab-btn ${currentTab === 'catalogs' ? 'active' : ''}" data-tab="catalogs">
-          <span>🏷️ Catálogos</span>
-        </button>
-        <button class="admin-mobile-tab-btn ${currentTab === 'coupons' ? 'active' : ''}" data-tab="coupons">
-          <span>🎟️ Cupons</span>
-        </button>
-        <button class="admin-mobile-tab-btn ${currentTab === 'stock' ? 'active' : ''}" data-tab="stock">
-          <span>📈 Estoque ${lowStockCount > 0 ? `(${lowStockCount}⚠️)` : ''}</span>
-        </button>
-        <button class="admin-mobile-tab-btn ${currentTab === 'customers' ? 'active' : ''}" data-tab="customers">
-          <span>👥 Clientes</span>
-        </button>
-        <button class="admin-mobile-tab-btn ${currentTab === 'settings' ? 'active' : ''}" data-tab="settings">
-          <span>⚙️ Configs</span>
-        </button>
-        <button class="admin-mobile-tab-btn ${currentTab === 'database' ? 'active' : ''}" data-tab="database">
-          <span>🗄️ SQL</span>
-        </button>
-      </nav>
-
-      <!-- 4. Workspace Corporativo Grid (Sidebar no Desktop + Conteúdo Central) -->
+      <!-- 3. Workspace Principal Grid (Sidebar no Desktop + Conteúdo Central) -->
       <div class="admin-enterprise-body">
         <aside class="admin-enterprise-sidebar">
-          <div class="admin-sidebar-group-title">Geral</div>
-          <div class="admin-nav-item ${currentTab === 'dashboard' ? 'active' : ''}" data-tab="dashboard">
-            <div class="admin-nav-item-left">${Icons.grid(18)}<span>Visão Geral</span></div>
-          </div>
-
-          <div class="admin-sidebar-group-title" style="margin-top:14px;">Cadastros da Loja</div>
-          <div class="admin-nav-item ${currentTab === 'products' ? 'active' : ''}" data-tab="products">
-            <div class="admin-nav-item-left">${Icons.cpu(18)}<span>Produtos</span></div>
-            <span class="admin-nav-pill-badge">${productsList.length}</span>
-          </div>
-          <div class="admin-nav-item ${currentTab === 'categories' ? 'active' : ''}" data-tab="categories">
-            <div class="admin-nav-item-left">${Icons.grid(18)}<span>Categorias</span></div>
-            <span class="admin-nav-pill-badge">${categoriesList.length}</span>
-          </div>
-          <div class="admin-nav-item ${currentTab === 'banners' ? 'active' : ''}" data-tab="banners">
-            <div class="admin-nav-item-left">${Icons.heart ? Icons.heart(18) : '🖼️'}<span>Banners da Vitrine</span></div>
-            <span class="admin-nav-pill-badge">${bannersList.length}</span>
-          </div>
-          <div class="admin-nav-item ${currentTab === 'catalogs' ? 'active' : ''}" data-tab="catalogs">
-            <div class="admin-nav-item-left">${Icons.tag(18)}<span>Catálogos & Campanhas</span></div>
-            <span class="admin-nav-pill-badge">${catalogsList.length}</span>
-          </div>
-
-          <div class="admin-sidebar-group-title" style="margin-top:14px;">Vendas & Operações</div>
-          <div class="admin-nav-item ${currentTab === 'orders' ? 'active' : ''}" data-tab="orders">
-            <div class="admin-nav-item-left">${Icons.package(18)}<span>Pedidos de Clientes</span></div>
-            <span class="admin-nav-pill-badge" style="${pendingOrdersCount > 0 ? 'background:#f97316; color:#fff;' : ''}">${ordersList.length}</span>
-          </div>
-          <div class="admin-nav-item ${currentTab === 'stock' ? 'active' : ''}" data-tab="stock">
-            <div class="admin-nav-item-left">${Icons.truck(18)}<span>Gestão de Estoque</span></div>
-            ${lowStockCount > 0 ? `<span class="badge" style="background:#ef4444; color:#fff; font-size:0.6875rem;">${lowStockCount}⚠️</span>` : ''}
-          </div>
-          <div class="admin-nav-item ${currentTab === 'coupons' ? 'active' : ''}" data-tab="coupons">
-            <div class="admin-nav-item-left">${Icons.tag(18)}<span>Cupons Promocionais</span></div>
-            <span class="admin-nav-pill-badge">${couponsList.length}</span>
-          </div>
-          <div class="admin-nav-item ${currentTab === 'customers' ? 'active' : ''}" data-tab="customers">
-            <div class="admin-nav-item-left">${Icons.user(18)}<span>Base de Clientes</span></div>
-            <span class="admin-nav-pill-badge">${customersList.length}</span>
-          </div>
-
-          <div class="admin-sidebar-group-title" style="margin-top:14px;">Sistema & Infra</div>
-          <div class="admin-nav-item ${currentTab === 'settings' ? 'active' : ''}" data-tab="settings">
-            <div class="admin-nav-item-left">${Icons.settings ? Icons.settings(18) : '⚙️'}<span>Configurações</span></div>
-          </div>
-          <div class="admin-nav-item ${currentTab === 'database' ? 'active' : ''}" data-tab="database">
-            <div class="admin-nav-item-left">${Icons.cpu(18)}<span>Banco de Dados (SQL)</span></div>
-            <span class="badge" style="background:#dbeafe; color:#1e40af; font-size:0.6875rem;">SUPABASE</span>
-          </div>
+          ${renderSidebarNavItems()}
         </aside>
 
-        <!-- Área Central de Conteúdo da Aba Selecionada -->
+        <!-- Área Central de Trabalho -->
         <main class="admin-content-area" id="adminMainContent">
-          ${renderTabContent()}
+          ${renderActiveTabContent()}
         </main>
       </div>
     `;
@@ -519,8 +352,64 @@ export function renderAdminView() {
     attachLayoutEvents();
   }
 
-  // 4. Renderiza a aba ativa
-  function renderTabContent() {
+  // Gera a lista de navegação padronizada para Desktop Sidebar e Mobile Drawer
+  function renderSidebarNavItems() {
+    const lowStockCount = productsList.filter(p => (p.stock || 0) <= (p.stock_min || 2)).length;
+    const pendingOrdersCount = ordersList.filter(o => o.status === 'received' || o.payment_status === 'pending').length;
+
+    return `
+      <div class="admin-sidebar-group-title">Geral</div>
+      <div class="admin-nav-item ${currentTab === 'dashboard' ? 'active' : ''}" data-tab="dashboard">
+        <div class="admin-nav-item-left">${Icons.grid(18)}<span>Visão Geral</span></div>
+      </div>
+
+      <div class="admin-sidebar-group-title" style="margin-top:14px;">Catálogo</div>
+      <div class="admin-nav-item ${currentTab === 'products' ? 'active' : ''}" data-tab="products">
+        <div class="admin-nav-item-left">${Icons.package(18)}<span>Produtos</span></div>
+        <span class="admin-nav-pill-badge">${productsList.length}</span>
+      </div>
+      <div class="admin-nav-item ${currentTab === 'categories' ? 'active' : ''}" data-tab="categories">
+        <div class="admin-nav-item-left">${Icons.grid(18)}<span>Categorias</span></div>
+        <span class="admin-nav-pill-badge">${categoriesList.length}</span>
+      </div>
+      <div class="admin-nav-item ${currentTab === 'banners' ? 'active' : ''}" data-tab="banners">
+        <div class="admin-nav-item-left">${Icons.heart ? Icons.heart(18) : '🖼️'}<span>Banners da Vitrine</span></div>
+        <span class="admin-nav-pill-badge">${bannersList.length}</span>
+      </div>
+
+      <div class="admin-sidebar-group-title" style="margin-top:14px;">Vendas</div>
+      <div class="admin-nav-item ${currentTab === 'orders' ? 'active' : ''}" data-tab="orders">
+        <div class="admin-nav-item-left">${Icons.truck(18)}<span>Pedidos</span></div>
+        <span class="admin-nav-pill-badge" style="${pendingOrdersCount > 0 ? 'background:#f97316; color:#fff;' : ''}">${ordersList.length}</span>
+      </div>
+      <div class="admin-nav-item ${currentTab === 'customers' ? 'active' : ''}" data-tab="customers">
+        <div class="admin-nav-item-left">${Icons.user(18)}<span>Clientes</span></div>
+        <span class="admin-nav-pill-badge">${customersList.length}</span>
+      </div>
+      <div class="admin-nav-item ${currentTab === 'stock' ? 'active' : ''}" data-tab="stock">
+        <div class="admin-nav-item-left">${Icons.cpu(18)}<span>Gestão de Estoque</span></div>
+        ${lowStockCount > 0 ? `<span class="badge" style="background:#ef4444; color:#fff; font-size:0.6875rem;">${lowStockCount}⚠️</span>` : ''}
+      </div>
+
+      <div class="admin-sidebar-group-title" style="margin-top:14px;">Marketing</div>
+      <div class="admin-nav-item ${currentTab === 'coupons' ? 'active' : ''}" data-tab="coupons">
+        <div class="admin-nav-item-left">${Icons.tag(18)}<span>Cupons</span></div>
+        <span class="admin-nav-pill-badge">${couponsList.length}</span>
+      </div>
+      <div class="admin-nav-item ${currentTab === 'catalogs' ? 'active' : ''}" data-tab="catalogs">
+        <div class="admin-nav-item-left">${Icons.tag(18)}<span>Campanhas</span></div>
+        <span class="admin-nav-pill-badge">${catalogsList.length}</span>
+      </div>
+
+      <div class="admin-sidebar-group-title" style="margin-top:14px;">Configurações</div>
+      <div class="admin-nav-item ${currentTab === 'settings' ? 'active' : ''}" data-tab="settings">
+        <div class="admin-nav-item-left">${Icons.settings ? Icons.settings(18) : '⚙️'}<span>Loja & Equipe</span></div>
+      </div>
+    `;
+  }
+
+  // Despachante de Conteúdo da Aba Ativa
+  function renderActiveTabContent() {
     switch (currentTab) {
       case 'dashboard':
         return renderDashboardTab();
@@ -542,15 +431,13 @@ export function renderAdminView() {
         return renderBannersTab();
       case 'settings':
         return renderSettingsTab();
-      case 'database':
-        return renderDatabaseTab();
       default:
         return renderDashboardTab();
     }
   }
 
   // ===================================================================
-  // ABA 1: VISÃO GERAL (DASHBOARD)
+  // ABA 1: VISÃO GERAL (DASHBOARD COMPACTO E RESPONSIVO)
   // ===================================================================
   function renderDashboardTab() {
     const totalSales = ordersList.reduce((sum, o) => sum + Number(o.total || 0), 0);
@@ -558,128 +445,175 @@ export function renderAdminView() {
     const pendingOrders = ordersList.filter(o => o.status === 'received' || o.payment_status === 'pending');
 
     return `
-      <div>
-        <!-- Stats Grid -->
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        <!-- Header da Página com Filtro de Período -->
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div>
+            <h1 style="font-size:1.25rem; font-weight:800; color:#0f172a; margin-bottom:2px;">Visão Geral</h1>
+            <p style="font-size:0.8125rem; color:#64748b;">Métricas em tempo real de vendas, pedidos e inventário.</p>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <select id="dashPeriodSelect" class="admin-filter-select" style="font-size:0.8125rem; padding:6px 12px;">
+              <option value="today" ${dashboardPeriod === 'today' ? 'selected' : ''}>Hoje</option>
+              <option value="7d" ${dashboardPeriod === '7d' ? 'selected' : ''}>Últimos 7 dias</option>
+              <option value="30d" ${dashboardPeriod === '30d' ? 'selected' : ''}>Últimos 30 dias</option>
+              <option value="all" ${dashboardPeriod === 'all' ? 'selected' : ''}>Histórico Geral</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 4 Cards Compactos de Métricas (2x2 no mobile, 4x1 no desktop) -->
         <div class="admin-stats-grid">
           <div class="stat-card">
             <div>
               <div class="stat-label">Vendas Totais</div>
-              <div class="stat-val" style="color: var(--primary-700);">${formatPrice(totalSales)}</div>
+              <div class="stat-val" style="color:#2563eb;">${formatPrice(totalSales)}</div>
             </div>
-            <div style="color: var(--primary-600);">${Icons.creditCard(28)}</div>
+            <div style="color:#2563eb;">${Icons.creditCard(22)}</div>
           </div>
 
           <div class="stat-card">
             <div>
-              <div class="stat-label">Total de Encomendas</div>
+              <div class="stat-label">Pedidos Recebidos</div>
               <div class="stat-val">${ordersList.length}</div>
             </div>
-            <div style="color: var(--accent-emerald);">${Icons.package(28)}</div>
+            <div style="color:#10b981;">${Icons.package(22)}</div>
           </div>
 
           <div class="stat-card">
             <div>
-              <div class="stat-label">Produtos no Catálogo</div>
+              <div class="stat-label">Produtos Ativos</div>
               <div class="stat-val">${productsList.length}</div>
             </div>
-            <div style="color: var(--accent-purple);">${Icons.cpu(28)}</div>
+            <div style="color:#8b5cf6;">${Icons.cpu(22)}</div>
           </div>
 
           <div class="stat-card">
             <div>
-              <div class="stat-label">Atenção ao Estoque</div>
-              <div class="stat-val" style="${lowStock.length > 0 ? 'color: #dc2626;' : ''}">
-                ${lowStock.length} itens baixos
+              <div class="stat-label">Estoque Baixo</div>
+              <div class="stat-val" style="${lowStock.length > 0 ? 'color:#ef4444;' : 'color:#64748b;'}">
+                ${lowStock.length} ${lowStock.length === 1 ? 'item' : 'itens'}
               </div>
             </div>
-            <div style="color: #dc2626;">${Icons.truck(28)}</div>
+            <div style="${lowStock.length > 0 ? 'color:#ef4444;' : 'color:#94a3b8;'}">${Icons.truck(22)}</div>
           </div>
         </div>
 
-        <!-- Alertas Operacionais Rápidos -->
+        <!-- Alertas Operacionais Rápidos (se houver) -->
         ${(pendingOrders.length > 0 || lowStock.length > 0) ? `
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px;">
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:12px;">
             ${pendingOrders.length > 0 ? `
-              <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-md); padding: 16px; display: flex; align-items: center; justify-content: space-between;">
+              <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
                 <div>
-                  <div style="font-weight: 800; color: #b45309; font-size: 0.9375rem;">📦 ${pendingOrders.length} Encomendas Aguardando</div>
-                  <div style="font-size: 0.8125rem; color: #78350f;">Existem pedidos recebidos aguardando confirmação.</div>
+                  <strong style="color:#b45309; font-size:0.875rem;">📦 ${pendingOrders.length} Encomendas Aguardando</strong>
+                  <div style="font-size:0.75rem; color:#78350f;">Existem pedidos recebidos para conferência.</div>
                 </div>
-                <button class="btn btn-secondary" style="font-size: 0.75rem; padding: 6px 12px;" data-tab="orders">Revisar</button>
+                <button class="btn btn-secondary btn-sm" data-tab="orders" style="flex-shrink:0;">Revisar</button>
               </div>
             ` : ''}
 
             ${lowStock.length > 0 ? `
-              <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius-md); padding: 16px; display: flex; align-items: center; justify-content: space-between;">
+              <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
                 <div>
-                  <div style="font-weight: 800; color: #b91c1c; font-size: 0.9375rem;">⚠️ ${lowStock.length} Itens com Estoque Baixo</div>
-                  <div style="font-size: 0.8125rem; color: #991b1b;">Reponha o inventário antes que esgote na loja.</div>
+                  <strong style="color:#b91c1c; font-size:0.875rem;">⚠️ ${lowStock.length} Itens em Nível Crítico</strong>
+                  <div style="font-size:0.75rem; color:#991b1b;">Reponha o inventário antes do esgotamento.</div>
                 </div>
-                <button class="btn btn-secondary" style="font-size: 0.75rem; padding: 6px 12px;" data-tab="stock">Ver Estoque</button>
+                <button class="btn btn-secondary btn-sm" data-tab="stock" style="flex-shrink:0;">Ver Estoque</button>
               </div>
             ` : ''}
           </div>
         ` : ''}
 
-        <!-- Tabela de Pedidos Recentes -->
+        <!-- Pedidos Recentes: Tabela no Desktop, Cards no Mobile -->
         <div class="admin-card">
           <div class="admin-card-header">
             <h3 class="admin-card-title">
-              ${Icons.package(20)}
+              ${Icons.package(18)}
               <span>Últimas Encomendas Realizadas</span>
             </h3>
-            <button class="btn btn-secondary" style="font-size: 0.8125rem;" data-tab="orders">
+            <button class="btn btn-secondary btn-sm" data-tab="orders">
               Ver Todos os Pedidos (${ordersList.length}) →
             </button>
           </div>
 
-          <div class="admin-table-wrapper">
-            <table class="admin-table">
-              <thead>
-                <tr>
-                  <th>Código</th>
-                  <th>Cliente</th>
-                  <th>Data</th>
-                  <th>Total</th>
-                  <th>Pagamento</th>
-                  <th>Status</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${ordersList.length === 0 ? `
+          ${ordersList.length === 0 ? `
+            <div class="admin-empty-state">
+              <div class="admin-empty-state-icon">${Icons.package(24)}</div>
+              <div class="admin-empty-state-title">Nenhuma encomenda registrada ainda</div>
+              <div class="admin-empty-state-desc">Os novos pedidos feitos pelos clientes aparecerão aqui automaticamente.</div>
+            </div>
+          ` : `
+            <!-- Desktop: Tabela de Pedidos -->
+            <div class="admin-table-wrapper admin-desktop-only">
+              <table class="admin-table">
+                <thead>
                   <tr>
-                    <td colspan="7" style="text-align: center; padding: 32px; color: var(--text-secondary);">
-                      Nenhuma encomenda registrada ainda.
-                    </td>
+                    <th>Código</th>
+                    <th>Cliente</th>
+                    <th>Data</th>
+                    <th>Total</th>
+                    <th>Pagamento</th>
+                    <th>Status</th>
+                    <th>Ações</th>
                   </tr>
-                ` : ordersList.slice(0, 5).map(o => `
-                  <tr>
-                    <td><strong>${o.order_code}</strong></td>
-                    <td>
-                      <div>${o.customer_name}</div>
-                      <div style="font-size: 0.75rem; color: var(--text-muted);">${o.customer_phone}</div>
-                    </td>
-                    <td>${formatDate(o.created_at)}</td>
-                    <td><strong style="color: var(--primary-700);">${formatPrice(o.total)}</strong></td>
-                    <td>
-                      <span class="badge" style="background: #f1f5f9; color: var(--text-secondary); font-size: 0.6875rem;">
-                        ${o.payment_method?.toUpperCase()}
-                      </span>
-                    </td>
-                    <td>
-                      ${renderStatusBadge(o.status)}
-                    </td>
-                    <td>
-                      <button class="btn btn-secondary btn-sm open-order-modal-btn" data-order-id="${o.id}">
-                        Detalhes
-                      </button>
-                    </td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  ${ordersList.slice(0, 5).map(o => `
+                    <tr>
+                      <td><strong>${o.order_code}</strong></td>
+                      <td>
+                        <div>${o.customer_name}</div>
+                        <div style="font-size:0.75rem; color:#64748b;">${o.customer_phone || ''}</div>
+                      </td>
+                      <td>${formatDate(o.created_at)}</td>
+                      <td><strong style="color:#1d4ed8;">${formatPrice(o.total)}</strong></td>
+                      <td>
+                        <span class="badge" style="background:#f1f5f9; color:#475569; font-size:0.6875rem;">
+                          ${o.payment_method?.toUpperCase()}
+                        </span>
+                      </td>
+                      <td>${renderStatusBadge(o.status)}</td>
+                      <td>
+                        <button class="btn btn-secondary btn-sm open-order-modal-btn" data-order-id="${o.id}">
+                          Detalhes
+                        </button>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Mobile: Cards Responsivos de Pedidos -->
+            <div class="admin-mobile-card-list admin-mobile-only">
+              ${ordersList.slice(0, 5).map(o => `
+                <div class="admin-res-card">
+                  <div class="admin-res-card-header">
+                    <div>
+                      <strong style="font-size:0.9375rem; color:#0f172a;">${o.order_code}</strong>
+                      <div style="font-size:0.75rem; color:#64748b;">${formatDate(o.created_at)}</div>
+                    </div>
+                    ${renderStatusBadge(o.status)}
+                  </div>
+                  <div class="admin-res-card-body">
+                    <div class="admin-res-card-row">
+                      <span>Cliente:</span>
+                      <strong>${o.customer_name}</strong>
+                    </div>
+                    <div class="admin-res-card-row">
+                      <span>Total:</span>
+                      <strong style="color:#1d4ed8; font-size:0.9375rem;">${formatPrice(o.total)}</strong>
+                    </div>
+                  </div>
+                  <div class="admin-res-card-actions">
+                    <button class="btn btn-secondary btn-sm open-order-modal-btn" data-order-id="${o.id}">
+                      Ver Detalhes do Pedido
+                    </button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `}
         </div>
       </div>
     `;
@@ -707,10 +641,15 @@ export function renderAdminView() {
     return `
       <div class="admin-card">
         <div class="admin-card-header">
-          <h2 class="admin-card-title">
-            ${Icons.package(22)}
-            <span>Gestão Operacional de Pedidos (${ordersList.length})</span>
-          </h2>
+          <div>
+            <h2 class="admin-card-title">
+              ${Icons.truck(20)}
+              <span>Gestão de Pedidos (${ordersList.length})</span>
+            </h2>
+            <p style="font-size:0.8125rem; color:#64748b; margin-top:2px;">
+              Acompanhe, atualize status de entrega e consulte o comprovativo dos pedidos.
+            </p>
+          </div>
         </div>
 
         <!-- Filtros de Busca e Status -->
@@ -721,7 +660,7 @@ export function renderAdminView() {
               type="text"
               id="orderSearchInput"
               class="admin-search-input"
-              placeholder="Buscar por código, nome, telefone ou email..."
+              placeholder="Buscar por código, nome ou telefone..."
               value="${orderSearchQuery}"
             />
           </div>
@@ -737,54 +676,100 @@ export function renderAdminView() {
           </select>
         </div>
 
-        <!-- Tabela de Pedidos -->
-        <div class="admin-table-wrapper">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>Código</th>
-                <th>Cliente</th>
-                <th>Contato</th>
-                <th>Data</th>
-                <th>Valor Total</th>
-                <th>Status Atual</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${filtered.length === 0 ? `
+        ${filtered.length === 0 ? `
+          <div class="admin-empty-state">
+            <div class="admin-empty-state-icon">${Icons.package(24)}</div>
+            <div class="admin-empty-state-title">Nenhum pedido encontrado</div>
+            <div class="admin-empty-state-desc">Tente alterar os termos de busca ou filtros de status selecionados.</div>
+          </div>
+        ` : `
+          <!-- Desktop: Tabela de Pedidos -->
+          <div class="admin-table-wrapper admin-desktop-only">
+            <table class="admin-table">
+              <thead>
                 <tr>
-                  <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
-                    Nenhum pedido encontrado com os filtros aplicados.
-                  </td>
+                  <th>Código</th>
+                  <th>Cliente</th>
+                  <th>Contato</th>
+                  <th>Data</th>
+                  <th>Valor Total</th>
+                  <th>Pagamento</th>
+                  <th>Status</th>
+                  <th>Ações</th>
                 </tr>
-              ` : filtered.map(o => `
-                <tr>
-                  <td><strong>${o.order_code}</strong></td>
-                  <td>${o.customer_name}</td>
-                  <td>
-                    <div style="font-size: 0.8125rem;">${o.customer_phone}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted);">${o.customer_email}</div>
-                  </td>
-                  <td>${formatDate(o.created_at)}</td>
-                  <td><strong style="color: var(--primary-700);">${formatPrice(o.total)}</strong></td>
-                  <td>${renderStatusBadge(o.status)}</td>
-                  <td>
-                    <button class="btn btn-primary btn-sm open-order-modal-btn" data-order-id="${o.id}">
-                      Abrir Pedido
-                    </button>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                ${filtered.map(o => `
+                  <tr>
+                    <td><strong>${o.order_code}</strong></td>
+                    <td>${o.customer_name}</td>
+                    <td>
+                      <div>${o.customer_phone || '—'}</div>
+                      <div style="font-size:0.75rem; color:#64748b;">${o.customer_email || ''}</div>
+                    </td>
+                    <td>${formatDate(o.created_at)}</td>
+                    <td><strong style="color:#1d4ed8;">${formatPrice(o.total)}</strong></td>
+                    <td>
+                      <span class="badge" style="background:#f1f5f9; color:#475569; font-size:0.6875rem;">
+                        ${o.payment_method?.toUpperCase()}
+                      </span>
+                    </td>
+                    <td>${renderStatusBadge(o.status)}</td>
+                    <td>
+                      <button class="btn btn-secondary btn-sm open-order-modal-btn" data-order-id="${o.id}">
+                        Detalhes
+                      </button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Mobile: Cards Responsivos de Pedidos -->
+          <div class="admin-mobile-card-list admin-mobile-only">
+            ${filtered.map(o => `
+              <div class="admin-res-card">
+                <div class="admin-res-card-header">
+                  <div>
+                    <strong style="font-size:0.9375rem; color:#0f172a;">${o.order_code}</strong>
+                    <div style="font-size:0.75rem; color:#64748b;">${formatDate(o.created_at)}</div>
+                  </div>
+                  ${renderStatusBadge(o.status)}
+                </div>
+                <div class="admin-res-card-body">
+                  <div class="admin-res-card-row">
+                    <span>Cliente:</span>
+                    <strong>${o.customer_name}</strong>
+                  </div>
+                  <div class="admin-res-card-row">
+                    <span>Telefone:</span>
+                    <span>${o.customer_phone || 'Não informado'}</span>
+                  </div>
+                  <div class="admin-res-card-row">
+                    <span>Pagamento:</span>
+                    <span>${o.payment_method?.toUpperCase()}</span>
+                  </div>
+                  <div class="admin-res-card-row">
+                    <span>Total:</span>
+                    <strong style="color:#1d4ed8; font-size:0.9375rem;">${formatPrice(o.total)}</strong>
+                  </div>
+                </div>
+                <div class="admin-res-card-actions">
+                  <button class="btn btn-secondary btn-sm open-order-modal-btn" data-order-id="${o.id}">
+                    Ver Pedido
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `}
       </div>
     `;
   }
 
   // ===================================================================
-  // ABA 3: GESTÃO DE PRODUTOS (CATÁLOGO TOTAL)
+  // ABA 3: GESTÃO DE PRODUTOS
   // ===================================================================
   function renderProductsTab() {
     let filtered = [...productsList];
@@ -813,20 +798,20 @@ export function renderAdminView() {
         <div class="admin-card-header">
           <div>
             <h2 class="admin-card-title">
-              ${Icons.cpu(22)}
-              <span>Gestão de Produtos do Catálogo (${productsList.length})</span>
+              ${Icons.package(20)}
+              <span>Produtos (${productsList.length})</span>
             </h2>
-            <p style="font-size: 0.8125rem; color: var(--text-secondary); margin-top: 4px;">
-              Crie, edite preços, estoque, fotos, vídeos, variações e controle a visibilidade na loja.
+            <p style="font-size:0.8125rem; color:#64748b; margin-top:2px;">
+              Gerencie catálogo, preços, estoque e fotos dos produtos da loja.
             </p>
           </div>
-          <button id="openNewProductModalBtn" class="btn btn-primary" style="gap: 8px;">
+          <button id="openNewProductModalBtn" class="btn btn-primary" style="gap:6px;">
             ${Icons.plus(16)}
-            <span>Novo Produto</span>
+            <span>+ Novo Produto</span>
           </button>
         </div>
 
-        <!-- Filtros de Busca e Categoria -->
+        <!-- Filtros de Busca, Categoria e Estoque -->
         <div class="admin-filter-bar">
           <div class="admin-search-wrapper">
             <span class="admin-search-icon">${Icons.search(16)}</span>
@@ -834,7 +819,7 @@ export function renderAdminView() {
               type="text"
               id="productSearchInput"
               class="admin-search-input"
-              placeholder="Buscar por nome, marca, SKU..."
+              placeholder="Buscar por nome, marca ou SKU..."
               value="${productSearchQuery}"
             />
           </div>
@@ -854,82 +839,132 @@ export function renderAdminView() {
           </select>
         </div>
 
-        <!-- Tabela de Produtos -->
-        <div class="admin-table-wrapper">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>Foto</th>
-                <th>Produto / SKU</th>
-                <th>Marca</th>
-                <th>Preço</th>
-                <th>Estoque</th>
-                <th>Status</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${filtered.length === 0 ? `
+        ${filtered.length === 0 ? `
+          <div class="admin-empty-state">
+            <div class="admin-empty-state-icon">${Icons.package(24)}</div>
+            <div class="admin-empty-state-title">Nenhum produto cadastrado</div>
+            <div class="admin-empty-state-desc">Cadastre seu primeiro produto para começar a montar o catálogo da sua loja.</div>
+            <button class="btn btn-primary btn-sm" id="emptyStateNewProdBtn" style="margin-top:6px;">
+              + Cadastrar Primeiro Produto
+            </button>
+          </div>
+        ` : `
+          <!-- Desktop: Tabela de Produtos -->
+          <div class="admin-table-wrapper admin-desktop-only">
+            <table class="admin-table">
+              <thead>
                 <tr>
-                  <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
-                    Nenhum produto cadastrado ou encontrado.
-                  </td>
+                  <th>Foto</th>
+                  <th>Produto / SKU</th>
+                  <th>Marca</th>
+                  <th>Preço</th>
+                  <th>Estoque</th>
+                  <th>Status</th>
+                  <th>Ações</th>
                 </tr>
-              ` : filtered.map(p => `
-                <tr>
-                  <td style="width: 54px;">
-                    ${p.image ? `
-                      <img
-                        src="${p.image}"
-                        alt="${p.name}"
-                        style="width: 44px; height: 44px; object-fit: contain; border-radius: var(--radius-sm); border: 1px solid var(--border-light); background: #f8fafc;"
-                        onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
-                      />
-                      <div style="display: none; width: 44px; height: 44px; background: #f1f5f9; border-radius: var(--radius-sm); align-items: center; justify-content: center; color: var(--text-muted); border: 1px solid var(--border-light);">
-                        ${Icons.package(20)}
+              </thead>
+              <tbody>
+                ${filtered.map(p => `
+                  <tr>
+                    <td style="width: 52px;">
+                      ${p.image ? `
+                        <img
+                          src="${p.image}"
+                          alt="${p.name}"
+                          style="width: 44px; height: 44px; object-fit: contain; border-radius: 8px; border: 1px solid #e2e8f0; background: #ffffff;"
+                        />
+                      ` : `
+                        <div style="width: 44px; height: 44px; background: #f1f5f9; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #94a3b8; border: 1px solid #e2e8f0;">
+                          ${Icons.package(18)}
+                        </div>
+                      `}
+                    </td>
+                    <td>
+                      <div style="font-weight: 700; color: #0f172a;">${p.name}</div>
+                      <div style="font-size: 0.75rem; color: #64748b; font-family: monospace;">SKU: ${p.sku || 'N/A'}</div>
+                    </td>
+                    <td><span class="badge" style="background:#f1f5f9; color:#475569;">${p.brand || 'Geral'}</span></td>
+                    <td>
+                      <div><strong style="color: #1d4ed8;">${formatPrice(p.price)}</strong></div>
+                      ${p.old_price ? `<div style="font-size: 0.75rem; text-decoration: line-through; color: #94a3b8;">${formatPrice(p.old_price)}</div>` : ''}
+                    </td>
+                    <td>
+                      <span class="badge" style="${(p.stock || 0) <= 0 ? 'background:#fee2e2; color:#b91c1c;' : ((p.stock || 0) <= (p.stock_min || 2) ? 'background:#fef3c7; color:#b45309;' : 'background:#dcfce7; color:#15803d;')}">
+                        ${p.stock || 0} un
+                      </span>
+                    </td>
+                    <td>
+                      <button class="toggle-product-active-btn" data-id="${p.id}" data-active="${p.is_active !== false}" style="background: none; border: none; cursor: pointer;">
+                        <span class="badge" style="${p.is_active !== false ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
+                          ${p.is_active !== false ? '● Ativo' : '○ Inativo'}
+                        </span>
+                      </button>
+                    </td>
+                    <td>
+                      <div style="display: flex; gap: 6px;">
+                        <button class="btn btn-secondary btn-sm edit-product-btn" data-id="${p.id}" title="Editar">
+                          Editar
+                        </button>
+                        <button class="btn btn-secondary btn-sm duplicate-product-btn" data-id="${p.id}" title="Duplicar">
+                          Duplicar
+                        </button>
+                        <button class="btn btn-sm delete-product-btn" data-id="${p.id}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;" title="Excluir">
+                          ✕
+                        </button>
                       </div>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Mobile: Cards Responsivos de Produtos -->
+          <div class="admin-mobile-card-list admin-mobile-only">
+            ${filtered.map(p => {
+      const cat = categoriesList.find(c => c.id === p.category_id);
+      return `
+                <div class="admin-res-card">
+                  <div style="display:flex; gap:12px; align-items:center;">
+                    ${p.image ? `
+                      <img src="${p.image}" alt="${p.name}" style="width:54px; height:54px; object-fit:contain; border-radius:8px; border:1px solid #e2e8f0; background:#fff; flex-shrink:0;" />
                     ` : `
-                      <div style="width: 44px; height: 44px; background: #f1f5f9; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; color: var(--text-muted); border: 1px solid var(--border-light);">
+                      <div style="width:54px; height:54px; background:#f1f5f9; border-radius:8px; border:1px solid #e2e8f0; display:flex; align-items:center; justify-content:center; color:#94a3b8; flex-shrink:0;">
                         ${Icons.package(20)}
                       </div>
                     `}
-                  </td>
-                  <td>
-                    <div style="font-weight: 700; color: var(--text-main);">${p.name}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace;">SKU: ${p.sku || 'N/A'}</div>
-                  </td>
-                  <td><span class="badge" style="background:#f1f5f9; color:var(--text-secondary);">${p.brand || 'Geral'}</span></td>
-                  <td>
-                    <div><strong style="color: var(--primary-700);">${formatPrice(p.price)}</strong></div>
-                    ${p.old_price ? `<div style="font-size: 0.75rem; text-decoration: line-through; color: var(--text-muted);">${formatPrice(p.old_price)}</div>` : ''}
-                  </td>
-                  <td>
-                    <span class="badge" style="${(p.stock || 0) <= 0 ? 'background:#fee2e2; color:#b91c1c;' : ((p.stock || 0) <= (p.stock_min || 2) ? 'background:#fef3c7; color:#b45309;' : 'background:#dcfce7; color:#15803d;')}">
-                      ${p.stock || 0} un
-                    </span>
-                  </td>
-                  <td>
-                    <button class="toggle-product-active-btn" data-id="${p.id}" data-active="${p.is_active !== false}" style="background: none; border: none; cursor: pointer;">
-                      <span class="badge" style="${p.is_active !== false ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
-                        ${p.is_active !== false ? '● Ativo' : '○ Inativo'}
-                      </span>
-                    </button>
-                  </td>
-                  <td>
-                    <div style="display: flex; gap: 6px;">
-                      <button class="btn btn-secondary btn-sm edit-product-btn" data-id="${p.id}" title="Editar Produto">
-                        Editar
-                      </button>
-                      <button class="btn btn-sm delete-product-btn" data-id="${p.id}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;" title="Excluir">
-                        ✕
-                      </button>
+                    <div style="flex:1; min-width:0;">
+                      <div style="font-weight:700; color:#0f172a; font-size:0.9375rem; line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                        ${p.name}
+                      </div>
+                      <div style="font-size:0.75rem; color:#64748b; font-family:monospace; margin-top:2px;">
+                        SKU: ${p.sku || 'N/A'} • ${p.brand || 'Geral'}
+                      </div>
+                      <div style="margin-top:4px; display:flex; align-items:center; gap:6px;">
+                        <strong style="color:#1d4ed8; font-size:0.9375rem;">${formatPrice(p.price)}</strong>
+                        <span class="badge" style="font-size:0.6875rem; ${(p.stock || 0) <= 0 ? 'background:#fee2e2; color:#b91c1c;' : ((p.stock || 0) <= (p.stock_min || 2) ? 'background:#fef3c7; color:#b45309;' : 'background:#dcfce7; color:#15803d;')}">
+                          ${p.stock || 0} un
+                        </span>
+                      </div>
                     </div>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+
+                  <div class="admin-res-card-actions">
+                    <button class="btn btn-secondary btn-sm edit-product-btn" data-id="${p.id}">
+                      Editar
+                    </button>
+                    <button class="btn btn-secondary btn-sm duplicate-product-btn" data-id="${p.id}">
+                      Duplicar
+                    </button>
+                    <button class="btn btn-sm delete-product-btn" data-id="${p.id}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; flex:0 0 40px;">
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              `;
+    }).join('')}
+          </div>
+        `}
       </div>
     `;
   }
@@ -943,176 +978,231 @@ export function renderAdminView() {
         <div class="admin-card-header">
           <div>
             <h2 class="admin-card-title">
-              ${Icons.grid(22)}
-              <span>Categorias & Subcategorias (${categoriesList.length})</span>
+              ${Icons.grid(20)}
+              <span>Categorias (${categoriesList.length})</span>
             </h2>
-            <p style="font-size: 0.8125rem; color: var(--text-secondary); margin-top: 4px;">
-              Estruture o catálogo da sua loja: cadastre categorias principais e subcategorias com imagens, ícones e URLs personalizadas.
+            <p style="font-size:0.8125rem; color:#64748b; margin-top:2px;">
+              Organize os produtos da sua loja por categorias e subcategorias.
             </p>
           </div>
-          <button id="openNewCategoryModalBtn" class="btn btn-primary" style="gap: 8px;">
+          <button id="openNewCategoryModalBtn" class="btn btn-primary" style="gap:6px;">
             ${Icons.plus(16)}
-            <span>+ Cadastrar Nova Categoria</span>
+            <span>+ Nova Categoria</span>
           </button>
         </div>
 
-        <div class="admin-table-wrapper">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>Ordem</th>
-                <th>Imagem / Ícone</th>
-                <th>Nome / Slug</th>
-                <th>Hierarquia</th>
-                <th>Status</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${categoriesList.length === 0 ? `
+        ${categoriesList.length === 0 ? `
+          <div class="admin-empty-state">
+            <div class="admin-empty-state-icon">${Icons.grid(24)}</div>
+            <div class="admin-empty-state-title">Nenhuma categoria cadastrada</div>
+            <div class="admin-empty-state-desc">Cadastre categorias como Smartphones, Computadores ou Acessórios.</div>
+            <button class="btn btn-primary btn-sm" id="emptyStateNewCatBtn" style="margin-top:6px;">
+              + Nova Categoria
+            </button>
+          </div>
+        ` : `
+          <!-- Desktop: Tabela de Categorias -->
+          <div class="admin-table-wrapper admin-desktop-only">
+            <table class="admin-table">
+              <thead>
                 <tr>
-                  <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">
-                    Nenhuma categoria cadastrada. Clique em <strong>+ Cadastrar Nova Categoria</strong> acima.
-                  </td>
+                  <th>Ordem</th>
+                  <th>Imagem / Ícone</th>
+                  <th>Nome / Slug</th>
+                  <th>Hierarquia</th>
+                  <th>Produtos</th>
+                  <th>Status</th>
+                  <th>Ações</th>
                 </tr>
-              ` : categoriesList.map(c => {
-                const parent = categoriesList.find(p => p.id === c.parent_id);
-                return `
-                  <tr>
-                    <td><strong>#${c.display_order || 0}</strong></td>
-                    <td style="width: 60px;">
-                      ${c.image_url ? `
-                        <div style="width: 42px; height: 42px; border-radius: 8px; overflow: hidden; background: #0f172a; border: 1px solid var(--border-light); display: flex; align-items: center; justify-content: center;">
-                          <img src="${c.image_url}" alt="${c.name}" style="max-width: 100%; max-height: 100%; object-fit: cover;" />
-                        </div>
-                      ` : `
-                        <div style="width: 42px; height: 42px; border-radius: 8px; background: #eff6ff; color: var(--primary-600); display: flex; align-items: center; justify-content: center;">
-                          ${Icons[c.icon_name] ? Icons[c.icon_name](20) : Icons.package(20)}
-                        </div>
-                      `}
-                    </td>
-                    <td>
-                      <div style="font-weight: 700; color: var(--text-main); font-size: 0.9375rem;">${c.name}</div>
-                      <div style="font-size: 0.75rem; color: var(--text-muted);">slug: /categoria/${c.slug}</div>
-                    </td>
-                    <td>
-                      ${parent ? `
-                        <span class="badge" style="background: #eff6ff; color: var(--primary-700);">
-                          ↳ Subcategoria de ${parent.name}
+              </thead>
+              <tbody>
+                ${categoriesList.map(c => {
+      const parent = categoriesList.find(p => p.id === c.parent_id);
+      const count = productsList.filter(p => p.category_id === c.id).length;
+      return `
+                    <tr>
+                      <td><strong>#${c.display_order || 0}</strong></td>
+                      <td style="width: 52px;">
+                        ${c.image_url ? `
+                          <img src="${c.image_url}" alt="${c.name}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 8px; border: 1px solid #e2e8f0;" />
+                        ` : `
+                          <div style="width: 40px; height: 40px; border-radius: 8px; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center;">
+                            ${Icons[c.icon_name] ? Icons[c.icon_name](18) : Icons.package(18)}
+                          </div>
+                        `}
+                      </td>
+                      <td>
+                        <div style="font-weight: 700; color: #0f172a;">${c.name}</div>
+                        <div style="font-size: 0.75rem; color: #64748b;">/categoria/${c.slug}</div>
+                      </td>
+                      <td>
+                        ${parent ? `
+                          <span class="badge" style="background: #eff6ff; color: #1d4ed8;">
+                            ↳ Subcategoria de ${parent.name}
+                          </span>
+                        ` : `
+                          <span class="badge" style="background: #f1f5f9; color: #0f172a; font-weight: 700;">
+                            Categoria Principal
+                          </span>
+                        `}
+                      </td>
+                      <td>
+                        <span class="badge" style="background: #f1f5f9; color: #475569;">
+                          ${count} ${count === 1 ? 'produto' : 'produtos'}
                         </span>
-                      ` : `
-                        <span class="badge" style="background: #f1f5f9; color: var(--text-main); font-weight: 700;">
-                          Categoria Principal
+                      </td>
+                      <td>
+                        <span class="badge" style="${c.is_active !== false ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
+                          ${c.is_active !== false ? 'Ativa' : 'Inativa'}
                         </span>
-                      `}
-                    </td>
-                    <td>
-                      <span class="badge" style="${c.is_active !== false ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
-                        ${c.is_active !== false ? 'Ativa' : 'Inativa'}
-                      </span>
-                    </td>
-                    <td>
-                      <div style="display: flex; gap: 6px;">
-                        <button class="btn btn-secondary btn-sm edit-category-btn" data-id="${c.id}">
-                          Editar
-                        </button>
-                        <button class="btn btn-sm delete-category-btn" data-id="${c.id}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;">
-                          ✕
-                        </button>
+                      </td>
+                      <td>
+                        <div style="display: flex; gap: 6px;">
+                          <button class="btn btn-secondary btn-sm edit-category-btn" data-id="${c.id}">
+                            Editar
+                          </button>
+                          <button class="btn btn-sm delete-category-btn" data-id="${c.id}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;">
+                            ✕
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  `;
+    }).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Mobile: Cards Responsivos de Categorias -->
+          <div class="admin-mobile-card-list admin-mobile-only">
+            ${categoriesList.map(c => {
+      const parent = categoriesList.find(p => p.id === c.parent_id);
+      const count = productsList.filter(p => p.category_id === c.id).length;
+      return `
+                <div class="admin-res-card">
+                  <div style="display:flex; gap:12px; align-items:center;">
+                    ${c.image_url ? `
+                      <img src="${c.image_url}" alt="${c.name}" style="width:48px; height:48px; object-fit:cover; border-radius:8px; border:1px solid #e2e8f0; flex-shrink:0;" />
+                    ` : `
+                      <div style="width:48px; height:48px; border-radius:8px; background:#eff6ff; color:#2563eb; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                        ${Icons[c.icon_name] ? Icons[c.icon_name](20) : Icons.package(20)}
                       </div>
-                    </td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-        </div>
+                    `}
+                    <div style="flex:1; min-width:0;">
+                      <div style="font-weight:700; color:#0f172a; font-size:0.9375rem;">
+                        ${c.name}
+                      </div>
+                      <div style="font-size:0.75rem; color:#64748b;">
+                        slug: /categoria/${c.slug}
+                      </div>
+                      <div style="margin-top:4px; display:flex; gap:6px; flex-wrap:wrap;">
+                        ${parent ? `
+                          <span class="badge" style="background:#eff6ff; color:#1d4ed8; font-size:0.6875rem;">
+                            ↳ Sub de ${parent.name}
+                          </span>
+                        ` : `
+                          <span class="badge" style="background:#f1f5f9; color:#0f172a; font-size:0.6875rem;">
+                            Principal
+                          </span>
+                        `}
+                        <span class="badge" style="background:#f1f5f9; color:#475569; font-size:0.6875rem;">
+                          ${count} produtos
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="admin-res-card-actions">
+                    <button class="btn btn-secondary btn-sm edit-category-btn" data-id="${c.id}">
+                      Editar Categoria
+                    </button>
+                    <button class="btn btn-sm delete-category-btn" data-id="${c.id}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; flex:0 0 40px;">
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              `;
+    }).join('')}
+          </div>
+        `}
       </div>
     `;
   }
 
   // ===================================================================
-  // ABA 5: CATÁLOGOS & COLEÇÕES
+  // ABA 5: BANNERS DA VITRINE (GRID VISUAL TOTAL)
   // ===================================================================
-  function renderCatalogsTab() {
+  function renderBannersTab() {
     return `
       <div class="admin-card">
         <div class="admin-card-header">
           <div>
             <h2 class="admin-card-title">
-              ${Icons.tag(22)}
-              <span>Catálogos & Campanhas Especiais (${catalogsList.length})</span>
+              ${Icons.heart ? Icons.heart(20) : '🖼️'}
+              <span>Banners da Vitrine Inicial (${bannersList.length})</span>
             </h2>
-            <p style="font-size: 0.8125rem; color: var(--text-secondary); margin-top: 4px;">
-              Crie catálogos como Black Friday, Ofertas de Verão, Topo de Gama e agrupe produtos sem alterar código.
+            <p style="font-size:0.8125rem; color:#64748b; margin-top:2px;">
+              Envie artes limpas criadas no Canva ou Photoshop. Os banners aparecem na rotação da vitrine da loja.
             </p>
           </div>
-          <button id="openNewCatalogModalBtn" class="btn btn-primary" style="gap: 8px;">
+          <button id="openNewBannerModalBtn" class="btn btn-primary" style="gap:6px;">
             ${Icons.plus(16)}
-            <span>Novo Catálogo</span>
+            <span>+ Novo Banner</span>
           </button>
         </div>
 
-        <div class="admin-table-wrapper">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>Nome / Slug</th>
-                <th>Badge Comercial</th>
-                <th>Descrição</th>
-                <th>Status</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${catalogsList.length === 0 ? `
-                <tr>
-                  <td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);">
-                    Nenhum catálogo configurado.
-                  </td>
-                </tr>
-              ` : catalogsList.map(c => `
-                <tr>
-                  <td>
-                    <div style="font-weight: 700; color: var(--text-main);">${c.name}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted);">slug: #${c.slug}</div>
-                  </td>
-                  <td>
-                    ${c.badge_text ? `
-                      <span class="badge" style="background: var(--accent-orange); color: #ffffff;">
-                        ${c.badge_text}
-                      </span>
-                    ` : '<span style="color:var(--text-muted); font-size:0.75rem;">—</span>'}
-                  </td>
-                  <td style="max-width: 260px; font-size: 0.8125rem; color: var(--text-secondary);">
-                    ${c.description || 'Sem descrição.'}
-                  </td>
-                  <td>
-                    <span class="badge" style="${c.is_active !== false ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
-                      ${c.is_active !== false ? 'Ativo' : 'Inativo'}
-                    </span>
-                  </td>
-                  <td>
-                    <div style="display: flex; gap: 6px;">
-                      <button class="btn btn-secondary btn-sm edit-catalog-btn" data-id="${c.id}">
-                        Editar
-                      </button>
-                      <button class="btn btn-sm delete-catalog-btn" data-id="${c.id}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;">
-                        ✕
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
+        ${bannersList.length === 0 ? `
+          <div class="admin-empty-state">
+            <div class="admin-empty-state-icon">🖼️</div>
+            <div class="admin-empty-state-title">Nenhum banner ativo</div>
+            <div class="admin-empty-state-desc">Suba uma imagem de divulgação para a página inicial com link direto para ofertas ou lançamentos.</div>
+            <button class="btn btn-primary btn-sm" id="emptyStateNewBannerBtn" style="margin-top:6px;">
+              + Subir Primeiro Banner
+            </button>
+          </div>
+        ` : `
+          <!-- Grid Visual de Banners (1 col no mobile, 2 ou 3 cols no desktop) -->
+          <div class="admin-banners-grid">
+            ${bannersList.map(b => `
+              <div class="admin-banner-card">
+                <div class="admin-banner-card-img-wrap">
+                  <span class="admin-banner-card-order-badge">#${b.display_order || 1}</span>
+                  <img
+                    src="${b.image_url}"
+                    alt="${b.title}"
+                    class="admin-banner-card-img"
+                    onerror="this.src='https://placehold.co/800x400/0f172a/38bdf8?text=Banner+NovaTech';"
+                  />
+                </div>
+                <div class="admin-banner-card-body">
+                  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                    <div class="admin-banner-card-title">${b.title}</div>
+                    <button class="btn btn-sm toggle-banner-active-btn" data-id="${b.id}" data-active="${b.is_active !== false}" style="${b.is_active !== false ? 'background:#dcfce7; color:#15803d; border:1px solid #bbf7d0;' : 'background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;'}">
+                      ${b.is_active !== false ? '✓ Ativo' : '✕ Oculto'}
+                    </button>
+                  </div>
+                  <div class="admin-banner-card-link">
+                    Destino: ${b.button_link || '#/catalogo'}
+                  </div>
+                  <div style="display:flex; gap:8px; margin-top:8px; border-top:1px solid #f1f5f9; padding-top:10px;">
+                    <button class="btn btn-secondary btn-sm edit-banner-btn" data-id="${b.id}" style="flex:1; justify-content:center;">
+                      Editar
+                    </button>
+                    <button class="btn btn-sm delete-banner-btn" data-id="${b.id}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; padding:6px 12px;">
+                      Excluir
+                    </button>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `}
       </div>
     `;
   }
 
   // ===================================================================
-  // ABA 6: CUPONS & DESCONTOS
+  // ABA 6: CUPONS DE DESCONTO
   // ===================================================================
   function renderCouponsTab() {
     return `
@@ -1120,129 +1210,367 @@ export function renderAdminView() {
         <div class="admin-card-header">
           <div>
             <h2 class="admin-card-title">
-              ${Icons.tag(22)}
-              <span>Cupons Promocionais & Descontos (${couponsList.length})</span>
+              ${Icons.tag(20)}
+              <span>Cupons Promocionais (${couponsList.length})</span>
             </h2>
-            <p style="font-size: 0.8125rem; color: var(--text-secondary); margin-top: 4px;">
-              Crie cupons percentuais (%), fixos (Kz) ou frete grátis com limites de utilização e datas.
+            <p style="font-size:0.8125rem; color:#64748b; margin-top:2px;">
+              Crie códigos de desconto com valor percentual, fixo em Kwanzas ou frete grátis.
             </p>
           </div>
-          <button id="openNewCouponModalBtn" class="btn btn-primary" style="gap: 8px;">
+          <button id="openNewCouponModalBtn" class="btn btn-primary" style="gap:6px;">
             ${Icons.plus(16)}
-            <span>Novo Cupom</span>
+            <span>+ Novo Cupom</span>
           </button>
         </div>
 
-        <div class="admin-table-wrapper">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>Código</th>
-                <th>Desconto</th>
-                <th>Pedido Mínimo</th>
-                <th>Usos / Limite</th>
-                <th>Status</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${couponsList.length === 0 ? `
+        ${couponsList.length === 0 ? `
+          <div class="admin-empty-state">
+            <div class="admin-empty-state-icon">${Icons.tag(24)}</div>
+            <div class="admin-empty-state-title">Nenhum cupom cadastrado</div>
+            <div class="admin-empty-state-desc">Crie cupons promocionais para fidelizar clientes no checkout.</div>
+            <button class="btn btn-primary btn-sm" id="emptyStateNewCouponBtn" style="margin-top:6px;">
+              + Criar Primeiro Cupom
+            </button>
+          </div>
+        ` : `
+          <!-- Desktop: Tabela de Cupons -->
+          <div class="admin-table-wrapper admin-desktop-only">
+            <table class="admin-table">
+              <thead>
                 <tr>
-                  <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">
-                    Nenhum cupom cadastrado.
-                  </td>
+                  <th>Código</th>
+                  <th>Desconto</th>
+                  <th>Pedido Mínimo</th>
+                  <th>Usos / Limite</th>
+                  <th>Status</th>
+                  <th>Ações</th>
                 </tr>
-              ` : couponsList.map(c => `
-                <tr>
-                  <td>
-                    <code style="font-weight: 800; font-size: 0.9375rem; background: #f8fafc; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-light); color: var(--primary-700);">
-                      ${c.code}
-                    </code>
-                  </td>
-                  <td>
-                    <strong>
-                      ${c.discount_type === 'percent' ? `${c.discount_value}% OFF` : (c.discount_type === 'free_shipping' ? 'Frete Grátis' : formatPrice(c.discount_value))}
-                    </strong>
-                  </td>
-                  <td>${Number(c.min_order_value) > 0 ? formatPrice(c.min_order_value) : 'Sem valor mínimo'}</td>
-                  <td>
-                    <span style="font-size: 0.8125rem;">${c.times_used || 0} / ${c.usage_limit || '∞'}</span>
-                  </td>
-                  <td>
-                    <button class="toggle-coupon-active-btn" data-id="${c.id}" data-active="${c.is_active !== false}" style="background: none; border: none; cursor: pointer;">
-                      <span class="badge" style="${c.is_active !== false ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
-                        ${c.is_active !== false ? '● Ativo' : '○ Pausado'}
-                      </span>
-                    </button>
-                  </td>
-                  <td>
-                    <button class="btn btn-sm delete-coupon-btn" data-id="${c.id}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;">
-                      Excluir
-                    </button>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                ${couponsList.map(c => `
+                  <tr>
+                    <td>
+                      <code style="font-weight: 800; font-size: 0.9375rem; background: #f8fafc; padding: 4px 8px; border-radius: 4px; border: 1px solid #e2e8f0; color: #1d4ed8;">
+                        ${c.code}
+                      </code>
+                    </td>
+                    <td>
+                      <strong>
+                        ${c.discount_type === 'percent' ? `${c.discount_value}% OFF` : (c.discount_type === 'free_shipping' ? 'Frete Grátis' : formatPrice(c.discount_value))}
+                      </strong>
+                    </td>
+                    <td>${Number(c.min_order_value) > 0 ? formatPrice(c.min_order_value) : 'Sem valor mínimo'}</td>
+                    <td>
+                      <span style="font-size: 0.8125rem;">${c.times_used || 0} / ${c.usage_limit || '∞'}</span>
+                    </td>
+                    <td>
+                      <button class="toggle-coupon-active-btn" data-id="${c.id}" data-active="${c.is_active !== false}" style="background: none; border: none; cursor: pointer;">
+                        <span class="badge" style="${c.is_active !== false ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
+                          ${c.is_active !== false ? '● Ativo' : '○ Pausado'}
+                        </span>
+                      </button>
+                    </td>
+                    <td>
+                      <button class="btn btn-sm delete-coupon-btn" data-id="${c.id}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;">
+                        Excluir
+                      </button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Mobile: Cards de Cupons em Estilo Ticket -->
+          <div class="admin-coupons-grid admin-mobile-only">
+            ${couponsList.map(c => `
+              <div class="admin-coupon-ticket">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <code style="font-size:1.125rem; font-weight:900; color:#1d4ed8;">${c.code}</code>
+                  <span class="badge" style="${c.is_active !== false ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
+                    ${c.is_active !== false ? 'Ativo' : 'Pausado'}
+                  </span>
+                </div>
+                <div style="font-size:1.25rem; font-weight:800; color:#0f172a;">
+                  ${c.discount_type === 'percent' ? `${c.discount_value}% OFF` : (c.discount_type === 'free_shipping' ? 'Frete Grátis' : formatPrice(c.discount_value))}
+                </div>
+                <div style="font-size:0.75rem; color:#64748b;">
+                  <div>Pedido mínimo: ${Number(c.min_order_value) > 0 ? formatPrice(c.min_order_value) : 'Sem valor mínimo'}</div>
+                  <div>Usos: ${c.times_used || 0} / ${c.usage_limit || 'Ilimitado'}</div>
+                </div>
+                <div style="display:flex; gap:8px; border-top:1px dashed #cbd5e1; padding-top:10px; margin-top:4px;">
+                  <button class="btn btn-secondary btn-sm toggle-coupon-active-btn" data-id="${c.id}" data-active="${c.is_active !== false}" style="flex:1;">
+                    ${c.is_active !== false ? 'Pausar' : 'Ativar'}
+                  </button>
+                  <button class="btn btn-sm delete-coupon-btn" data-id="${c.id}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;">
+                    Excluir
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `}
       </div>
     `;
   }
 
   // ===================================================================
-  // ABA 7: GESTÃO DE ESTOQUE
+  // ABA 7: CAMPANHAS & CATÁLOGOS
+  // ===================================================================
+  function renderCatalogsTab() {
+    return `
+      <div class="admin-card">
+        <div class="admin-card-header">
+          <div>
+            <h2 class="admin-card-title">
+              ${Icons.tag(20)}
+              <span>Campanhas & Coleções (${catalogsList.length})</span>
+            </h2>
+            <p style="font-size:0.8125rem; color:#64748b; margin-top:2px;">
+              Crie coleções especiais (Black Friday, Novidades de Verão, etc.) e vincule produtos.
+            </p>
+          </div>
+          <button id="openNewCatalogModalBtn" class="btn btn-primary" style="gap:6px;">
+            ${Icons.plus(16)}
+            <span>+ Nova Campanha</span>
+          </button>
+        </div>
+
+        ${catalogsList.length === 0 ? `
+          <div class="admin-empty-state">
+            <div class="admin-empty-state-icon">${Icons.tag(24)}</div>
+            <div class="admin-empty-state-title">Nenhuma campanha criada</div>
+            <div class="admin-empty-state-desc">Crie coleções temáticas para destacar grupos especiais de produtos.</div>
+            <button class="btn btn-primary btn-sm" id="emptyStateNewCatalogBtn" style="margin-top:6px;">
+              + Nova Campanha
+            </button>
+          </div>
+        ` : `
+          <div class="admin-catalogs-grid">
+            ${catalogsList.map(c => `
+              <div class="admin-catalog-card">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                  <div>
+                    <strong style="font-size:1rem; color:#0f172a;">${c.name}</strong>
+                    <div style="font-size:0.75rem; color:#64748b; font-family:monospace;">slug: #${c.slug}</div>
+                  </div>
+                  <span class="badge" style="${c.is_active !== false ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
+                    ${c.is_active !== false ? 'Ativa' : 'Inativa'}
+                  </span>
+                </div>
+
+                ${c.badge_text ? `
+                  <div>
+                    <span class="badge" style="background:#f97316; color:#ffffff; font-weight:700;">
+                      ${c.badge_text}
+                    </span>
+                  </div>
+                ` : ''}
+
+                <div style="font-size:0.8125rem; color:#475569; line-height:1.4; flex:1;">
+                  ${c.description || 'Sem descrição cadastrada.'}
+                </div>
+
+                <div style="display:flex; gap:8px; border-top:1px solid #f1f5f9; padding-top:10px;">
+                  <button class="btn btn-secondary btn-sm edit-catalog-btn" data-id="${c.id}" style="flex:1;">
+                    Editar
+                  </button>
+                  <button class="btn btn-sm delete-catalog-btn" data-id="${c.id}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;">
+                    Excluir
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      </div>
+    `;
+  }
+
+  // ===================================================================
+  // ABA 8: CLIENTES
+  // ===================================================================
+  function renderCustomersTab() {
+    let filtered = [...customersList];
+    if (customerSearchQuery) {
+      const q = customerSearchQuery.toLowerCase();
+      filtered = filtered.filter(c =>
+        (c.name && c.name.toLowerCase().includes(q)) ||
+        (c.email && c.email.toLowerCase().includes(q)) ||
+        (c.phone && c.phone.toLowerCase().includes(q))
+      );
+    }
+
+    return `
+      <div class="admin-card">
+        <div class="admin-card-header">
+          <div>
+            <h2 class="admin-card-title">
+              ${Icons.user(20)}
+              <span>Clientes Cadastrados (${customersList.length})</span>
+            </h2>
+            <p style="font-size:0.8125rem; color:#64748b; margin-top:2px;">
+              Consulte dados de contato, morada e histórico de compras dos clientes.
+            </p>
+          </div>
+        </div>
+
+        <div class="admin-filter-bar">
+          <div class="admin-search-wrapper">
+            <span class="admin-search-icon">${Icons.search(16)}</span>
+            <input
+              type="text"
+              id="customerSearchInput"
+              class="admin-search-input"
+              placeholder="Buscar cliente por nome, e-mail ou telefone..."
+              value="${customerSearchQuery}"
+            />
+          </div>
+        </div>
+
+        ${filtered.length === 0 ? `
+          <div class="admin-empty-state">
+            <div class="admin-empty-state-icon">${Icons.user(24)}</div>
+            <div class="admin-empty-state-title">Nenhum cliente encontrado</div>
+            <div class="admin-empty-state-desc">Os clientes que criarem conta ou realizarem pedidos aparecerão nesta lista.</div>
+          </div>
+        ` : `
+          <!-- Desktop: Tabela de Clientes -->
+          <div class="admin-table-wrapper admin-desktop-only">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Nome do Cliente</th>
+                  <th>E-mail</th>
+                  <th>Telefone</th>
+                  <th>Endereço em Luanda</th>
+                  <th>Total Comprado</th>
+                  <th>Status</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${filtered.map(c => `
+                  <tr>
+                    <td><strong>${c.name}</strong></td>
+                    <td>${c.email}</td>
+                    <td>${c.phone || '<span style="color:#94a3b8;">Não informado</span>'}</td>
+                    <td>
+                      <div style="font-size:0.8125rem; max-width:200px; color:#0f172a; line-height:1.3;">
+                        ${c.endereco || '<span style="color:#94a3b8;">Não informado</span>'}
+                      </div>
+                    </td>
+                    <td><strong style="color:#1d4ed8;">${formatPrice(c.total_spent || 0)}</strong></td>
+                    <td>
+                      <span class="badge" style="${c.status !== 'blocked' ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
+                        ${c.status !== 'blocked' ? 'Ativo' : 'Bloqueado'}
+                      </span>
+                    </td>
+                    <td>
+                      <button class="btn btn-sm toggle-block-customer-btn" data-id="${c.id}" data-blocked="${c.status === 'blocked'}" style="${c.status === 'blocked' ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
+                        ${c.status === 'blocked' ? 'Desbloquear' : 'Bloquear'}
+                      </button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Mobile: Cards de Clientes -->
+          <div class="admin-mobile-card-list admin-mobile-only">
+            ${filtered.map(c => `
+              <div class="admin-res-card">
+                <div class="admin-res-card-header">
+                  <div>
+                    <strong style="font-size:0.9375rem; color:#0f172a;">${c.name}</strong>
+                    <div style="font-size:0.75rem; color:#64748b;">${c.email}</div>
+                  </div>
+                  <span class="badge" style="${c.status !== 'blocked' ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
+                    ${c.status !== 'blocked' ? 'Ativo' : 'Bloqueado'}
+                  </span>
+                </div>
+                <div class="admin-res-card-body">
+                  <div class="admin-res-card-row">
+                    <span>Telefone:</span>
+                    <span>${c.phone || 'Não informado'}</span>
+                  </div>
+                  <div class="admin-res-card-row">
+                    <span>Endereço:</span>
+                    <span style="max-width:180px; text-align:right;">${c.endereco || 'Não informado'}</span>
+                  </div>
+                  <div class="admin-res-card-row">
+                    <span>Total Comprado:</span>
+                    <strong style="color:#1d4ed8;">${formatPrice(c.total_spent || 0)}</strong>
+                  </div>
+                </div>
+                <div class="admin-res-card-actions">
+                  <button class="btn btn-sm toggle-block-customer-btn" data-id="${c.id}" data-blocked="${c.status === 'blocked'}" style="${c.status === 'blocked' ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
+                    ${c.status === 'blocked' ? 'Desbloquear Conta' : 'Bloquear Conta'}
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      </div>
+    `;
+  }
+
+  // ===================================================================
+  // ABA 9: GESTÃO DE ESTOQUE
   // ===================================================================
   function renderStockTab() {
     const outOfStock = productsList.filter(p => (p.stock || 0) === 0);
     const lowStock = productsList.filter(p => (p.stock || 0) > 0 && (p.stock || 0) <= (p.stock_min || 2));
+    const totalUnits = productsList.reduce((sum, p) => sum + (p.stock || 0), 0);
 
     return `
-      <div>
-        <!-- Cards de Resumo de Estoque -->
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        <!-- Métricas Compactas de Estoque -->
         <div class="admin-stats-grid">
           <div class="stat-card">
             <div>
               <div class="stat-label">Itens Sem Estoque</div>
-              <div class="stat-val" style="color: #dc2626;">${outOfStock.length} produtos</div>
+              <div class="stat-val" style="color:#ef4444;">${outOfStock.length}</div>
             </div>
-            <div style="color: #dc2626;">${Icons.close(28)}</div>
+            <div style="color:#ef4444;">${Icons.close(20)}</div>
           </div>
 
           <div class="stat-card">
             <div>
-              <div class="stat-label">Itens em Nível Crítico</div>
-              <div class="stat-val" style="color: #d97706;">${lowStock.length} produtos</div>
+              <div class="stat-label">Nível Crítico</div>
+              <div class="stat-val" style="color:#f59e0b;">${lowStock.length}</div>
             </div>
-            <div style="color: #d97706;">${Icons.truck(28)}</div>
+            <div style="color:#f59e0b;">${Icons.truck(20)}</div>
           </div>
 
           <div class="stat-card">
             <div>
-              <div class="stat-label">Unidades Totais no Depósito</div>
-              <div class="stat-val" style="color: var(--primary-700);">
-                ${productsList.reduce((sum, p) => sum + (p.stock || 0), 0)} un
-              </div>
+              <div class="stat-label">Total em Depósito</div>
+              <div class="stat-val" style="color:#2563eb;">${totalUnits} un</div>
             </div>
-            <div style="color: var(--primary-600);">${Icons.package(28)}</div>
+            <div style="color:#2563eb;">${Icons.package(20)}</div>
           </div>
 
-          <div class="stat-card" style="display: flex; flex-direction: column; justify-content: center; align-items: stretch;">
-            <button id="openRecordStockModalBtn" class="btn btn-primary btn-full" style="padding: 12px; font-weight: 800;">
-              + Registrar Entrada / Saída
+          <div class="stat-card" style="display:flex; align-items:center; justify-content:center;">
+            <button id="openRecordStockModalBtn" class="btn btn-primary" style="width:100%; justify-content:center; padding:10px; font-weight:700;">
+              + Movimentar Estoque
             </button>
           </div>
         </div>
 
-        <!-- Tabela de Controle de Estoque dos Produtos -->
-        <div class="admin-card" style="margin-bottom: 24px;">
+        <!-- Tabela e Lista de Estoque -->
+        <div class="admin-card">
           <div class="admin-card-header">
             <h3 class="admin-card-title">
-              ${Icons.cpu(20)}
-              <span>Nível de Estoque por Produto</span>
+              ${Icons.cpu(18)}
+              <span>Saldo de Estoque por Produto</span>
             </h3>
           </div>
 
-          <div class="admin-table-wrapper">
+          <!-- Desktop: Tabela de Estoque -->
+          <div class="admin-table-wrapper admin-desktop-only">
             <table class="admin-table">
               <thead>
                 <tr>
@@ -1265,61 +1593,36 @@ export function renderAdminView() {
                     </td>
                     <td>${p.stock_min || 2} un</td>
                     <td>
-                      <div style="display: flex; gap: 6px;">
-                        <button class="btn btn-secondary btn-sm quick-add-stock-btn" data-id="${p.id}" data-name="${p.name}" title="Entrada rápida de estoque">
-                          + Adicionar Estoque
-                        </button>
-                      </div>
+                      <button class="btn btn-secondary btn-sm quick-add-stock-btn" data-id="${p.id}" data-name="${p.name}">
+                        + Ajustar Saldo
+                      </button>
                     </td>
                   </tr>
                 `).join('')}
               </tbody>
             </table>
           </div>
-        </div>
 
-        <!-- Histórico de Movimentações -->
-        <div class="admin-card">
-          <div class="admin-card-header">
-            <h3 class="admin-card-title">
-              ${Icons.truck(20)}
-              <span>Histórico de Entradas & Saídas</span>
-            </h3>
-          </div>
-
-          <div class="admin-table-wrapper">
-            <table class="admin-table">
-              <thead>
-                <tr>
-                  <th>Data</th>
-                  <th>Produto</th>
-                  <th>Tipo</th>
-                  <th>Quantidade</th>
-                  <th>Motivo / Observação</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${stockMovementsList.length === 0 ? `
-                  <tr>
-                    <td colspan="5" style="text-align: center; padding: 32px; color: var(--text-muted);">
-                      Nenhuma movimentação registrada no histórico.
-                    </td>
-                  </tr>
-                ` : stockMovementsList.slice(0, 10).map(m => `
-                  <tr>
-                    <td>${formatDate(m.created_at)}</td>
-                    <td><strong>${m.product?.name || `Produto #${m.product_id}`}</strong></td>
-                    <td>
-                      <span class="badge" style="${m.movement_type === 'in' ? 'background:#dcfce7; color:#15803d;' : (m.movement_type === 'out' ? 'background:#fee2e2; color:#b91c1c;' : 'background:#eff6ff; color:#1e40af;')}">
-                        ${m.movement_type === 'in' ? '▲ Entrada' : (m.movement_type === 'out' ? '▼ Saída' : '● Ajuste')}
-                      </span>
-                    </td>
-                    <td><strong>${m.quantity} un</strong></td>
-                    <td style="color: var(--text-secondary);">${m.reason || 'Ajuste manual'}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
+          <!-- Mobile: Cards de Estoque -->
+          <div class="admin-mobile-card-list admin-mobile-only">
+            ${productsList.map(p => `
+              <div class="admin-res-card">
+                <div class="admin-res-card-header">
+                  <div>
+                    <strong style="color:#0f172a; font-size:0.9375rem;">${p.name}</strong>
+                    <div style="font-size:0.75rem; color:#64748b; font-family:monospace;">SKU: ${p.sku || 'N/A'}</div>
+                  </div>
+                  <span class="badge" style="${(p.stock || 0) <= 0 ? 'background:#fee2e2; color:#b91c1c;' : ((p.stock || 0) <= (p.stock_min || 2) ? 'background:#fef3c7; color:#b45309;' : 'background:#dcfce7; color:#15803d;')}">
+                    ${p.stock || 0} un
+                  </span>
+                </div>
+                <div class="admin-res-card-actions">
+                  <button class="btn btn-secondary btn-sm quick-add-stock-btn" data-id="${p.id}" data-name="${p.name}">
+                    + Ajustar Saldo
+                  </button>
+                </div>
+              </div>
+            `).join('')}
           </div>
         </div>
       </div>
@@ -1327,195 +1630,7 @@ export function renderAdminView() {
   }
 
   // ===================================================================
-  // ABA 8: BANNERS & VITRINE COMERCIAL (Upload de Imagens)
-  // ===================================================================
-  function renderBannersTab() {
-    return `
-      <div class="admin-card">
-        <div class="admin-card-header">
-          <div>
-            <h2 class="admin-card-title">
-              ${Icons.heart ? Icons.heart(22) : '🖼️'}
-              <span>Banners da Vitrine Inicial (${bannersList.length})</span>
-            </h2>
-            <p style="font-size: 0.8125rem; color: var(--text-secondary); margin-top: 4px;">
-              Gerencie as artes dos banners da sua loja: envie as imagens promocionais e defina o link para onde o cliente será direcionado ao clicar.
-            </p>
-          </div>
-          <button id="openNewBannerModalBtn" class="btn btn-primary" style="gap: 8px;">
-            ${Icons.plus(16)}
-            <span>+ Subir Novo Banner</span>
-          </button>
-        </div>
-
-        <div class="admin-table-wrapper">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>Ordem</th>
-                <th>Arte do Banner</th>
-                <th>Identificação / Título</th>
-                <th>Link de Destino</th>
-                <th>Status</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${bannersList.length === 0 ? `
-                <tr>
-                  <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">
-                    Nenhum banner cadastrado. Clique no botão <strong>+ Subir Novo Banner</strong> para enviar uma imagem da sua campanha.
-                  </td>
-                </tr>
-              ` : bannersList.map(b => `
-                <tr>
-                  <td>
-                    <span class="badge" style="background:#f1f5f9; color:#334155; font-weight:800;">
-                      #${b.display_order || 1}
-                    </span>
-                  </td>
-                  <td style="width: 160px;">
-                    <div style="width: 150px; height: 60px; border-radius: 8px; overflow: hidden; background: #0b0f19; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-light);">
-                      <img
-                        src="${b.image_url}"
-                        alt="${b.title}"
-                        style="width: 100%; height: 100%; object-fit: cover;"
-                      />
-                    </div>
-                  </td>
-                  <td>
-                    <div style="font-weight: 800; color: var(--text-main); font-size: 0.9375rem;">
-                      ${b.title}
-                    </div>
-                  </td>
-                  <td>
-                    <div style="font-size: 0.8125rem; color: var(--primary-700); font-family: monospace; word-break: break-all; max-width: 220px;">
-                      ${b.button_link || '#/catalogo'}
-                    </div>
-                  </td>
-                  <td>
-                    <button class="btn btn-sm toggle-banner-active-btn" data-id="${b.id}" data-active="${b.is_active !== false}" title="Clique para ativar ou bloquear este banner" style="${b.is_active !== false ? 'background:#dcfce7; color:#15803d; border:1px solid #bbf7d0;' : 'background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;'}">
-                      ${b.is_active !== false ? '✓ Ativo na Vitrine' : '✕ Bloqueado'}
-                    </button>
-                  </td>
-                  <td>
-                    <div style="display: flex; gap: 6px;">
-                      <button class="btn btn-secondary btn-sm edit-banner-btn" data-id="${b.id}" title="Editar Banner">
-                        Editar
-                      </button>
-                      <button class="btn btn-sm delete-banner-btn" data-id="${b.id}" title="Excluir Banner" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;">
-                        ✕
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    `;
-  }
-
-  // ===================================================================
-  // ABA 9: GESTÃO DE CLIENTES
-  // ===================================================================
-  function renderCustomersTab() {
-    let filtered = [...customersList];
-    if (customerSearchQuery) {
-      const q = customerSearchQuery.toLowerCase();
-      filtered = filtered.filter(c =>
-        (c.name && c.name.toLowerCase().includes(q)) ||
-        (c.email && c.email.toLowerCase().includes(q)) ||
-        (c.phone && c.phone.toLowerCase().includes(q))
-      );
-    }
-
-    return `
-      <div class="admin-card">
-        <div class="admin-card-header">
-          <div>
-            <h2 class="admin-card-title">
-              ${Icons.user(22)}
-              <span>Gestão de Clientes (${customersList.length})</span>
-            </h2>
-            <p style="font-size: 0.8125rem; color: var(--text-secondary); margin-top: 4px;">
-              Visualização de clientes cadastrados, histórico de compras e bloqueio de contas. Senhas nunca são expostas.
-            </p>
-          </div>
-        </div>
-
-        <div class="admin-filter-bar">
-          <div class="admin-search-wrapper">
-            <span class="admin-search-icon">${Icons.search(16)}</span>
-            <input
-              type="text"
-              id="customerSearchInput"
-              class="admin-search-input"
-              placeholder="Buscar cliente por nome, e-mail ou telefone..."
-              value="${customerSearchQuery}"
-            />
-          </div>
-        </div>
-
-        <div class="admin-table-wrapper">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>Nome do Cliente</th>
-                <th>E-mail</th>
-                <th>Telefone</th>
-                <th>Endereço Completo</th>
-                <th>Ponto de Referência</th>
-                <th>Total Gasto</th>
-                <th>Status</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${filtered.length === 0 ? `
-                <tr>
-                  <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">
-                    Nenhum cliente cadastrado.
-                  </td>
-                </tr>
-              ` : filtered.map(c => `
-                <tr>
-                  <td><strong>${c.name}</strong></td>
-                  <td>${c.email}</td>
-                  <td>${c.phone || '<span style="color:var(--text-muted);">Não informado</span>'}</td>
-                  <td>
-                    <div style="font-size: 0.8125rem; max-width: 200px; color: var(--text-main); line-height: 1.4;">
-                      ${c.endereco || '<span style="color:var(--text-muted); font-size: 0.75rem;">Não informado</span>'}
-                    </div>
-                  </td>
-                  <td>
-                    <div style="font-size: 0.8125rem; max-width: 170px; color: var(--text-secondary); line-height: 1.4;">
-                      ${c.ponto_referencia ? `📍 ${c.ponto_referencia}` : '<span style="color:var(--text-muted); font-size: 0.75rem;">Sem referência</span>'}
-                    </div>
-                  </td>
-                  <td><strong style="color: var(--primary-700);">${formatPrice(c.total_spent || 0)}</strong></td>
-                  <td>
-                    <span class="badge" style="${c.status !== 'blocked' ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
-                      ${c.status !== 'blocked' ? 'Ativo' : 'Bloqueado'}
-                    </span>
-                  </td>
-                  <td>
-                    <button class="btn btn-sm toggle-block-customer-btn" data-id="${c.id}" data-blocked="${c.status === 'blocked'}" style="${c.status === 'blocked' ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
-                      ${c.status === 'blocked' ? 'Desbloquear' : 'Bloquear Conta'}
-                    </button>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    `;
-  }
-
-  // ===================================================================
-  // ABA 10: CONFIGURAÇÕES DA LOJA
+  // ABA 10: CONFIGURAÇÕES DA LOJA & EQUIPE
   // ===================================================================
   function renderSettingsTab() {
     const s = storeSettings;
@@ -1524,24 +1639,24 @@ export function renderAdminView() {
         <div class="admin-card-header">
           <div>
             <h2 class="admin-card-title">
-              ${Icons.settings ? Icons.settings(22) : Icons.package(22)}
-              <span>Configurações Gerais da Loja</span>
+              ${Icons.settings ? Icons.settings(20) : '⚙️'}
+              <span>Configurações da Loja</span>
             </h2>
-            <p style="font-size: 0.8125rem; color: var(--text-secondary); margin-top: 4px;">
-              Edite nome da loja, contactos em Luanda, taxas de entrega e políticas comerciais. Salva no banco de dados.
+            <p style="font-size:0.8125rem; color:#64748b; margin-top:2px;">
+              Edite a identificação da loja, contatos em Luanda, taxas de entrega e políticas comerciais.
             </p>
           </div>
         </div>
 
-        <form id="storeSettingsForm" style="display: flex; flex-direction: column; gap: 20px;">
-          <!-- 1. Perfil da Loja -->
-          <div style="background: #f8fafc; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 18px;">
-            <h4 style="font-size: 0.9375rem; font-weight: 800; color: var(--text-main); margin-bottom: 14px;">
-              1. Identidade & Contatos
+        <form id="storeSettingsForm" style="display:flex; flex-direction:column; gap:16px;">
+          <!-- 1. Identidade e Contatos -->
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px;">
+            <h4 style="font-size:0.875rem; font-weight:800; color:#0f172a; margin-bottom:12px;">
+              1. Identidade & Contatos em Luanda
             </h4>
             <div class="admin-form-grid-2">
               <div class="form-group">
-                <label class="form-label">Nome Oficial da Loja</label>
+                <label class="form-label">Nome da Loja</label>
                 <input type="text" id="setStoreName" class="form-input" value="${s.store_name || 'NovaTech Angola'}" required />
               </div>
               <div class="form-group">
@@ -1550,13 +1665,13 @@ export function renderAdminView() {
               </div>
             </div>
 
-            <div class="admin-form-grid-3" style="margin-top: 12px;">
+            <div class="admin-form-grid-3" style="margin-top:10px;">
               <div class="form-group">
                 <label class="form-label">Telefone Principal</label>
                 <input type="tel" id="setPhone" class="form-input" value="${s.phone || '+244 923 179 192'}" required />
               </div>
               <div class="form-group">
-                <label class="form-label">WhatsApp de Atendimento</label>
+                <label class="form-label">WhatsApp Oficial</label>
                 <input type="tel" id="setWhatsapp" class="form-input" value="${s.whatsapp || '+244 923 179 192'}" required />
               </div>
               <div class="form-group">
@@ -1565,24 +1680,24 @@ export function renderAdminView() {
               </div>
             </div>
 
-            <div class="form-group" style="margin-top: 12px;">
-              <label class="form-label">Endereço Físico em Luanda</label>
+            <div class="form-group" style="margin-top:10px;">
+              <label class="form-label">Endereço Físico</label>
               <input type="text" id="setAddress" class="form-input" value="${s.address || 'Talatona, Luanda - Angola'}" required />
             </div>
           </div>
 
-          <!-- 2. Entrega e Checkout -->
-          <div style="background: #f8fafc; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 18px;">
-            <h4 style="font-size: 0.9375rem; font-weight: 800; color: var(--text-main); margin-bottom: 14px;">
-              2. Custos de Envio & Checkout
+          <!-- 2. Custos de Envio -->
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px;">
+            <h4 style="font-size:0.875rem; font-weight:800; color:#0f172a; margin-bottom:12px;">
+              2. Custos de Envio & Frete Grátis
             </h4>
             <div class="admin-form-grid-3">
               <div class="form-group">
-                <label class="form-label">Valor Entrega Normal (Kz)</label>
+                <label class="form-label">Entrega Normal (Kz)</label>
                 <input type="number" id="setShippingNormal" class="form-input" value="${s.shipping_price_normal || 3500}" required />
               </div>
               <div class="form-group">
-                <label class="form-label">Valor Entrega Expresso (Kz)</label>
+                <label class="form-label">Entrega Expresso (Kz)</label>
                 <input type="number" id="setShippingExpress" class="form-input" value="${s.shipping_price_express || 6500}" required />
               </div>
               <div class="form-group">
@@ -1592,24 +1707,9 @@ export function renderAdminView() {
             </div>
           </div>
 
-          <!-- 3. Políticas da Loja -->
-          <div style="background: #f8fafc; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 18px;">
-            <h4 style="font-size: 0.9375rem; font-weight: 800; color: var(--text-main); margin-bottom: 14px;">
-              3. Políticas Oficiais (Exibidas aos Clientes)
-            </h4>
-            <div class="form-group">
-              <label class="form-label">Política de Entrega</label>
-              <textarea id="setDeliveryPolicy" class="form-input" rows="3">${s.delivery_policy || ''}</textarea>
-            </div>
-            <div class="form-group" style="margin-top: 12px;">
-              <label class="form-label">Garantia & Devolução</label>
-              <textarea id="setReturnPolicy" class="form-input" rows="3">${s.return_policy || ''}</textarea>
-            </div>
-          </div>
-
-          <div style="display: flex; justify-content: flex-end;">
-            <button type="submit" class="btn btn-primary" style="padding: 14px 28px; font-weight: 800; font-size: 0.9375rem;">
-              Salvar Todas as Configurações
+          <div style="display:flex; justify-content:flex-end;">
+            <button type="submit" class="btn btn-primary" style="padding:12px 24px; font-weight:700;">
+              Salvar Alterações da Loja
             </button>
           </div>
         </form>
@@ -1617,145 +1717,7 @@ export function renderAdminView() {
     `;
   }
 
-  // ===================================================================
-  // ABA 11: BANCO DE DADOS & SUPABASE (INFRAESTRUTURA LIMPA DO ZERO)
-  // Permite ao Administrador executar o script e checar as tabelas
-  // ===================================================================
-  function renderDatabaseTab() {
-    const isConfig = isSupabaseConfigured();
-    const tablesList = [
-      { name: 'usuarios', label: 'Usuários (Clientes & Admins com Endereço e Ponto de Ref.)' },
-      { name: 'categorias', label: 'Categorias e Departamentos' },
-      { name: 'catalogos', label: 'Catálogos & Coleções Comerciais' },
-      { name: 'produtos', label: 'Produtos do Catálogo' },
-      { name: 'banners', label: 'Banners da Vitrine Comercial' },
-      { name: 'cupons', label: 'Cupons de Desconto' },
-      { name: 'pedidos', label: 'Pedidos e Encomendas Oficiais' },
-      { name: 'itens_pedido', label: 'Itens Comprados nos Pedidos' },
-      { name: 'movimentacoes_estoque', label: 'Movimentações e Auditoria de Estoque' },
-      { name: 'configuracoes_loja', label: 'Configurações Globais da Loja' }
-    ];
-
-    return `
-      <div style="display: flex; flex-direction: column; gap: 24px;">
-        <!-- Card 1: Status de Conexão e Instruções -->
-        <div class="admin-card">
-          <div class="admin-card-header">
-            <div>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="badge" style="background:#2563eb; color:#fff;">SUPABASE POSTGRESQL</span>
-                <span class="badge" style="${isConfig ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
-                  ${isConfig ? '● Credenciais Detectadas (.env)' : '✕ Credenciais Ausentes'}
-                </span>
-              </div>
-              <h2 class="admin-card-title" style="margin-top: 6px;">
-                ${Icons.cpu(22)}
-                <span>Gestão da Infraestrutura de Banco de Dados</span>
-              </h2>
-              <p style="font-size: 0.8125rem; color: var(--text-secondary); margin-top: 4px;">
-                Banco de dados construído do zero, 100% em português, sem acentos, sem dados fictícios. Siga os passos abaixo para inicializar as 10 tabelas oficiais diretamente pelo seu painel do Supabase.
-              </p>
-            </div>
-
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-              <button id="checkDatabaseTablesBtn" class="btn btn-secondary" style="gap: 8px;">
-                ${isCheckingDb ? 'Verificando...' : '↻ Verificar Status das Tabelas'}
-              </button>
-              <button id="copySqlSchemaBtn" class="btn btn-primary" style="gap: 8px;">
-                <span>📋 Copiar Script SQL Oficial</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Guia Rápido de Execução -->
-          <div style="background: #f8fafc; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 20px; margin-bottom: 20px;">
-            <h4 style="font-size: 0.9375rem; font-weight: 800; color: var(--text-main); margin-bottom: 12px;">
-              Passo a Passo para Executar o Banco no Supabase (Em menos de 1 minuto):
-            </h4>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; font-size: 0.875rem;">
-              <div style="background: #ffffff; padding: 14px; border-radius: 6px; border: 1px solid var(--border-light);">
-                <div style="font-weight: 800; color: var(--primary-700); margin-bottom: 4px;">1. Copie o Script SQL</div>
-                <div style="color: var(--text-secondary); line-height: 1.4;">Clique no botão azul acima <strong>"Copiar Script SQL Oficial"</strong>. O código completo será copiado automaticamente.</div>
-              </div>
-              <div style="background: #ffffff; padding: 14px; border-radius: 6px; border: 1px solid var(--border-light);">
-                <div style="font-weight: 800; color: var(--primary-700); margin-bottom: 4px;">2. Abra o SQL Editor</div>
-                <div style="color: var(--text-secondary); line-height: 1.4;">Acesse seu painel do <strong>Supabase</strong> (<a href="https://supabase.com/dashboard" target="_blank" style="color: var(--primary-600); font-weight: 700; text-decoration: underline;">supabase.com/dashboard</a>) e clique no menu <strong>SQL Editor</strong>.</div>
-              </div>
-              <div style="background: #ffffff; padding: 14px; border-radius: 6px; border: 1px solid var(--border-light);">
-                <div style="font-weight: 800; color: var(--primary-700); margin-bottom: 4px;">3. Cole e Execute (RUN)</div>
-                <div style="color: var(--text-secondary); line-height: 1.4;">Clique em <strong>New Query</strong>, cole o código (Ctrl+V) e clique no botão verde <strong>RUN</strong>. As 10 tabelas serão criadas instantaneamente!</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Status das 10 Tabelas em Português -->
-          <div>
-            <h4 style="font-size: 0.9375rem; font-weight: 800; color: var(--text-main); margin-bottom: 12px;">
-              Status das 10 Tabelas Oficiais no Banco:
-            </h4>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px;">
-              ${tablesList.map(t => {
-                const info = dbCheckResult?.tables ? dbCheckResult.tables[t.name] : null;
-                const isCreated = info?.exists === true;
-                return `
-                  <div style="background: #ffffff; border: 1px solid ${isCreated ? '#bbf7d0' : 'var(--border-light)'}; border-radius: 6px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;">
-                    <div>
-                      <div style="font-family: monospace; font-weight: 800; font-size: 0.9375rem; color: var(--text-main);">
-                        public.${t.name}
-                      </div>
-                      <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px;">
-                        ${t.label}
-                      </div>
-                    </div>
-                    <div>
-                      ${dbCheckResult ? (
-                        isCreated ? `
-                          <span class="badge" style="background:#dcfce7; color:#15803d; font-weight:800;">
-                            ✓ Ativa (${info.count} registros)
-                          </span>
-                        ` : `
-                          <span class="badge" style="background:#fef3c7; color:#b45309; font-weight:800;" title="${info?.error || 'Aguardando execução do script'}">
-                            ⚠️ Não criada
-                          </span>
-                        `
-                      ) : `
-                        <span class="badge" style="background:#f1f5f9; color:#475569;">
-                          ● Pronto p/ criar
-                        </span>
-                      `}
-                    </div>
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          </div>
-        </div>
-
-        <!-- Card 2: Visualizador do Código SQL Completo -->
-        <div class="admin-card">
-          <div class="admin-card-header">
-            <div>
-              <h3 class="admin-card-title">
-                <span>Script SQL Oficial Completo (PostgreSQL / Supabase)</span>
-              </h3>
-              <p style="font-size: 0.8125rem; color: var(--text-secondary); margin-top: 2px;">
-                Arquivo correspondente em <code>supabase_schema.sql</code>. Contém criação de tabelas, chaves estrangeiras, triggers de atualização e políticas de segurança RLS.
-              </p>
-            </div>
-            <button id="copySqlSchemaBtn2" class="btn btn-secondary btn-sm" style="gap: 6px;">
-              <span>Copiar SQL</span>
-            </button>
-          </div>
-
-          <div style="position: relative;">
-            <pre id="schemaSqlCodeBlock" style="background: #090d16; color: #38bdf8; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.8125rem; line-height: 1.5; padding: 20px; border-radius: 8px; max-height: 480px; overflow: auto; border: 1px solid rgba(255,255,255,0.08); white-space: pre;">${SCHEMA_SQL}</pre>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  // --- HELPERS E EVENT LISTENERS ---
+  // --- HELPERS E BADGES ---
   function renderStatusBadge(status) {
     switch (status) {
       case 'received':
@@ -1775,36 +1737,24 @@ export function renderAdminView() {
     }
   }
 
+  // --- EVENT LISTENERS GLOBAIS DA ESTRUTURA DO ADMIN ---
   function attachLayoutEvents() {
-    // Alternância de abas via Sidebar Corporativa e Drawer
-    container.querySelectorAll('.admin-nav-item, .admin-menu-item').forEach(item => {
+    // Alternância de abas via Sidebar e Drawer
+    container.querySelectorAll('.admin-nav-item, [data-tab]').forEach(item => {
       item.addEventListener('click', () => {
         const tab = item.dataset.tab;
-        if (tab) {
+        if (tab && tab !== currentTab) {
           currentTab = tab;
-          render();
-        }
-      });
-    });
-
-    // Alternância de abas via Mobile Tabs
-    container.querySelectorAll('.admin-mobile-tab-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const tab = btn.dataset.tab;
-        if (tab) {
-          currentTab = tab;
-          render();
-        }
-      });
-    });
-
-    // Botões genéricos com data-tab no conteúdo
-    container.querySelectorAll('[data-tab]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const tab = btn.dataset.tab;
-        if (tab && currentTab !== tab) {
-          currentTab = tab;
-          render();
+          const main = container.querySelector('#adminMainContent');
+          if (main) {
+            main.innerHTML = renderActiveTabContent();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+          // Atualiza estado ativo nos menus
+          container.querySelectorAll('.admin-nav-item').forEach(el => {
+            el.classList.toggle('active', el.dataset.tab === currentTab);
+          });
+          attachTabSpecificEvents();
         }
       });
     });
@@ -1838,22 +1788,10 @@ export function renderAdminView() {
     const refreshBtn = container.querySelector('#adminRefreshBtn');
     if (refreshBtn) {
       refreshBtn.addEventListener('click', async () => {
-        Toast.show('Atualizando dados do Supabase...', 'info');
+        Toast.show('Atualizando dados...', 'info');
         await loadAllData();
         render();
         Toast.show('Dados sincronizados com sucesso!', 'success');
-      });
-    }
-
-    // Zerar Base / Limpar Cache Local
-    const clearCacheBtn = container.querySelector('#adminClearCacheBtn');
-    if (clearCacheBtn) {
-      clearCacheBtn.addEventListener('click', () => {
-        if (confirm('Atenção: Deseja zerar e limpar todos os dados locais em cache para começar 100% do zero?')) {
-          localStorage.clear();
-          Toast.show('Base local zerada com sucesso!', 'success');
-          setTimeout(() => window.location.reload(), 500);
-        }
       });
     }
 
@@ -1863,17 +1801,28 @@ export function renderAdminView() {
       logoutBtn.addEventListener('click', async () => {
         await Api.auth.logout();
         Storage.removeUser();
-        Toast.show('Sessão encerrada com sucesso.', 'info');
+        Toast.show('Sessão encerrada.', 'info');
         render();
       });
     }
 
-    // Eventos específicos de cada aba
     attachTabSpecificEvents();
   }
 
+  // Eventos específicos de cada tela/aba
   function attachTabSpecificEvents() {
-    // --- Pedidos ---
+    // --- Dashboard: Seletor de Período ---
+    const periodSelect = container.querySelector('#dashPeriodSelect');
+    if (periodSelect) {
+      periodSelect.addEventListener('change', (e) => {
+        dashboardPeriod = e.target.value;
+        const main = container.querySelector('#adminMainContent');
+        if (main) main.innerHTML = renderDashboardTab();
+        attachTabSpecificEvents();
+      });
+    }
+
+    // --- Pedidos: Busca e Filtros ---
     const orderSearch = container.querySelector('#orderSearchInput');
     if (orderSearch) {
       orderSearch.addEventListener('input', (e) => {
@@ -1894,7 +1843,6 @@ export function renderAdminView() {
       });
     }
 
-    // Modal de Pedido
     container.querySelectorAll('.open-order-modal-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = Number(btn.dataset.orderId);
@@ -1903,7 +1851,7 @@ export function renderAdminView() {
       });
     });
 
-    // --- Produtos ---
+    // --- Produtos: Busca, Filtros e Modais ---
     const prodSearch = container.querySelector('#productSearchInput');
     if (prodSearch) {
       prodSearch.addEventListener('input', (e) => {
@@ -1935,9 +1883,9 @@ export function renderAdminView() {
     }
 
     const newProdBtn = container.querySelector('#openNewProductModalBtn');
-    if (newProdBtn) {
-      newProdBtn.addEventListener('click', () => openProductModal());
-    }
+    const emptyNewProdBtn = container.querySelector('#emptyStateNewProdBtn');
+    if (newProdBtn) newProdBtn.addEventListener('click', () => openProductModal());
+    if (emptyNewProdBtn) emptyNewProdBtn.addEventListener('click', () => openProductModal());
 
     container.querySelectorAll('.edit-product-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1947,36 +1895,50 @@ export function renderAdminView() {
       });
     });
 
-    container.querySelectorAll('.delete-product-btn').forEach(btn => {
+    container.querySelectorAll('.duplicate-product-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = Number(btn.dataset.id);
-        if (confirm('Tem certeza de que deseja excluir este produto do catálogo?')) {
-          await Api.products.delete(id);
-          productsList = productsList.filter(p => p.id !== id);
-          Toast.show('Produto excluído com sucesso.', 'success');
-          render();
-        }
+        const prod = productsList.find(p => p.id === id);
+        if (prod) duplicateProduct(prod);
       });
     });
 
     container.querySelectorAll('.toggle-product-active-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = Number(btn.dataset.id);
-        const currentActive = btn.dataset.active === 'true';
-        const newActive = !currentActive;
-        await Api.products.update(id, { is_active: newActive });
-        const p = productsList.find(item => item.id === id);
-        if (p) p.is_active = newActive;
-        Toast.show(`Produto ${newActive ? 'ativado' : 'desativado'} com sucesso!`, 'info');
-        render();
+        const isActive = btn.dataset.active === 'true';
+        try {
+          await Api.products.update(id, { is_active: !isActive });
+          Toast.show(`Produto ${!isActive ? 'ativado' : 'desativado'} com sucesso!`, 'info');
+          await loadAllData();
+          render();
+        } catch (err) {
+          Toast.show(err.message || 'Erro ao alterar visibilidade.', 'error');
+        }
+      });
+    });
+
+    container.querySelectorAll('.delete-product-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = Number(btn.dataset.id);
+        if (confirm('Tem certeza que deseja excluir permanentemente este produto?')) {
+          try {
+            await Api.products.delete(id);
+            Toast.show('Produto removido com sucesso!', 'success');
+            await loadAllData();
+            render();
+          } catch (err) {
+            Toast.show(err.message || 'Erro ao excluir produto.', 'error');
+          }
+        }
       });
     });
 
     // --- Categorias ---
     const newCatBtn = container.querySelector('#openNewCategoryModalBtn');
-    if (newCatBtn) {
-      newCatBtn.addEventListener('click', () => openCategoryModal());
-    }
+    const emptyCatBtn = container.querySelector('#emptyStateNewCatBtn');
+    if (newCatBtn) newCatBtn.addEventListener('click', () => openCategoryModal());
+    if (emptyCatBtn) emptyCatBtn.addEventListener('click', () => openCategoryModal());
 
     container.querySelectorAll('.edit-category-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1989,20 +1951,106 @@ export function renderAdminView() {
     container.querySelectorAll('.delete-category-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = Number(btn.dataset.id);
-        if (confirm('Excluir esta categoria? Os produtos associados ficarão sem categoria.')) {
-          await Api.categories.delete(id);
-          categoriesList = categoriesList.filter(c => c.id !== id);
-          Toast.show('Categoria excluída com sucesso.', 'success');
-          render();
+        if (confirm('Deseja excluir esta categoria? Os produtos vinculados perderão a categoria.')) {
+          try {
+            await Api.categories.delete(id);
+            Toast.show('Categoria excluída.', 'success');
+            await loadAllData();
+            render();
+          } catch (err) {
+            Toast.show(err.message || 'Erro ao excluir categoria.', 'error');
+          }
         }
       });
     });
 
-    // --- Catálogos ---
+    // --- Banners ---
+    const newBannerBtn = container.querySelector('#openNewBannerModalBtn');
+    const emptyBannerBtn = container.querySelector('#emptyStateNewBannerBtn');
+    if (newBannerBtn) newBannerBtn.addEventListener('click', () => openBannerModal());
+    if (emptyBannerBtn) emptyBannerBtn.addEventListener('click', () => openBannerModal());
+
+    container.querySelectorAll('.edit-banner-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = Number(btn.dataset.id);
+        const banner = bannersList.find(b => b.id === id);
+        if (banner) openBannerModal(banner);
+      });
+    });
+
+    container.querySelectorAll('.toggle-banner-active-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = Number(btn.dataset.id);
+        const isActive = btn.dataset.active === 'true';
+        try {
+          await Api.banners.update(id, { is_active: !isActive });
+          Toast.show(`Banner ${!isActive ? 'ativado na vitrine' : 'ocultado'}!`, 'info');
+          await loadAllData();
+          render();
+        } catch (err) {
+          Toast.show(err.message || 'Erro ao alterar status do banner.', 'error');
+        }
+      });
+    });
+
+    container.querySelectorAll('.delete-banner-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = Number(btn.dataset.id);
+        if (confirm('Tem certeza que deseja remover este banner da vitrine?')) {
+          try {
+            await Api.banners.delete(id);
+            Toast.show('Banner excluído com sucesso!', 'success');
+            await loadAllData();
+            render();
+          } catch (err) {
+            Toast.show(err.message || 'Erro ao excluir banner.', 'error');
+          }
+        }
+      });
+    });
+
+    // --- Cupons ---
+    const newCouponBtn = container.querySelector('#openNewCouponModalBtn');
+    const emptyCouponBtn = container.querySelector('#emptyStateNewCouponBtn');
+    if (newCouponBtn) newCouponBtn.addEventListener('click', () => openCouponModal());
+    if (emptyCouponBtn) emptyCouponBtn.addEventListener('click', () => openCouponModal());
+
+    container.querySelectorAll('.toggle-coupon-active-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = Number(btn.dataset.id);
+        const isActive = btn.dataset.active === 'true';
+        try {
+          await Api.coupons.update(id, { is_active: !isActive });
+          Toast.show(`Cupom ${!isActive ? 'ativado' : 'pausado'}!`, 'info');
+          await loadAllData();
+          render();
+        } catch (err) {
+          Toast.show(err.message || 'Erro ao alterar cupom.', 'error');
+        }
+      });
+    });
+
+    container.querySelectorAll('.delete-coupon-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = Number(btn.dataset.id);
+        if (confirm('Deseja excluir este cupom de desconto?')) {
+          try {
+            await Api.coupons.delete(id);
+            Toast.show('Cupom excluído com sucesso!', 'success');
+            await loadAllData();
+            render();
+          } catch (err) {
+            Toast.show(err.message || 'Erro ao excluir cupom.', 'error');
+          }
+        }
+      });
+    });
+
+    // --- Catálogos / Campanhas ---
     const newCatalogBtn = container.querySelector('#openNewCatalogModalBtn');
-    if (newCatalogBtn) {
-      newCatalogBtn.addEventListener('click', () => openCatalogModal());
-    }
+    const emptyCatalogBtn = container.querySelector('#emptyStateNewCatalogBtn');
+    if (newCatalogBtn) newCatalogBtn.addEventListener('click', () => openCatalogModal());
+    if (emptyCatalogBtn) emptyCatalogBtn.addEventListener('click', () => openCatalogModal());
 
     container.querySelectorAll('.edit-catalog-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -2015,195 +2063,90 @@ export function renderAdminView() {
     container.querySelectorAll('.delete-catalog-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = Number(btn.dataset.id);
-        if (confirm('Excluir este catálogo?')) {
-          await Api.catalogs.delete(id);
-          catalogsList = catalogsList.filter(c => c.id !== id);
-          Toast.show('Catálogo excluído.', 'success');
-          render();
+        if (confirm('Deseja excluir esta campanha?')) {
+          try {
+            await Api.catalogs.delete(id);
+            Toast.show('Campanha removida com sucesso!', 'success');
+            await loadAllData();
+            render();
+          } catch (err) {
+            Toast.show(err.message || 'Erro ao excluir campanha.', 'error');
+          }
         }
       });
     });
 
-    // --- Cupons ---
-    const newCouponBtn = container.querySelector('#openNewCouponModalBtn');
-    if (newCouponBtn) {
-      newCouponBtn.addEventListener('click', () => openCouponModal());
+    // --- Clientes: Busca e Bloqueio ---
+    const custSearch = container.querySelector('#customerSearchInput');
+    if (custSearch) {
+      custSearch.addEventListener('input', (e) => {
+        customerSearchQuery = e.target.value;
+        const main = container.querySelector('#adminMainContent');
+        if (main) main.innerHTML = renderCustomersTab();
+        attachTabSpecificEvents();
+      });
     }
 
-    container.querySelectorAll('.toggle-coupon-active-btn').forEach(btn => {
+    container.querySelectorAll('.toggle-block-customer-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = Number(btn.dataset.id);
-        const active = btn.dataset.active === 'true';
-        await Api.coupons.update(id, { is_active: !active });
-        const c = couponsList.find(item => item.id === id);
-        if (c) c.is_active = !active;
-        Toast.show(`Cupom ${!active ? 'ativado' : 'pausado'}!`, 'info');
-        render();
-      });
-    });
-
-    container.querySelectorAll('.delete-coupon-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = Number(btn.dataset.id);
-        if (confirm('Deseja excluir este cupom promocional?')) {
-          await Api.coupons.delete(id);
-          couponsList = couponsList.filter(c => c.id !== id);
-          Toast.show('Cupom excluído.', 'success');
+        const isBlocked = btn.dataset.blocked === 'true';
+        try {
+          await Api.customers.updateStatus(id, isBlocked ? 'active' : 'blocked');
+          Toast.show(`Conta de cliente ${isBlocked ? 'desbloqueada' : 'bloqueada'}.`, 'info');
+          await loadAllData();
           render();
+        } catch (err) {
+          Toast.show(err.message || 'Erro ao alterar status do cliente.', 'error');
         }
       });
     });
 
     // --- Estoque ---
     const recordStockBtn = container.querySelector('#openRecordStockModalBtn');
-    if (recordStockBtn) {
-      recordStockBtn.addEventListener('click', () => openStockMovementModal());
-    }
+    if (recordStockBtn) recordStockBtn.addEventListener('click', () => openStockMovementModal());
 
     container.querySelectorAll('.quick-add-stock-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = Number(btn.dataset.id);
-        const name = btn.dataset.name;
-        openStockMovementModal({ productId: id, productName: name, type: 'in' });
-      });
-    });
-
-    // --- Banners ---
-    const newBannerBtn = container.querySelector('#openNewBannerModalBtn');
-    if (newBannerBtn) {
-      newBannerBtn.addEventListener('click', () => openBannerModal());
-    }
-
-    container.querySelectorAll('.edit-banner-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = Number(btn.dataset.id);
-        const b = bannersList.find(item => item.id === id);
-        if (b) openBannerModal(b);
-      });
-    });
-
-    container.querySelectorAll('.toggle-banner-active-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = Number(btn.dataset.id);
-        const isActive = btn.dataset.active === 'true';
-        const newStatus = !isActive;
-        try {
-          await Api.banners.update(id, { is_active: newStatus });
-          const b = bannersList.find(item => item.id === id);
-          if (b) b.is_active = newStatus;
-          Toast.show(`Banner ${newStatus ? 'ativado na vitrine' : 'bloqueado / desativado'}!`, 'info');
-          render();
-        } catch (err) {
-          Toast.show('Erro ao alterar status do banner.', 'error');
-        }
-      });
-    });
-
-    container.querySelectorAll('.delete-banner-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = Number(btn.dataset.id);
-        if (confirm('Excluir este banner da vitrine?')) {
-          await Api.banners.delete(id);
-          bannersList = bannersList.filter(b => b.id !== id);
-          Toast.show('Banner excluído.', 'success');
-          render();
-        }
-      });
-    });
-
-    // --- Clientes ---
-    container.querySelectorAll('.toggle-block-customer-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = btn.dataset.id;
-        const isBlocked = btn.dataset.blocked === 'true';
-        const newStatus = isBlocked ? 'active' : 'blocked';
-        await Api.customers.updateStatus(id, newStatus);
-        const c = customersList.find(cust => String(cust.id) === String(id));
-        if (c) c.status = newStatus;
-        Toast.show(`Conta do cliente ${newStatus === 'blocked' ? 'bloqueada' : 'desbloqueada'}.`, 'info');
-        render();
+        openStockMovementModal({ product_id: id, movement_type: 'in' });
       });
     });
 
     // --- Configurações da Loja ---
-    const settingsForm = container.querySelector('#storeSettingsForm');
-    if (settingsForm) {
-      settingsForm.addEventListener('submit', async (e) => {
+    const storeForm = container.querySelector('#storeSettingsForm');
+    if (storeForm) {
+      storeForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const updated = {
+        const payload = {
           store_name: container.querySelector('#setStoreName').value.trim(),
           slogan: container.querySelector('#setSlogan').value.trim(),
           phone: container.querySelector('#setPhone').value.trim(),
           whatsapp: container.querySelector('#setWhatsapp').value.trim(),
           email: container.querySelector('#setEmail').value.trim(),
           address: container.querySelector('#setAddress').value.trim(),
-          shipping_price_normal: Number(container.querySelector('#setShippingNormal').value) || 3500,
-          shipping_price_express: Number(container.querySelector('#setShippingExpress').value) || 6500,
-          free_shipping_threshold: Number(container.querySelector('#setFreeShipping').value) || 1000000,
-          delivery_policy: container.querySelector('#setDeliveryPolicy').value.trim(),
-          return_policy: container.querySelector('#setReturnPolicy').value.trim()
+          shipping_price_normal: Number(container.querySelector('#setShippingNormal').value),
+          shipping_price_express: Number(container.querySelector('#setShippingExpress').value),
+          free_shipping_threshold: Number(container.querySelector('#setFreeShipping').value)
         };
 
         try {
-          await Api.settings.save('general', updated);
-          storeSettings = updated;
-          Toast.show('Configurações salvas e aplicadas na loja!', 'success');
-        } catch (err) {
-          Toast.show('Erro ao salvar configurações.', 'error');
-        }
-      });
-    }
-
-    // --- Banco de Dados (SQL & Supabase) ---
-    const copySqlBtn = container.querySelector('#copySqlSchemaBtn');
-    const copySqlBtn2 = container.querySelector('#copySqlSchemaBtn2');
-
-    const handleCopySql = async () => {
-      try {
-        await navigator.clipboard.writeText(SCHEMA_SQL);
-        Toast.show('Script SQL oficial copiado com sucesso! Abra o SQL Editor no Supabase e clique em RUN.', 'success');
-      } catch {
-        const textarea = document.createElement('textarea');
-        textarea.value = SCHEMA_SQL;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        textarea.remove();
-        Toast.show('Script SQL copiado com sucesso!', 'success');
-      }
-    };
-
-    if (copySqlBtn) copySqlBtn.addEventListener('click', handleCopySql);
-    if (copySqlBtn2) copySqlBtn2.addEventListener('click', handleCopySql);
-
-    const checkDbBtn = container.querySelector('#checkDatabaseTablesBtn');
-    if (checkDbBtn) {
-      checkDbBtn.addEventListener('click', async () => {
-        isCheckingDb = true;
-        render();
-        try {
-          const res = await Api.database.testConnection();
-          dbCheckResult = res;
-          if (res.allTablesCreated) {
-            Toast.show('Todas as 10 tabelas em português estão ativas no Supabase!', 'success');
-          } else {
-            Toast.show('Tabelas verificadas. Algumas tabelas aguardam execução do script no Supabase.', 'info');
-          }
-        } catch (err) {
-          Toast.show('Erro ao verificar tabelas: ' + err.message, 'error');
-        } finally {
-          isCheckingDb = false;
+          await Api.settings.save('general', payload);
+          Toast.show('Configurações salvas com sucesso!', 'success');
+          await loadAllData();
           render();
+        } catch (err) {
+          Toast.show(err.message || 'Erro ao salvar configurações.', 'error');
         }
       });
     }
   }
 
   // ===================================================================
-  // MODAIS OPERACIONAIS
+  // MODAIS OPERACIONAIS COMPLETOS
   // ===================================================================
 
-  // 1. Modal de Detalhes do Pedido
+  // 1. Modal de Pedido
   function openOrderDetailsModal(order) {
     const modal = document.createElement('div');
     modal.className = 'admin-modal-overlay';
@@ -2211,95 +2154,56 @@ export function renderAdminView() {
       <div class="admin-modal-dialog">
         <div class="admin-modal-header">
           <div>
-            <span class="badge" style="background:var(--primary-600); color:#fff;">ENCOMENDA OFICIAL</span>
-            <h3 class="admin-modal-title" style="margin-top: 4px;">Pedido ${order.order_code}</h3>
+            <h3 class="admin-modal-title">Pedido ${order.order_code}</h3>
+            <span style="font-size: 0.75rem; color: #64748b;">Realizado em ${formatDate(order.created_at)}</span>
           </div>
           <button class="btn btn-secondary btn-sm close-modal-btn">✕</button>
         </div>
 
         <div class="admin-modal-body">
-          <!-- Status e Troca Rápida -->
-          <div style="background: #f8fafc; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 16px;">
-            <label class="form-label" style="font-weight: 800;">Alterar Status do Pedido:</label>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
-              <button class="btn btn-sm order-set-status-btn" data-status="confirmed" style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0;">
-                ✓ Confirmar / Pago
-              </button>
-              <button class="btn btn-sm order-set-status-btn" data-status="preparing" style="background:#e0e7ff; color:#4338ca; border:1px solid #c7d2fe;">
-                ⚡ Em Separação
-              </button>
-              <button class="btn btn-sm order-set-status-btn" data-status="shipped" style="background:#dbeafe; color:#1e40af; border:1px solid #bfdbfe;">
-                ✈ Enviado p/ Entrega
-              </button>
-              <button class="btn btn-sm order-set-status-btn" data-status="delivered" style="background:#d1fae5; color:#065f46; border:1px solid #a7f3d0;">
-                ★ Entregue
-              </button>
-              <button class="btn btn-sm order-set-status-btn" data-status="cancelled" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;">
-                ✕ Cancelar Pedido
-              </button>
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px;">
+            <h4 style="font-size: 0.8125rem; font-weight: 800; color: #0f172a; margin-bottom: 8px;">
+              Dados do Comprador
+            </h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; font-size: 0.8125rem;">
+              <div><strong>Nome:</strong> ${order.customer_name}</div>
+              <div><strong>Telefone:</strong> ${order.customer_phone || 'Não informado'}</div>
+              <div><strong>E-mail:</strong> ${order.customer_email || 'Não informado'}</div>
+              <div><strong>Método Pagamento:</strong> ${order.payment_method?.toUpperCase()}</div>
+            </div>
+            <div style="margin-top: 8px; font-size: 0.8125rem;">
+              <strong>Endereço de Entrega:</strong> ${order.shipping_address || 'Entrega padrão Luanda'}
             </div>
           </div>
 
-          <!-- Informações do Cliente -->
-          <div class="admin-form-grid-2">
-            <div>
-              <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Dados do Cliente</div>
-              <div style="font-weight: 800; font-size: 1rem; margin-top: 4px;">${order.customer_name}</div>
-              <div style="font-size: 0.875rem; color: var(--text-secondary);">${order.customer_email}</div>
-              <div style="font-size: 0.875rem; color: var(--text-secondary);">${order.customer_phone}</div>
-            </div>
-            <div>
-              <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Endereço de Entrega (Luanda)</div>
-              <div style="font-size: 0.875rem; color: var(--text-main); margin-top: 4px; line-height: 1.5;">
-                ${order.shipping_address || 'Endereço não informado'}
-              </div>
-            </div>
-          </div>
-
-          <!-- Itens do Pedido -->
-          <div>
-            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 8px;">
-              Itens Comprados
-            </div>
-            <div style="border: 1px solid var(--border-light); border-radius: var(--radius-md); overflow: hidden;">
-              ${(order.items || []).map(i => `
-                <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border-light); background: #ffffff;">
-                  <div style="display: flex; align-items: center; gap: 12px;">
-                    ${i.product_image ? `
-                      <img src="${i.product_image}" alt="${i.product_name}" style="width: 40px; height: 40px; object-fit: contain; border-radius: 4px; border: 1px solid var(--border-light); background: #f8fafc;" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';" />
-                      <div style="display: none; width: 40px; height: 40px; background: #f1f5f9; border-radius: 4px; align-items: center; justify-content: center; color: var(--text-muted);">
-                        ${Icons.package(18)}
-                      </div>
-                    ` : `
-                      <div style="width: 40px; height: 40px; background: #f1f5f9; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: var(--text-muted);">
-                        ${Icons.package(18)}
-                      </div>
-                    `}
-                    <div>
-                      <div style="font-weight: 700; font-size: 0.875rem;">${i.product_name}</div>
-                      <div style="font-size: 0.75rem; color: var(--text-muted);">Qtd: ${i.quantity} x ${formatPrice(i.unit_price)}</div>
-                    </div>
-                  </div>
-                  <div style="font-weight: 800; color: var(--primary-700);">${formatPrice(i.total_price || (i.unit_price * i.quantity))}</div>
-                </div>
-              `).join('')}
-              <div style="padding: 14px 16px; background: #f8fafc; display: flex; justify-content: space-between; font-weight: 900; font-size: 1.05rem;">
-                <span>Total a Pagar:</span>
-                <span style="color: var(--primary-700);">${formatPrice(order.total)}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Notas Internas do Admin -->
           <div class="form-group">
-            <label class="form-label">Observações Internas da Operação (Visível apenas ao Admin):</label>
-            <textarea id="orderAdminNotes" class="form-input" rows="2" placeholder="Ex: Cliente solicitou entrega após as 14h; comprovativo verificado no Multicaixa Express.">${order.admin_notes || ''}</textarea>
-            <button id="saveOrderNotesBtn" class="btn btn-secondary btn-sm" style="margin-top: 6px;">Salvar Notas</button>
+            <label class="form-label">Atualizar Status Operacional do Pedido</label>
+            <select id="modalOrderStatusSelect" class="admin-filter-select" style="width: 100%;">
+              <option value="received" ${order.status === 'received' ? 'selected' : ''}>Recebido</option>
+              <option value="confirmed" ${order.status === 'confirmed' ? 'selected' : ''}>Confirmado / Pago</option>
+              <option value="preparing" ${order.status === 'preparing' ? 'selected' : ''}>Em Separação</option>
+              <option value="shipped" ${order.status === 'shipped' ? 'selected' : ''}>Enviado / Saiu para Entrega</option>
+              <option value="delivered" ${order.status === 'delivered' ? 'selected' : ''}>Entregue ao Cliente</option>
+              <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>Cancelado</option>
+            </select>
           </div>
-        </div>
 
-        <div class="admin-modal-footer">
-          <button class="btn btn-secondary close-modal-btn">Fechar</button>
+          <div style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; background: #ffffff;">
+            <div style="font-size: 0.8125rem; font-weight: 800; margin-bottom: 8px;">Resumo Financeiro</div>
+            <div style="display:flex; justify-content:space-between; font-size:0.875rem; margin-bottom:4px;">
+              <span>Subtotal:</span>
+              <strong>${formatPrice(order.subtotal || order.total)}</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:1rem; font-weight:900; color:#1d4ed8; border-top:1px solid #f1f5f9; padding-top:6px;">
+              <span>Total Oficial:</span>
+              <span>${formatPrice(order.total)}</span>
+            </div>
+          </div>
+
+          <div class="admin-modal-footer" style="padding: 0; margin-top: 10px;">
+            <button class="btn btn-secondary close-modal-btn">Fechar</button>
+            <button id="saveOrderStatusBtn" class="btn btn-primary">Salvar Novo Status</button>
+          </div>
         </div>
       </div>
     `;
@@ -2309,31 +2213,21 @@ export function renderAdminView() {
     modal.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', () => modal.remove()));
     modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 
-    // Botões de Mudança de Status
-    modal.querySelectorAll('.order-set-status-btn').forEach(b => {
-      b.addEventListener('click', async () => {
-        const newStatus = b.dataset.status;
+    modal.querySelector('#saveOrderStatusBtn').addEventListener('click', async () => {
+      const newStatus = modal.querySelector('#modalOrderStatusSelect').value;
+      try {
         await Api.orders.updateStatus(order.id, newStatus);
-        order.status = newStatus;
-        Toast.show(`Status alterado para "${newStatus}"!`, 'success');
+        Toast.show('Status do pedido atualizado com sucesso!', 'success');
         modal.remove();
+        await loadAllData();
         render();
-      });
+      } catch (err) {
+        Toast.show(err.message || 'Erro ao atualizar pedido.', 'error');
+      }
     });
-
-    // Salvar Notas
-    const notesBtn = modal.querySelector('#saveOrderNotesBtn');
-    if (notesBtn) {
-      notesBtn.addEventListener('click', async () => {
-        const notes = modal.querySelector('#orderAdminNotes').value.trim();
-        await Api.orders.updateNotes(order.id, notes);
-        order.admin_notes = notes;
-        Toast.show('Observações internas salvas com sucesso!', 'success');
-      });
-    }
   }
 
-  // 2. Modal de Criação / Edição de Produto (Controle Total)
+  // 2. Modal de Produto
   function openProductModal(prod = null) {
     const isEdit = Boolean(prod);
     const modal = document.createElement('div');
@@ -2353,12 +2247,12 @@ export function renderAdminView() {
             </div>
             <div class="form-group">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <label class="form-label" style="margin-bottom:0;">Código SKU Único</label>
+                <label class="form-label" style="margin-bottom:0;">Código SKU</label>
                 <button type="button" id="btnGenSku" style="background:none; border:none; color:#2563eb; font-size:0.75rem; font-weight:700; cursor:pointer;">
                   ⚡ Gerar SKU
                 </button>
               </div>
-              <input type="text" id="pSku" class="form-input" value="${prod?.sku || ''}" placeholder="Ex: NV-APL-IP16-256" required />
+              <input type="text" id="pSku" class="form-input" value="${prod?.sku || ''}" placeholder="NV-APL-IP16-256" required />
             </div>
           </div>
 
@@ -2392,41 +2286,32 @@ export function renderAdminView() {
               <input type="number" id="pStock" class="form-input" value="${prod?.stock !== undefined ? prod.stock : 10}" required />
             </div>
             <div class="form-group">
-              <label class="form-label">Estoque Mínimo (Alerta)</label>
+              <label class="form-label">Estoque Mínimo</label>
               <input type="number" id="pStockMin" class="form-input" value="${prod?.stock_min || 2}" required />
             </div>
           </div>
 
-          <!-- Componente de Upload da Imagem Principal do Produto -->
+          <!-- Componente de Upload Direto da Foto com Pré-visualização -->
           <div id="productImageUploaderMount" style="margin-bottom: 6px;"></div>
 
           <div class="form-group">
-            <label class="form-label">URL do Vídeo Demonstrativo (Opcional - YouTube / Vimeo)</label>
-            <input type="url" id="pVideo" class="form-input" value="${prod?.video_url || ''}" placeholder="https://youtube.com/watch?v=..." />
+            <label class="form-label">Descrição do Produto</label>
+            <textarea id="pDesc" class="form-input" rows="3" placeholder="Detalhes, especificações e diferenciais do produto...">${prod?.description || ''}</textarea>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Descrição Completa</label>
-            <textarea id="pDesc" class="form-input" rows="3" placeholder="Detalhes, especificações e recursos do equipamento...">${prod?.description || ''}</textarea>
-          </div>
-
-          <!-- Destaques Comerciais -->
-          <div style="display: flex; gap: 16px; flex-wrap: wrap; background: #f8fafc; padding: 12px; border-radius: var(--radius-md);">
-            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.875rem; font-weight: 700; cursor: pointer;">
+          <!-- Destaques -->
+          <div style="display: flex; gap: 14px; flex-wrap: wrap; background: #f8fafc; padding: 12px; border-radius: 10px;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8125rem; font-weight: 700; cursor: pointer;">
               <input type="checkbox" id="pIsDeal" ${prod?.is_deal ? 'checked' : ''} />
-              <span>Oferta Especial (Deal)</span>
+              <span>Oferta Especial</span>
             </label>
-            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.875rem; font-weight: 700; cursor: pointer;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8125rem; font-weight: 700; cursor: pointer;">
               <input type="checkbox" id="pIsNew" ${prod?.is_new ? 'checked' : ''} />
               <span>Novidade</span>
             </label>
-            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.875rem; font-weight: 700; cursor: pointer;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8125rem; font-weight: 700; cursor: pointer;">
               <input type="checkbox" id="pIsFeatured" ${prod?.is_featured ? 'checked' : ''} />
-              <span>Destaque Home</span>
-            </label>
-            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.875rem; font-weight: 700; cursor: pointer;">
-              <input type="checkbox" id="pAllowOutOfStock" ${prod?.allow_out_of_stock_sales ? 'checked' : ''} />
-              <span>Permitir venda sem estoque</span>
+              <span>Destaque na Vitrine</span>
             </label>
           </div>
 
@@ -2440,17 +2325,15 @@ export function renderAdminView() {
 
     document.body.appendChild(modal);
 
-    // Inicializa Componente de Upload de Imagem Direta
     const prodImgUploader = createImageUploader({
       id: 'prodImgUpload',
       label: 'Foto Principal do Produto',
       initialUrl: prod?.image || '',
-      helperText: 'Tire uma foto com o celular ou selecione do computador (PNG, JPG, WEBP). Compressão automática ativada.',
+      helperText: 'Tire uma foto ou escolha da galeria/computador. Compressão automática ativada.',
       maxDimension: 1200
     });
     modal.querySelector('#productImageUploaderMount').appendChild(prodImgUploader.element);
 
-    // Gerador de SKU Automático
     modal.querySelector('#btnGenSku')?.addEventListener('click', () => {
       const brand = modal.querySelector('#pBrand').value.trim() || 'NV';
       const name = modal.querySelector('#pName').value.trim() || 'PROD';
@@ -2465,12 +2348,6 @@ export function renderAdminView() {
 
     modal.querySelector('#productForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const imageUrl = prodImgUploader.getValue().trim();
-      if (!imageUrl) {
-        Toast.show('Por favor, adicione uma foto para o produto.', 'warning');
-        return;
-      }
-
       const payload = {
         name: modal.querySelector('#pName').value.trim(),
         sku: modal.querySelector('#pSku').value.trim(),
@@ -2480,13 +2357,11 @@ export function renderAdminView() {
         category_id: modal.querySelector('#pCategory').value ? Number(modal.querySelector('#pCategory').value) : null,
         stock: Number(modal.querySelector('#pStock').value),
         stock_min: Number(modal.querySelector('#pStockMin').value),
-        image: imageUrl,
-        video_url: modal.querySelector('#pVideo').value.trim() || null,
+        image: prodImgUploader.getValue().trim() || null,
         description: modal.querySelector('#pDesc').value.trim(),
         is_deal: modal.querySelector('#pIsDeal').checked,
         is_new: modal.querySelector('#pIsNew').checked,
         is_featured: modal.querySelector('#pIsFeatured').checked,
-        allow_out_of_stock_sales: modal.querySelector('#pAllowOutOfStock').checked,
         is_active: true
       };
 
@@ -2507,7 +2382,26 @@ export function renderAdminView() {
     });
   }
 
-  // 3. Modal de Categoria / Subcategoria
+  // 3. Duplicar Produto Rápido
+  async function duplicateProduct(prod) {
+    try {
+      const rand = Math.floor(1000 + Math.random() * 9000);
+      const payload = {
+        ...prod,
+        name: `${prod.name} (Cópia)`,
+        sku: `${prod.sku || 'NV'}-CPY-${rand}`,
+        id: undefined
+      };
+      await Api.products.create(payload);
+      Toast.show('Produto duplicado com sucesso!', 'success');
+      await loadAllData();
+      render();
+    } catch (err) {
+      Toast.show(err.message || 'Erro ao duplicar produto.', 'error');
+    }
+  }
+
+  // 4. Modal de Categoria
   function openCategoryModal(cat = null) {
     const isEdit = Boolean(cat);
     const modal = document.createElement('div');
@@ -2550,8 +2444,7 @@ export function renderAdminView() {
                 <option value="tv" ${cat?.icon_name === 'tv' ? 'selected' : ''}>Televisões & Vídeo</option>
                 <option value="headphones" ${cat?.icon_name === 'headphones' ? 'selected' : ''}>Áudio & Auscultadores</option>
                 <option value="watch" ${cat?.icon_name === 'watch' ? 'selected' : ''}>Smartwatches / Wearables</option>
-                <option value="server" ${cat?.icon_name === 'server' ? 'selected' : ''}>Redes & Servidores</option>
-                <option value="cpu" ${cat?.icon_name === 'cpu' ? 'selected' : ''}>Periféricos & Acessórios</option>
+                <option value="package" ${cat?.icon_name === 'package' ? 'selected' : ''}>Geral / Variados</option>
               </select>
             </div>
           </div>
@@ -2561,8 +2454,7 @@ export function renderAdminView() {
             <input type="number" id="catOrder" class="form-input" value="${cat?.display_order || (categoriesList.length + 1)}" required />
           </div>
 
-          <!-- Componente de Upload Direto da Imagem da Categoria -->
-          <div id="categoryImageUploaderMount" style="margin-bottom: 12px;"></div>
+          <div id="categoryImageUploaderMount" style="margin-bottom: 8px;"></div>
 
           <div class="form-group">
             <label class="form-label">Descrição da Categoria (SEO)</label>
@@ -2579,17 +2471,15 @@ export function renderAdminView() {
 
     document.body.appendChild(modal);
 
-    // Inicializa Componente de Upload Direto de Imagem da Categoria
     const catImgUploader = createImageUploader({
       id: 'catImgUpload',
       label: 'Foto ou Ícone Gráfico da Categoria',
       initialUrl: cat?.image_url || '',
-      helperText: 'Tire uma foto com o celular ou escolha da galeria/computador. Formatos: JPG, PNG, WEBP.',
+      helperText: 'Tire uma foto ou escolha da galeria/computador. Formatos: JPG, PNG, WEBP.',
       maxDimension: 800
     });
     modal.querySelector('#categoryImageUploaderMount').appendChild(catImgUploader.element);
 
-    // Auto-gerador de Slug amigável ao digitar o nome
     const nameInput = modal.querySelector('#catName');
     const slugInput = modal.querySelector('#catSlug');
     nameInput.addEventListener('input', () => {
@@ -2636,275 +2526,38 @@ export function renderAdminView() {
     });
   }
 
-  // 4. Modal de Catálogo / Coleção
-  function openCatalogModal(cat = null) {
-    const isEdit = Boolean(cat);
-    const modal = document.createElement('div');
-    modal.className = 'admin-modal-overlay';
-    modal.innerHTML = `
-      <div class="admin-modal-dialog">
-        <div class="admin-modal-header">
-          <h3 class="admin-modal-title">${isEdit ? 'Editar Catálogo' : 'Novo Catálogo / Campanha'}</h3>
-          <button class="btn btn-secondary btn-sm close-modal-btn">✕</button>
-        </div>
-
-        <form id="catalogForm" class="admin-modal-body">
-          <div class="admin-form-grid-2">
-            <div class="form-group">
-              <label class="form-label">Nome do Catálogo</label>
-              <input type="text" id="clName" class="form-input" value="${cat?.name || ''}" placeholder="Ex: Black Friday 2026" required />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Slug</label>
-              <input type="text" id="clSlug" class="form-input" value="${cat?.slug || ''}" placeholder="black-friday" />
-            </div>
-          </div>
-
-          <div class="admin-form-grid-2">
-            <div class="form-group">
-              <label class="form-label">Badge Comercial</label>
-              <input type="text" id="clBadge" class="form-input" value="${cat?.badge_text || ''}" placeholder="ATÉ 40% OFF" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Ordem de Exibição</label>
-              <input type="number" id="clOrder" class="form-input" value="${cat?.display_order || 1}" required />
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Descrição Comercial</label>
-            <textarea id="clDesc" class="form-input" rows="2">${cat?.description || ''}</textarea>
-          </div>
-
-          <div class="admin-modal-footer" style="padding:0;">
-            <button type="button" class="btn btn-secondary close-modal-btn">Cancelar</button>
-            <button type="submit" class="btn btn-primary">${isEdit ? 'Salvar' : 'Criar Catálogo'}</button>
-          </div>
-        </form>
-      </div>
-    `;
-
-    document.body.appendChild(modal);
-
-    modal.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', () => modal.remove()));
-    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
-
-    modal.querySelector('#catalogForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const payload = {
-        name: modal.querySelector('#clName').value.trim(),
-        slug: modal.querySelector('#clSlug').value.trim() || undefined,
-        badge_text: modal.querySelector('#clBadge').value.trim() || null,
-        display_order: Number(modal.querySelector('#clOrder').value),
-        description: modal.querySelector('#clDesc').value.trim(),
-        is_active: true
-      };
-
-      try {
-        if (isEdit) {
-          await Api.catalogs.update(cat.id, payload);
-          Toast.show('Catálogo atualizado!', 'success');
-        } else {
-          await Api.catalogs.create(payload);
-          Toast.show('Catálogo criado!', 'success');
-        }
-        modal.remove();
-        await loadAllData();
-        render();
-      } catch (err) {
-        Toast.show(err.message || 'Erro ao salvar catálogo.', 'error');
-      }
-    });
-  }
-
-  // 5. Modal de Cupom Promocional
-  function openCouponModal() {
-    const modal = document.createElement('div');
-    modal.className = 'admin-modal-overlay';
-    modal.innerHTML = `
-      <div class="admin-modal-dialog">
-        <div class="admin-modal-header">
-          <h3 class="admin-modal-title">Novo Cupom de Desconto</h3>
-          <button class="btn btn-secondary btn-sm close-modal-btn">✕</button>
-        </div>
-
-        <form id="couponForm" class="admin-modal-body">
-          <div class="admin-form-grid-2">
-            <div class="form-group">
-              <label class="form-label">Código do Cupom</label>
-              <input type="text" id="cpCode" class="form-input" placeholder="Ex: NOVA10" style="text-transform: uppercase;" required />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Tipo de Desconto</label>
-              <select id="cpType" class="admin-filter-select" style="width:100%;">
-                <option value="percent">Porcentagem (%)</option>
-                <option value="fixed">Valor Fixo (Kz)</option>
-                <option value="free_shipping">Frete Grátis</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="admin-form-grid-3">
-            <div class="form-group">
-              <label class="form-label">Valor do Desconto</label>
-              <input type="number" id="cpValue" class="form-input" placeholder="Ex: 10 ou 50000" required />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Valor Mínimo do Pedido (Kz)</label>
-              <input type="number" id="cpMin" class="form-input" placeholder="0 para nenhum" value="0" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Limite de Usos Totais</label>
-              <input type="number" id="cpLimit" class="form-input" value="500" required />
-            </div>
-          </div>
-
-          <div class="admin-modal-footer" style="padding:0;">
-            <button type="button" class="btn btn-secondary close-modal-btn">Cancelar</button>
-            <button type="submit" class="btn btn-primary">Criar Cupom</button>
-          </div>
-        </form>
-      </div>
-    `;
-
-    document.body.appendChild(modal);
-
-    modal.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', () => modal.remove()));
-    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
-
-    modal.querySelector('#couponForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const payload = {
-        code: modal.querySelector('#cpCode').value.trim().toUpperCase(),
-        discount_type: modal.querySelector('#cpType').value,
-        discount_value: Number(modal.querySelector('#cpValue').value),
-        min_order_value: Number(modal.querySelector('#cpMin').value) || 0,
-        usage_limit: Number(modal.querySelector('#cpLimit').value) || 500,
-        is_active: true
-      };
-
-      try {
-        await Api.coupons.create(payload);
-        Toast.show('Cupom criado com sucesso!', 'success');
-        modal.remove();
-        await loadAllData();
-        render();
-      } catch (err) {
-        Toast.show(err.message || 'Erro ao criar cupom.', 'error');
-      }
-    });
-  }
-
-  // 6. Modal de Movimentação de Estoque
-  function openStockMovementModal(preset = {}) {
-    const modal = document.createElement('div');
-    modal.className = 'admin-modal-overlay';
-    modal.innerHTML = `
-      <div class="admin-modal-dialog">
-        <div class="admin-modal-header">
-          <h3 class="admin-modal-title">Registrar Movimentação de Estoque</h3>
-          <button class="btn btn-secondary btn-sm close-modal-btn">✕</button>
-        </div>
-
-        <form id="stockMovementForm" class="admin-modal-body">
-          <div class="form-group">
-            <label class="form-label">Selecione o Produto</label>
-            <select id="smProduct" class="admin-filter-select" style="width:100%;" required>
-              ${productsList.map(p => `
-                <option value="${p.id}" ${preset.productId === p.id ? 'selected' : ''}>
-                  ${p.name} (Atual: ${p.stock || 0} un)
-                </option>
-              `).join('')}
-            </select>
-          </div>
-
-          <div class="admin-form-grid-2">
-            <div class="form-group">
-              <label class="form-label">Tipo de Movimento</label>
-              <select id="smType" class="admin-filter-select" style="width:100%;">
-                <option value="in" ${preset.type === 'in' ? 'selected' : ''}>▲ Entrada (Recebimento de Fornecedor)</option>
-                <option value="out">▼ Saída (Avaria / Descarte / Ajuste)</option>
-                <option value="adjustment">● Balanço (Definir Estoque Exato)</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Quantidade de Unidades</label>
-              <input type="number" id="smQty" class="form-input" min="1" value="5" required />
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Motivo / Justificativa</label>
-            <input type="text" id="smReason" class="form-input" placeholder="Ex: Lote de importação recebido em Luanda" required />
-          </div>
-
-          <div class="admin-modal-footer" style="padding:0;">
-            <button type="button" class="btn btn-secondary close-modal-btn">Cancelar</button>
-            <button type="submit" class="btn btn-primary">Registrar no Estoque</button>
-          </div>
-        </form>
-      </div>
-    `;
-
-    document.body.appendChild(modal);
-
-    modal.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', () => modal.remove()));
-    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
-
-    modal.querySelector('#stockMovementForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const payload = {
-        productId: Number(modal.querySelector('#smProduct').value),
-        type: modal.querySelector('#smType').value,
-        quantity: Number(modal.querySelector('#smQty').value),
-        reason: modal.querySelector('#smReason').value.trim()
-      };
-
-      try {
-        await Api.stock.recordMovement(payload);
-        Toast.show('Estoque atualizado e registrado no histórico!', 'success');
-        modal.remove();
-        await loadAllData();
-        render();
-      } catch (err) {
-        Toast.show(err.message || 'Erro ao registrar estoque.', 'error');
-      }
-    });
-  }
-
-  // 7. Modal Completo de Gestão de Banner (Upload Limpo da Arte Gráfica)
+  // 5. Modal de Banner (Arte Gráfica Limpa)
   function openBannerModal(banner = null) {
     const isEdit = Boolean(banner);
     const modal = document.createElement('div');
     modal.className = 'admin-modal-overlay';
     modal.innerHTML = `
-      <div class="admin-modal-dialog" style="max-width: 620px;">
+      <div class="admin-modal-dialog">
         <div class="admin-modal-header">
           <div>
-            <span class="badge" style="background:var(--primary-600); color:#fff; font-size:0.75rem;">ARTE DE BANNER DA VITRINE</span>
-            <h3 class="admin-modal-title" style="margin-top: 4px;">${isEdit ? 'Editar Arte do Banner' : 'Subir Novo Banner para a Vitrine'}</h3>
+            <span class="badge" style="background:#2563eb; color:#fff; font-size:0.6875rem;">ARTE DA VITRINE</span>
+            <h3 class="admin-modal-title" style="margin-top: 4px;">${isEdit ? 'Editar Banner' : 'Novo Banner da Vitrine'}</h3>
           </div>
           <button class="btn btn-secondary btn-sm close-modal-btn">✕</button>
         </div>
 
         <form id="bannerForm" class="admin-modal-body">
           <div class="form-group">
-            <label class="form-label">Identificação / Título do Banner</label>
+            <label class="form-label">Identificação / Título da Campanha</label>
             <input 
               type="text" 
               id="bnTitle" 
               class="form-input" 
               value="${banner?.title || ''}" 
-              placeholder="Ex: Campanha Topo de Gama NovaTech • iPhone 16 & Macs" 
+              placeholder="Ex: Campanha Especial iPhone 16 & Apple" 
               required 
             />
-            <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 3px; display: block;">
-              Usado para identificação na lista administrativa e acessibilidade (alt text). A imagem não terá textos automáticos por cima.
+            <small style="color: #64748b; font-size: 0.75rem; margin-top: 2px; display: block;">
+              Identificação interna do banner e acessibilidade (alt text). A arte do banner é exibida limpa na vitrine.
             </small>
           </div>
 
-          <!-- Componente de Upload Direto da Arte do Banner -->
-          <div id="bannerImageUploaderMount" style="margin-bottom: 12px;"></div>
+          <div id="bannerImageUploaderMount" style="margin-bottom: 8px;"></div>
 
           <div class="admin-form-grid-2">
             <div class="form-group">
@@ -2934,14 +2587,14 @@ export function renderAdminView() {
           <div class="form-group">
             <label class="form-label">Status de Publicação</label>
             <select id="bnIsActive" class="admin-filter-select" style="width: 100%;">
-              <option value="true" ${banner?.is_active !== false ? 'selected' : ''}>✓ Ativo na Vitrine (Visível para todos os clientes em rotação)</option>
-              <option value="false" ${banner?.is_active === false ? 'selected' : ''}>✕ Oculto / Rascunho (Não exibir na página inicial)</option>
+              <option value="true" ${banner?.is_active !== false ? 'selected' : ''}>✓ Ativo na Vitrine (Visível para clientes)</option>
+              <option value="false" ${banner?.is_active === false ? 'selected' : ''}>✕ Oculto / Rascunho</option>
             </select>
           </div>
 
-          <div class="admin-modal-footer" style="padding:0; margin-top: 12px;">
+          <div class="admin-modal-footer" style="padding: 0; margin-top: 10px;">
             <button type="button" class="btn btn-secondary close-modal-btn">Cancelar</button>
-            <button type="submit" class="btn btn-primary" style="padding: 10px 24px;">${isEdit ? 'Salvar Alterações' : 'Publicar Banner'}</button>
+            <button type="submit" class="btn btn-primary">${isEdit ? 'Salvar Alterações' : 'Publicar Banner'}</button>
           </div>
         </form>
       </div>
@@ -2949,12 +2602,11 @@ export function renderAdminView() {
 
     document.body.appendChild(modal);
 
-    // Inicializa Componente de Upload Direto para a Arte do Banner
     const bnImgUploader = createImageUploader({
       id: 'bnImgUpload',
       label: 'Arte do Banner Promocional',
       initialUrl: banner?.image_url || '',
-      helperText: 'Tire uma foto ou suba a arte feita no Canva/Photoshop direto do seu telemóvel ou PC. Formato panorâmico (JPG, PNG, WEBP).',
+      helperText: 'Tire uma foto ou suba a arte feita no Canva/Photoshop. Formato panorâmico (JPG, PNG, WEBP).',
       maxDimension: 1920
     });
     modal.querySelector('#bannerImageUploaderMount').appendChild(bnImgUploader.element);
@@ -2967,7 +2619,7 @@ export function renderAdminView() {
       const imageUrl = bnImgUploader.getValue().trim();
 
       if (!imageUrl) {
-        Toast.show('Por favor, selecione ou faça upload da imagem do banner antes de salvar.', 'warning');
+        Toast.show('Por favor, selecione ou envie a imagem do banner.', 'warning');
         return;
       }
 
@@ -2977,7 +2629,6 @@ export function renderAdminView() {
         button_link: modal.querySelector('#bnButtonLink').value.trim() || '#/catalogo',
         display_order: Number(modal.querySelector('#bnOrder').value) || 1,
         is_active: modal.querySelector('#bnIsActive').value === 'true',
-        // Preserva valores limpos para compatibilidade de schema
         highlight: '',
         subtitle: '',
         badge_text: '',
@@ -2986,22 +2637,267 @@ export function renderAdminView() {
         old_price: null,
         tag_badge: '',
         specs_badge: '',
-        accent_color: '#3b82f6'
+        accent_color: '#2563eb'
       };
 
       try {
         if (isEdit) {
           await Api.banners.update(banner.id, payload);
-          Toast.show('Arte do banner atualizada com sucesso!', 'success');
+          Toast.show('Banner atualizado com sucesso!', 'success');
         } else {
           await Api.banners.create(payload);
-          Toast.show('Novo banner publicado na vitrine com sucesso!', 'success');
+          Toast.show('Novo banner publicado na vitrine!', 'success');
         }
         modal.remove();
         await loadAllData();
         render();
       } catch (err) {
         Toast.show(err.message || 'Erro ao salvar banner.', 'error');
+      }
+    });
+  }
+
+  // 6. Modal de Cupom
+  function openCouponModal() {
+    const modal = document.createElement('div');
+    modal.className = 'admin-modal-overlay';
+    modal.innerHTML = `
+      <div class="admin-modal-dialog">
+        <div class="admin-modal-header">
+          <h3 class="admin-modal-title">Novo Cupom de Desconto</h3>
+          <button class="btn btn-secondary btn-sm close-modal-btn">✕</button>
+        </div>
+
+        <form id="couponForm" class="admin-modal-body">
+          <div class="admin-form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Código do Cupom</label>
+              <input type="text" id="cpCode" class="form-input" placeholder="Ex: NOVATECH10" style="text-transform:uppercase; font-weight:800;" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tipo de Desconto</label>
+              <select id="cpType" class="admin-filter-select" style="width:100%;">
+                <option value="percent">Porcentagem (%)</option>
+                <option value="fixed">Valor Fixo em Kwanzas (Kz)</option>
+                <option value="free_shipping">Frete Grátis</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="admin-form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Valor do Desconto</label>
+              <input type="number" id="cpValue" class="form-input" placeholder="Ex: 10 para 10% ou 5000 para Kz 5.000" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Valor Mínimo do Pedido (Kz)</label>
+              <input type="number" id="cpMinOrder" class="form-input" placeholder="0 = Sem mínimo" />
+            </div>
+          </div>
+
+          <div class="admin-form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Limite Total de Usos</label>
+              <input type="number" id="cpLimit" class="form-input" placeholder="Ex: 100 (vazio = ilimitado)" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Data de Expiração</label>
+              <input type="date" id="cpExpiry" class="form-input" />
+            </div>
+          </div>
+
+          <div class="admin-modal-footer" style="padding: 0;">
+            <button type="button" class="btn btn-secondary close-modal-btn">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Criar Cupom</button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', () => modal.remove()));
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+    modal.querySelector('#couponForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        code: modal.querySelector('#cpCode').value.trim().toUpperCase(),
+        discount_type: modal.querySelector('#cpType').value,
+        discount_value: Number(modal.querySelector('#cpValue').value),
+        min_order_value: modal.querySelector('#cpMinOrder').value ? Number(modal.querySelector('#cpMinOrder').value) : 0,
+        usage_limit: modal.querySelector('#cpLimit').value ? Number(modal.querySelector('#cpLimit').value) : null,
+        expires_at: modal.querySelector('#cpExpiry').value || null,
+        is_active: true
+      };
+
+      try {
+        await Api.coupons.create(payload);
+        Toast.show('Cupom criado com sucesso!', 'success');
+        modal.remove();
+        await loadAllData();
+        render();
+      } catch (err) {
+        Toast.show(err.message || 'Erro ao criar cupom.', 'error');
+      }
+    });
+  }
+
+  // 7. Modal de Catálogo / Campanha
+  function openCatalogModal(cat = null) {
+    const isEdit = Boolean(cat);
+    const modal = document.createElement('div');
+    modal.className = 'admin-modal-overlay';
+    modal.innerHTML = `
+      <div class="admin-modal-dialog">
+        <div class="admin-modal-header">
+          <h3 class="admin-modal-title">${isEdit ? 'Editar Campanha' : 'Nova Campanha Comercial'}</h3>
+          <button class="btn btn-secondary btn-sm close-modal-btn">✕</button>
+        </div>
+
+        <form id="catalogForm" class="admin-modal-body">
+          <div class="admin-form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Nome da Campanha</label>
+              <input type="text" id="clName" class="form-input" value="${cat?.name || ''}" placeholder="Ex: Black Friday 2026" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Slug</label>
+              <input type="text" id="clSlug" class="form-input" value="${cat?.slug || ''}" placeholder="black-friday" />
+            </div>
+          </div>
+
+          <div class="admin-form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Badge Comercial</label>
+              <input type="text" id="clBadge" class="form-input" value="${cat?.badge_text || ''}" placeholder="ATÉ 40% OFF" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Ordem de Exibição</label>
+              <input type="number" id="clOrder" class="form-input" value="${cat?.display_order || 1}" required />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Descrição Comercial</label>
+            <textarea id="clDesc" class="form-input" rows="2">${cat?.description || ''}</textarea>
+          </div>
+
+          <div class="admin-modal-footer" style="padding:0;">
+            <button type="button" class="btn btn-secondary close-modal-btn">Cancelar</button>
+            <button type="submit" class="btn btn-primary">${isEdit ? 'Salvar' : 'Criar Campanha'}</button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', () => modal.remove()));
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+    modal.querySelector('#catalogForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        name: modal.querySelector('#clName').value.trim(),
+        slug: modal.querySelector('#clSlug').value.trim() || undefined,
+        badge_text: modal.querySelector('#clBadge').value.trim() || null,
+        display_order: Number(modal.querySelector('#clOrder').value),
+        description: modal.querySelector('#clDesc').value.trim(),
+        is_active: true
+      };
+
+      try {
+        if (isEdit) {
+          await Api.catalogs.update(cat.id, payload);
+          Toast.show('Campanha atualizada!', 'success');
+        } else {
+          await Api.catalogs.create(payload);
+          Toast.show('Campanha criada com sucesso!', 'success');
+        }
+        modal.remove();
+        await loadAllData();
+        render();
+      } catch (err) {
+        Toast.show(err.message || 'Erro ao salvar campanha.', 'error');
+      }
+    });
+  }
+
+  // 8. Modal de Movimentação de Estoque
+  function openStockMovementModal(preset = {}) {
+    const modal = document.createElement('div');
+    modal.className = 'admin-modal-overlay';
+    modal.innerHTML = `
+      <div class="admin-modal-dialog">
+        <div class="admin-modal-header">
+          <h3 class="admin-modal-title">Movimentação de Estoque</h3>
+          <button class="btn btn-secondary btn-sm close-modal-btn">✕</button>
+        </div>
+
+        <form id="stockMovementForm" class="admin-modal-body">
+          <div class="form-group">
+            <label class="form-label">Produto</label>
+            <select id="smProduct" class="admin-filter-select" style="width:100%;" required>
+              <option value="">Selecione o produto</option>
+              ${productsList.map(p => `
+                <option value="${p.id}" ${preset?.product_id === p.id ? 'selected' : ''}>
+                  ${p.name} (Atual: ${p.stock} un)
+                </option>
+              `).join('')}
+            </select>
+          </div>
+
+          <div class="admin-form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Tipo de Movimento</label>
+              <select id="smType" class="admin-filter-select" style="width:100%;">
+                <option value="in" ${preset?.movement_type === 'in' ? 'selected' : ''}>▲ Entrada (Adicionar ao depósito)</option>
+                <option value="out" ${preset?.movement_type === 'out' ? 'selected' : ''}>▼ Saída (Remover do depósito)</option>
+                <option value="adjustment">● Balanço / Ajuste Geral</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Quantidade</label>
+              <input type="number" id="smQty" class="form-input" min="1" placeholder="Ex: 5" required />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Motivo ou Observação</label>
+            <input type="text" id="smReason" class="form-input" placeholder="Ex: Chegada de remessa de fornecedor" required />
+          </div>
+
+          <div class="admin-modal-footer" style="padding:0;">
+            <button type="button" class="btn btn-secondary close-modal-btn">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Registrar no Estoque</button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', () => modal.remove()));
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+    modal.querySelector('#stockMovementForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        product_id: Number(modal.querySelector('#smProduct').value),
+        movement_type: modal.querySelector('#smType').value,
+        quantity: Number(modal.querySelector('#smQty').value),
+        reason: modal.querySelector('#smReason').value.trim()
+      };
+
+      try {
+        await Api.stock.registerMovement(payload);
+        Toast.show('Movimentação registrada com sucesso!', 'success');
+        modal.remove();
+        await loadAllData();
+        render();
+      } catch (err) {
+        Toast.show(err.message || 'Erro ao registrar estoque.', 'error');
       }
     });
   }
