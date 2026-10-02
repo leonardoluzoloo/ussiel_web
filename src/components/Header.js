@@ -138,7 +138,7 @@ export function createHeader() {
             <!-- Cart (Super Visível) -->
             <div class="header-action-btn header-cart-highlight" id="headerCartBtn" style="cursor: pointer;" title="Abrir Meu Carrinho">
               <div class="action-icon-wrap">
-                ${Icons.cart(24, 'var(--primary-600)')}
+                ${Icons.cart(22, 'currentColor')}
                 <span class="action-badge badge-cart" id="headerCartBadge">${cartCount}</span>
               </div>
               <div class="action-text-group">

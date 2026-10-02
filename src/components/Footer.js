@@ -15,7 +15,7 @@ export function createFooter() {
       <div class="container footer-newsletter-inner">
         <div class="footer-newsletter-text">
           <div class="footer-newsletter-badge">
-            ${Icons.tag ? Icons.tag(14) : '🏷️'} OFERTAS E LANÇAMENTOS EXCLUSIVOS
+            OFERTAS E LANÇAMENTOS EXCLUSIVOS
           </div>
           <h3 class="footer-newsletter-title">Receba Ofertas e Novidades em Primeira Mão</h3>
           <p class="footer-newsletter-desc">
@@ -24,7 +24,6 @@ export function createFooter() {
         </div>
         <form class="newsletter-form" id="newsletterForm" onsubmit="event.preventDefault();">
           <div class="newsletter-input-group">
-            <span class="newsletter-input-icon">${Icons.mail ? Icons.mail(18) : '✉️'}</span>
             <input 
               type="email" 
               id="newsletterEmail" 
