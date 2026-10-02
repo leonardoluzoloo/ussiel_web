@@ -7182,49 +7182,6 @@ body.admin-backoffice-mode #mainContentArea {
   justify-content: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 26px;
-}
-
-.catalog-empty-quick-categories {
-  border-top: 1px solid var(--border-light);
-  padding-top: 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
-.quick-cat-label {
-  font-size: 0.78125rem;
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
-.quick-cat-chips {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.quick-chip {
-  background: #f1f5f9;
-  border: 1px solid var(--border-light);
-  color: #334155;
-  padding: 6px 14px;
-  border-radius: 999px;
-  font-size: 0.78125rem;
-  font-weight: 600;
-  text-decoration: none;
-  transition: all var(--transition-fast);
-}
-
-.quick-chip:hover {
-  background: #e2e8f0;
-  border-color: #cbd5e1;
-  color: #0f172a;
-  transform: translateY(-1px);
 }
 
 /* iOS Safari / Chrome Autofill Dark Mode Reset */
