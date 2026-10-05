@@ -13,6 +13,8 @@ import { supabase, isSupabaseConfigured } from './services/supabaseClient.js';
 import { Storage } from './services/storage.js';
 import { Api } from './services/api.js';
 
+import { Toast } from './components/Toast.js';
+
 // Views
 import { renderCatalogView } from './views/CatalogView.js';
 import { renderProductDetailView } from './views/ProductDetailView.js';
@@ -64,20 +66,24 @@ function initApp() {
             .eq('email', session.user.email)
             .maybeSingle();
 
-          if (profile) {
-            const role = profile.nivel_acesso === 'admin' ? 'admin' : 'customer';
-            Storage.saveUser({
-              id: profile.id,
-              auth_user_id: session.user.id,
-              name: profile.nome || session.user.user_metadata?.name || '',
-              email: profile.email,
-              phone: profile.telefone || '',
-              whatsapp: profile.whatsapp || profile.telefone || '',
-              endereco: profile.endereco || '',
-              ponto_referencia: profile.ponto_referencia || '',
-              role
-            });
-          }
+          const currentUser = Storage.getUser();
+          const isUserAdmin = profile?.nivel_acesso === 'admin' ||
+            session.user.user_metadata?.role === 'admin' ||
+            session.user.app_metadata?.role === 'admin' ||
+            currentUser?.role === 'admin';
+          const role = isUserAdmin ? 'admin' : 'customer';
+
+          Storage.saveUser({
+            id: profile?.id || session.user.id,
+            auth_user_id: session.user.id,
+            name: profile?.nome || session.user.user_metadata?.name || '',
+            email: profile?.email || session.user.email,
+            phone: profile?.telefone || session.user.user_metadata?.phone || '',
+            whatsapp: profile?.whatsapp || profile?.telefone || session.user.user_metadata?.phone || '',
+            endereco: profile?.endereco || '',
+            ponto_referencia: profile?.ponto_referencia || '',
+            role
+          });
         } catch (e) {
           console.warn('Aviso ao sincronizar sessão ativa com perfil no Supabase:', e.message);
         }
@@ -92,8 +98,59 @@ function initApp() {
     });
   }
 
+  // Intercepta e trata retornos de confirmação/recuperação vindos do Supabase Auth via hash
+  function checkAuthHashRedirect() {
+    const hash = window.location.hash || '';
+    if (!hash || (!hash.includes('error=') && !hash.includes('access_token=') && !hash.includes('error_code='))) {
+      return false;
+    }
+
+    const cleanHash = hash.replace(/^#\/?/, '');
+    const params = new URLSearchParams(cleanHash);
+    const errorCode = params.get('error_code');
+    const errorDesc = params.get('error_description');
+    const accessToken = params.get('access_token');
+    const type = params.get('type');
+
+    if (errorCode || errorDesc) {
+      let msg = 'O link de confirmação é inválido ou expirou.';
+      if (errorCode === 'otp_expired') {
+        msg = 'O link de confirmação expirou ou já foi utilizado. Solicite um novo link ou entre em contato com o suporte.';
+      } else if (errorDesc) {
+        msg = decodeURIComponent(errorDesc.replace(/\+/g, ' '));
+      }
+      setTimeout(() => {
+        Toast.show({ title: 'Atenção na Confirmação', message: msg, type: 'warning', duration: 7000 });
+      }, 300);
+      window.history.replaceState(null, '', window.location.pathname + '#/login');
+      return true;
+    }
+
+    if (accessToken) {
+      if (type === 'recovery') {
+        setTimeout(() => {
+          Toast.show({ title: 'Redefinição de Senha', message: 'Defina a sua nova senha.', type: 'info', duration: 5000 });
+        }, 300);
+        window.history.replaceState(null, '', window.location.pathname + '#/admin/reset-password');
+        return true;
+      }
+      setTimeout(() => {
+        Toast.show({ title: 'E-mail Confirmado! 🎉', message: 'Sua conta foi ativada com sucesso.', type: 'success', duration: 5000 });
+      }, 300);
+      window.history.replaceState(null, '', window.location.pathname + '#/');
+      return true;
+    }
+
+    return false;
+  }
+
   // 5. Router handler
   function handleRoute() {
+    if (checkAuthHashRedirect()) {
+      handleRoute();
+      return;
+    }
+
     const rawHash = window.location.hash || '#/';
     const [pathPart, queryPart] = rawHash.replace(/^#/, '').split('?');
     const path = pathPart || '/';

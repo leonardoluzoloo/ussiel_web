@@ -9,7 +9,7 @@ import { Storage } from '../services/storage.js';
 import { Api } from '../services/api.js';
 import { Toast } from '../components/Toast.js';
 import { isSupabaseConfigured } from '../services/supabaseClient.js';
-import { createImageUploader } from '../utils/imageUpload.js';
+import { createImageUploader, createMultiImageUploader } from '../utils/imageUpload.js';
 
 export function renderAdminView() {
   const container = document.createElement('div');
@@ -41,6 +41,14 @@ export function renderAdminView() {
   let productCategoryFilter = 'all';
   let productStockFilter = 'all';
   let customerSearchQuery = '';
+  let customerStatusFilter = 'all';
+  let stockSearchQuery = '';
+  let stockStatusFilter = 'all';
+  let couponSearchQuery = '';
+  let couponStatusFilter = 'all';
+  let categorySearchQuery = '';
+  let categorySortOrder = 'az'; // 'az' | 'za' | 'subs_desc' | 'recent'
+  let expandedCategoryIds = new Set();
   let dashboardPeriod = 'today'; // 'today' | '7d' | '30d' | 'all'
   let layoutMounted = false;
 
@@ -129,8 +137,8 @@ export function renderAdminView() {
     const subRoute = getAdminSubRoute();
     const currentUser = Storage.getUser();
     const token = Api.getToken();
-    const isAdmin = currentUser && currentUser.role === 'admin' && Boolean(token);
-    const isCustomer = currentUser && currentUser.role === 'customer';
+    const isAdmin = currentUser && (currentUser.role === 'admin' || currentUser.nivel_acesso === 'admin') && Boolean(token);
+    const isCustomer = currentUser && currentUser.role === 'customer' && !isAdmin;
 
     if (isLoading) {
       layoutMounted = false;
@@ -170,13 +178,14 @@ export function renderAdminView() {
     }
 
     // Se já autenticado como ADMIN e tentar acessar telas de login/register/forgot:
-    if (!subRoute || ['login', 'register', 'forgot-password', 'reset-password'].includes(subRoute)) {
-      window.history.replaceState(null, '', window.location.pathname + '#/admin/dashboard');
-      currentTab = 'dashboard';
+    if (['login', 'register', 'forgot-password', 'reset-password'].includes(subRoute)) {
+      window.history.replaceState(null, '', window.location.pathname + `#/admin/${currentTab || 'dashboard'}`);
+    } else if (!subRoute) {
+      currentTab = currentTab || 'dashboard';
     } else {
       const mappedTab = (subRoute === 'inventory') ? 'stock' : (subRoute === 'campaigns' ? 'catalogs' : subRoute);
       const validTabs = ['dashboard', 'products', 'categories', 'banners', 'orders', 'customers', 'stock', 'coupons', 'catalogs', 'settings', 'profile'];
-      currentTab = validTabs.includes(mappedTab) ? mappedTab : 'dashboard';
+      currentTab = validTabs.includes(mappedTab) ? mappedTab : (currentTab || 'dashboard');
     }
 
     // Se já estiver montado o layout admin corporativo, preserva cabeçalho e sidebar
@@ -442,7 +451,7 @@ export function renderAdminView() {
     try {
       const status = await Api.admin.getStatus();
       hasAdmin = Boolean(status.has_admin);
-    } catch {}
+    } catch { }
 
     const currentUser = Storage.getUser();
     const isCallerAdmin = currentUser?.role === 'admin';
@@ -939,7 +948,7 @@ export function renderAdminView() {
         <span class="admin-nav-pill-badge">${categoriesList.length}</span>
       </div>
       <div class="admin-nav-item ${currentTab === 'banners' ? 'active' : ''}" data-tab="banners">
-        <div class="admin-nav-item-left">${Icons.heart ? Icons.heart(18) : '🖼️'}<span>Banners da Vitrine</span></div>
+        <div class="admin-nav-item-left">${Icons.image ? Icons.image(18) : '🖼️'}<span>Banners da Vitrine</span></div>
         <span class="admin-nav-pill-badge">${bannersList.length}</span>
       </div>
 
@@ -1158,37 +1167,42 @@ export function renderAdminView() {
                   </tr>
                 </thead>
                 <tbody>
-                  ${ordersList.slice(0, 5).map(o => `
+                  ${ordersList.slice(0, 5).map(o => {
+                    const cleanCode = String(o.order_code || o.codigo_pedido || o.id).replace(/^#/, '');
+                    return `
                     <tr>
-                      <td><strong>${o.order_code}</strong></td>
+                      <td style="font-family:ui-monospace, monospace; font-size:0.8125rem; font-weight:700; color:#334155;">${cleanCode}</td>
                       <td>
-                        <div>${o.customer_name}</div>
+                        <div style="font-weight:600; color:#0f172a; font-size:0.875rem;">${o.customer_name || 'Cliente'}</div>
                         <div style="font-size:0.75rem; color:#64748b;">${o.customer_phone || ''}</div>
                       </td>
-                      <td>${formatDate(o.created_at)}</td>
-                      <td><strong style="color:#1d4ed8;">${formatPrice(o.total)}</strong></td>
+                      <td style="font-size:0.8125rem; color:#475569;">${formatDate(o.created_at)}</td>
+                      <td><strong style="color:#0f172a; font-size:0.875rem;">${formatPrice(o.total)}</strong></td>
                       <td>
                         ${renderPaymentBadge(o.payment_status, o.payment_method)}
                       </td>
                       <td>${renderStatusBadge(o.status)}</td>
                       <td>
-                        <button class="btn btn-secondary btn-sm open-order-modal-btn" data-order-id="${o.id}">
+                        <button class="btn btn-secondary btn-sm open-order-modal-btn" data-order-id="${o.id}" style="font-size:0.75rem; padding:4px 10px;">
                           Detalhes
                         </button>
                       </td>
                     </tr>
-                  `).join('')}
+                  `;
+                  }).join('')}
                 </tbody>
               </table>
             </div>
 
             <!-- Mobile: Cards Responsivos de Pedidos -->
             <div class="admin-mobile-card-list admin-mobile-only">
-              ${ordersList.slice(0, 5).map(o => `
+              ${ordersList.slice(0, 5).map(o => {
+                const cleanCode = String(o.order_code || o.codigo_pedido || o.id).replace(/^#/, '');
+                return `
                 <div class="admin-res-card">
                   <div class="admin-res-card-header">
                     <div>
-                      <strong style="font-size:0.9375rem; color:#0f172a;">${o.order_code}</strong>
+                      <strong style="font-family:ui-monospace, monospace; font-size:0.875rem; color:#0f172a;">${cleanCode}</strong>
                       <div style="font-size:0.75rem; color:#64748b;">${formatDate(o.created_at)}</div>
                     </div>
                     ${renderStatusBadge(o.status)}
@@ -1213,7 +1227,8 @@ export function renderAdminView() {
                     </button>
                   </div>
                 </div>
-              `).join('')}
+              `;
+              }).join('')}
             </div>
           `}
         </div>
@@ -1231,9 +1246,11 @@ export function renderAdminView() {
       filtered = filtered.filter(o => o.status === orderStatusFilter);
     }
     if (orderSearchQuery) {
-      const q = orderSearchQuery.toLowerCase();
+      const q = orderSearchQuery.toLowerCase().trim();
       filtered = filtered.filter(o =>
+        String(o.id).includes(q) ||
         (o.order_code && o.order_code.toLowerCase().includes(q)) ||
+        (o.codigo_pedido && o.codigo_pedido.toLowerCase().includes(q)) ||
         (o.customer_name && o.customer_name.toLowerCase().includes(q)) ||
         (o.customer_phone && o.customer_phone.toLowerCase().includes(q)) ||
         (o.customer_email && o.customer_email.toLowerCase().includes(q))
@@ -1241,33 +1258,27 @@ export function renderAdminView() {
     }
 
     return `
-      <div class="admin-card">
-        <div class="admin-card-header">
+      <div class="admin-card" style="display:flex; flex-direction:column; min-height:100%; flex:1; box-sizing:border-box;">
+        <div class="admin-card-header" style="margin-bottom:16px;">
           <div>
-            <h2 class="admin-card-title">
-              ${Icons.truck(20)}
-              <span>Gestão de Pedidos (${ordersList.length})</span>
-            </h2>
-            <p style="font-size:0.8125rem; color:#64748b; margin-top:2px;">
-              Acompanhe, atualize status de entrega e consulte o comprovativo dos pedidos.
-            </p>
+            <h2 class="admin-card-title">Pedidos (${ordersList.length})</h2>
           </div>
         </div>
 
-        <!-- Filtros de Busca e Status -->
-        <div class="admin-filter-bar">
-          <div class="admin-search-wrapper">
-            <span class="admin-search-icon">${Icons.search(16)}</span>
+        <!-- Filtros Rápidos Minimalistas -->
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:260px; max-width:360px;">
             <input
               type="text"
               id="orderSearchInput"
-              class="admin-search-input"
-              placeholder="Buscar por código, nome ou telefone..."
+              class="form-input"
+              placeholder="Buscar por código, cliente ou telefone..."
               value="${orderSearchQuery}"
+              style="padding:7px 12px; font-size:0.875rem;"
             />
           </div>
 
-          <select id="orderStatusFilterSelect" class="admin-filter-select">
+          <select id="orderStatusFilterSelect" class="admin-filter-select" style="font-size:0.8125rem; padding:6px 10px;">
             <option value="all" ${orderStatusFilter === 'all' ? 'selected' : ''}>Todos os Status</option>
             <option value="received" ${orderStatusFilter === 'received' ? 'selected' : ''}>Recebido</option>
             <option value="confirmed" ${orderStatusFilter === 'confirmed' ? 'selected' : ''}>Confirmado / Pago</option>
@@ -1279,89 +1290,128 @@ export function renderAdminView() {
         </div>
 
         ${filtered.length === 0 ? `
-          <div class="admin-empty-state">
-            <div class="admin-empty-state-icon">${Icons.package(24)}</div>
-            <div class="admin-empty-state-title">Nenhum pedido encontrado</div>
-            <div class="admin-empty-state-desc">Tente alterar os termos de busca ou filtros de status selecionados.</div>
+          <div class="admin-empty-state" style="padding:32px 16px;">
+            <div class="admin-empty-state-title" style="font-size:1rem;">Nenhum pedido encontrado</div>
+            <div style="font-size:0.8125rem; color:#64748b; margin-top:4px;">Nenhum registro corresponde aos filtros selecionados.</div>
           </div>
         ` : `
-          <!-- Desktop: Tabela de Pedidos -->
-          <div class="admin-table-wrapper admin-desktop-only">
-            <table class="admin-table">
+          <!-- Desktop: Tabela Corporativa de Pedidos -->
+          <div class="admin-table-wrapper admin-desktop-only" style="border:1px solid #e2e8f0; border-radius:8px; overflow-x:auto; -webkit-overflow-scrolling:touch; min-height:300px; flex:1; background:#ffffff;">
+            <table class="admin-table" style="min-width: 860px; width: 100%;">
               <thead>
                 <tr>
-                  <th>Código</th>
+                  <th style="width:110px;">Código</th>
                   <th>Cliente</th>
                   <th>Contato</th>
-                  <th>Data</th>
-                  <th>Valor Total</th>
-                  <th>Pagamento</th>
-                  <th>Status</th>
-                  <th>Ações</th>
+                  <th style="width:110px;">Data</th>
+                  <th style="width:120px;">Valor Total</th>
+                  <th style="width:130px;">Pagamento</th>
+                  <th style="width:130px;">Status</th>
+                  <th style="width:52px; text-align:center;">Ações</th>
                 </tr>
               </thead>
               <tbody>
-                ${filtered.map(o => `
-                  <tr>
-                    <td><strong>${o.order_code}</strong></td>
-                    <td>${o.customer_name}</td>
-                    <td>
-                      <div>${o.customer_phone || '—'}</div>
-                      <div style="font-size:0.75rem; color:#64748b;">${o.customer_email || ''}</div>
-                    </td>
-                    <td>${formatDate(o.created_at)}</td>
-                    <td><strong style="color:#1d4ed8;">${formatPrice(o.total)}</strong></td>
-                    <td>
-                      ${renderPaymentBadge(o.payment_status, o.payment_method)}
-                    </td>
-                    <td>${renderStatusBadge(o.status)}</td>
-                    <td>
-                      <button class="btn btn-secondary btn-sm open-order-modal-btn" data-order-id="${o.id}">
-                        Detalhes
-                      </button>
-                    </td>
-                  </tr>
-                `).join('')}
+                ${filtered.map(o => {
+                  const cleanCode = String(o.order_code || o.codigo_pedido || o.id).replace(/^#/, '');
+                  const itemsCount = (o.items || o.itens_pedido || []).length;
+                  const phone = o.customer_phone || o.telefone_cliente || '';
+                  const cleanPhone = phone.replace(/[^0-9]/g, '');
+                  const waLink = cleanPhone ? `https://wa.me/${cleanPhone.startsWith('244') ? cleanPhone : '244' + cleanPhone}` : null;
+
+                  return `
+                    <tr>
+                      <td style="font-family:ui-monospace, monospace; font-size:0.8125rem; font-weight:700; color:#334155;">
+                        ${cleanCode}
+                      </td>
+                      <td>
+                        <div style="font-weight:600; color:#0f172a; font-size:0.875rem;">${o.customer_name || 'Cliente'}</div>
+                      </td>
+                      <td>
+                        <div style="font-size:0.8125rem; color:#334155;">${phone || '—'}</div>
+                        ${o.customer_email ? `<div style="font-size:0.75rem; color:#64748b;">${o.customer_email}</div>` : ''}
+                      </td>
+                      <td style="font-size:0.8125rem; color:#475569;">
+                        ${formatDate(o.created_at)}
+                      </td>
+                      <td>
+                        <div style="font-weight:700; color:#0f172a; font-size:0.875rem;">${formatPrice(o.total)}</div>
+                        <div style="font-size:0.6875rem; color:#64748b;">${itemsCount} item${itemsCount !== 1 ? 's' : ''}</div>
+                      </td>
+                      <td>
+                        ${renderPaymentBadge(o.payment_status, o.payment_method)}
+                      </td>
+                      <td>
+                        ${renderStatusBadge(o.status)}
+                      </td>
+                      <td style="text-align:center; width:52px;">
+                        <div class="admin-actions-dropdown">
+                          <button type="button" class="admin-actions-trigger-btn" data-id="${o.id}" title="Ações do pedido">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                              <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+                              <circle cx="19" cy="12" r="1.5" fill="currentColor"/>
+                              <circle cx="5" cy="12" r="1.5" fill="currentColor"/>
+                            </svg>
+                          </button>
+                          <div class="admin-actions-menu">
+                            <button type="button" class="admin-action-item open-order-modal-btn" data-order-id="${o.id}">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                              <span>Ver Detalhes</span>
+                            </button>
+                            ${waLink ? `
+                              <a href="${waLink}" target="_blank" rel="noopener noreferrer" class="admin-action-item" style="text-decoration:none;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                                <span style="color:#15803d;">WhatsApp</span>
+                              </a>
+                            ` : ''}
+                            <button type="button" class="admin-action-item copy-order-code-btn" data-code="${cleanCode}">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                              <span>Copiar Código</span>
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
               </tbody>
             </table>
           </div>
 
           <!-- Mobile: Cards Responsivos de Pedidos -->
           <div class="admin-mobile-card-list admin-mobile-only">
-            ${filtered.map(o => `
-              <div class="admin-res-card">
-                <div class="admin-res-card-header">
-                  <div>
-                    <strong style="font-size:0.9375rem; color:#0f172a;">${o.order_code}</strong>
-                    <div style="font-size:0.75rem; color:#64748b;">${formatDate(o.created_at)}</div>
+            ${filtered.map(o => {
+              const cleanCode = String(o.order_code || o.codigo_pedido || o.id).replace(/^#/, '');
+              return `
+                <div class="admin-res-card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:10px;">
+                  <div class="admin-res-card-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <div>
+                      <strong style="font-family:ui-monospace, monospace; font-size:0.875rem; color:#0f172a;">${cleanCode}</strong>
+                      <div style="font-size:0.75rem; color:#64748b;">${formatDate(o.created_at)}</div>
+                    </div>
+                    ${renderStatusBadge(o.status)}
                   </div>
-                  ${renderStatusBadge(o.status)}
+                  <div class="admin-res-card-body" style="display:flex; flex-direction:column; gap:6px; font-size:0.8125rem; border-top:1px solid #f1f5f9; padding-top:8px;">
+                    <div style="display:flex; justify-content:space-between;">
+                      <span style="color:#64748b;">Cliente:</span>
+                      <strong style="color:#0f172a;">${o.customer_name || 'Cliente'}</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <span style="color:#64748b;">Pagamento:</span>
+                      ${renderPaymentBadge(o.payment_status, o.payment_method)}
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <span style="color:#64748b;">Total:</span>
+                      <strong style="color:#0f172a; font-size:0.9375rem;">${formatPrice(o.total)}</strong>
+                    </div>
+                  </div>
+                  <div class="admin-res-card-actions" style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px; padding-top:8px; border-top:1px solid #f1f5f9;">
+                    <button class="btn btn-secondary btn-sm open-order-modal-btn" data-order-id="${o.id}" style="font-size:0.8125rem; padding:6px 12px;">
+                      Ver Detalhes
+                    </button>
+                  </div>
                 </div>
-                <div class="admin-res-card-body">
-                  <div class="admin-res-card-row">
-                    <span>Cliente:</span>
-                    <strong>${o.customer_name}</strong>
-                  </div>
-                  <div class="admin-res-card-row">
-                    <span>Telefone:</span>
-                    <span>${o.customer_phone || 'Não informado'}</span>
-                  </div>
-                  <div class="admin-res-card-row">
-                    <span>Pagamento:</span>
-                    ${renderPaymentBadge(o.payment_status, o.payment_method)}
-                  </div>
-                  <div class="admin-res-card-row">
-                    <span>Total:</span>
-                    <strong style="color:#1d4ed8; font-size:0.9375rem;">${formatPrice(o.total)}</strong>
-                  </div>
-                </div>
-                <div class="admin-res-card-actions">
-                  <button class="btn btn-secondary btn-sm open-order-modal-btn" data-order-id="${o.id}">
-                    Ver Pedido
-                  </button>
-                </div>
-              </div>
-            `).join('')}
+              `;
+            }).join('')}
           </div>
         `}
       </div>
@@ -1385,152 +1435,173 @@ export function renderAdminView() {
       filtered = filtered.filter(p => (p.stock || 0) > (p.stock_min || 2));
     }
     if (productSearchQuery) {
-      const q = productSearchQuery.toLowerCase();
+      const q = productSearchQuery.toLowerCase().trim();
       filtered = filtered.filter(p =>
+        String(p.id).includes(q) ||
         (p.name && p.name.toLowerCase().includes(q)) ||
-        (p.brand && p.brand.toLowerCase().includes(q)) ||
-        (p.sku && p.sku.toLowerCase().includes(q))
+        (p.brand && p.brand.toLowerCase().includes(q))
       );
     }
 
     return `
-      <div class="admin-card">
-        <div class="admin-card-header">
+      <div class="admin-card" style="display:flex; flex-direction:column; min-height:100%; flex:1; box-sizing:border-box;">
+        <div class="admin-card-header" style="margin-bottom:16px;">
           <div>
-            <h2 class="admin-card-title">
-              ${Icons.package(20)}
-              <span>Produtos (${productsList.length})</span>
-            </h2>
-            <p style="font-size:0.8125rem; color:#64748b; margin-top:2px;">
-              Gerencie catálogo, preços, estoque e fotos dos produtos da loja.
-            </p>
+            <h2 class="admin-card-title">Produtos (${productsList.length})</h2>
           </div>
-          <button id="openNewProductModalBtn" class="btn btn-primary" style="gap:6px;">
-            ${Icons.plus(16)}
-            <span>+ Novo Produto</span>
+          <button id="openNewProductModalBtn" class="btn btn-primary btn-sm" style="font-weight:600; padding:8px 16px;">
+            + Novo Produto
           </button>
         </div>
 
-        <!-- Filtros de Busca, Categoria e Estoque -->
-        <div class="admin-filter-bar">
-          <div class="admin-search-wrapper">
-            <span class="admin-search-icon">${Icons.search(16)}</span>
+        <!-- Filtros Rápidos Minimalistas -->
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:260px; max-width:360px;">
             <input
               type="text"
               id="productSearchInput"
-              class="admin-search-input"
-              placeholder="Buscar por nome, marca ou SKU..."
+              class="form-input"
+              placeholder="Buscar por ID, nome ou marca..."
               value="${productSearchQuery}"
+              style="padding:7px 12px; font-size:0.875rem;"
             />
           </div>
 
-          <select id="productCatFilterSelect" class="admin-filter-select">
+          <select id="productCatFilterSelect" class="admin-filter-select" style="font-size:0.8125rem; padding:6px 10px;">
             <option value="all">Todas as Categorias</option>
             ${categoriesList.map(c => `
               <option value="${c.id}" ${productCategoryFilter === String(c.id) ? 'selected' : ''}>${c.name}</option>
             `).join('')}
           </select>
 
-          <select id="productStockFilterSelect" class="admin-filter-select">
+          <select id="productStockFilterSelect" class="admin-filter-select" style="font-size:0.8125rem; padding:6px 10px;">
             <option value="all" ${productStockFilter === 'all' ? 'selected' : ''}>Todos os Estoques</option>
-            <option value="in_stock" ${productStockFilter === 'in_stock' ? 'selected' : ''}>Estoque Normal</option>
-            <option value="low" ${productStockFilter === 'low' ? 'selected' : ''}>⚠️ Estoque Baixo</option>
-            <option value="out" ${productStockFilter === 'out' ? 'selected' : ''}>⛔ Sem Estoque</option>
+            <option value="in_stock" ${productStockFilter === 'in_stock' ? 'selected' : ''}>Em Estoque</option>
+            <option value="low" ${productStockFilter === 'low' ? 'selected' : ''}>Estoque Baixo</option>
+            <option value="out" ${productStockFilter === 'out' ? 'selected' : ''}>Sem Estoque</option>
           </select>
         </div>
 
         ${filtered.length === 0 ? `
-          <div class="admin-empty-state">
-            <div class="admin-empty-state-icon">${Icons.package(24)}</div>
-            <div class="admin-empty-state-title">Nenhum produto cadastrado</div>
-            <div class="admin-empty-state-desc">Cadastre seu primeiro produto para começar a montar o catálogo da sua loja.</div>
-            <button class="btn btn-primary btn-sm" id="emptyStateNewProdBtn" style="margin-top:6px;">
-              + Cadastrar Primeiro Produto
+          <div class="admin-empty-state" style="padding:32px 16px;">
+            <div class="admin-empty-state-title" style="font-size:1rem;">Nenhum produto encontrado</div>
+            <button class="btn btn-primary btn-sm" id="emptyStateNewProdBtn" style="margin-top:10px;">
+              + Cadastrar Produto
             </button>
           </div>
         ` : `
-          <!-- Desktop: Tabela de Produtos -->
-          <div class="admin-table-wrapper admin-desktop-only">
-            <table class="admin-table">
+          <!-- Desktop: Tabela Corporativa de Produtos -->
+          <div class="admin-table-wrapper admin-desktop-only" style="border:1px solid #e2e8f0; border-radius:8px; overflow-x:auto; -webkit-overflow-scrolling:touch; min-height:300px; flex:1; background:#ffffff;">
+            <table class="admin-table" style="min-width: 860px; width: 100%;">
               <thead>
                 <tr>
-                  <th>Foto</th>
-                  <th>Produto / SKU</th>
+                  <th style="width:55px;">ID</th>
+                  <th style="width:48px;">Foto</th>
+                  <th>Produto</th>
                   <th>Marca</th>
+                  <th>Categoria</th>
+                  <th>Subcategoria</th>
                   <th>Preço</th>
                   <th>Estoque</th>
                   <th>Status</th>
-                  <th>Ações</th>
+                  <th style="width:52px; text-align:center;">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 ${filtered.map(p => {
                   const cat = categoriesList.find(c => String(c.id) === String(p.category_id));
                   const subName = p.subcategory_name || p.subcategory || (cat?.subcategories || []).find(s => String(s.id) === String(p.subcategory_id))?.name || '';
+                  const isBlocked = p.is_active === false;
+
                   return `
-                  <tr>
-                    <td style="width: 52px;">
-                      ${p.image ? `
-                        <img
-                          src="${p.image}"
-                          alt="${p.name}"
-                          style="width: 44px; height: 44px; object-fit: contain; border-radius: 8px; border: 1px solid #e2e8f0; background: #ffffff;"
-                        />
-                      ` : `
-                        <div style="width: 44px; height: 44px; background: #f1f5f9; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #94a3b8; border: 1px solid #e2e8f0;">
-                          ${Icons.package(18)}
-                        </div>
-                      `}
-                    </td>
-                    <td>
-                      <div style="font-weight: 700; color: #0f172a;">${p.name}</div>
-                      <div style="font-size: 0.75rem; color: #64748b; font-family: monospace;">SKU: ${p.sku || 'N/A'}</div>
-                      <div style="margin-top: 4px; display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; flex-wrap: wrap;">
-                        <span style="background: #eff6ff; color: #1d4ed8; padding: 2px 7px; border-radius: 4px; font-weight: 600;">
-                          ${cat ? cat.name : 'Sem categoria'}
-                        </span>
-                        ${subName ? `
-                          <span style="color: #94a3b8; font-weight: bold;">↳</span>
-                          <span style="background: #f8fafc; color: #334155; padding: 2px 7px; border-radius: 4px; font-weight: 600; border: 1px solid #e2e8f0;">
-                            ${subName}
-                          </span>
+                    <tr style="${isBlocked ? 'background:#fafafa; opacity:0.85;' : ''}">
+                      <td style="font-family:ui-monospace, monospace; font-size:0.8125rem; font-weight:700; color:#64748b;">
+                        ${p.id}
+                      </td>
+                      <td style="width:48px;">
+                        ${p.image ? `
+                          <img
+                            src="${p.image}"
+                            alt="${p.name}"
+                            style="width:40px; height:40px; object-fit:contain; border-radius:6px; border:1px solid #e2e8f0; background:#ffffff;"
+                          />
                         ` : `
-                          <span style="color: #ef4444; font-size: 0.6875rem; font-weight: 600;">⚠️ Sem subcategoria</span>
+                          <div style="width:40px; height:40px; background:#f8fafc; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#94a3b8; border:1px solid #e2e8f0; font-size:0.65rem; text-align:center;">
+                            Sem foto
+                          </div>
                         `}
-                      </div>
-                    </td>
-                    <td><span class="badge" style="background:#f1f5f9; color:#475569;">${p.brand || 'Geral'}</span></td>
-                    <td>
-                      <div><strong style="color: #1d4ed8;">${formatPrice(p.price)}</strong></div>
-                      ${p.old_price ? `<div style="font-size: 0.75rem; text-decoration: line-through; color: #94a3b8;">${formatPrice(p.old_price)}</div>` : ''}
-                    </td>
-                    <td>
-                      <span class="badge" style="${(p.stock || 0) <= 0 ? 'background:#fee2e2; color:#b91c1c;' : ((p.stock || 0) <= (p.stock_min || 2) ? 'background:#fef3c7; color:#b45309;' : 'background:#dcfce7; color:#15803d;')}">
-                        ${p.stock || 0} un
-                      </span>
-                    </td>
-                    <td>
-                      <button class="toggle-product-active-btn" data-id="${p.id}" data-active="${p.is_active !== false}" style="background: none; border: none; cursor: pointer;">
-                        <span class="badge" style="${p.is_active !== false ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
-                          ${p.is_active !== false ? '● Ativo' : '○ Inativo'}
+                      </td>
+                      <td>
+                        <div style="font-weight:600; color:#0f172a; font-size:0.875rem;">${p.name}</div>
+                      </td>
+                      <td>
+                        <span style="font-size:0.8125rem; font-weight:600; color:#334155; background:#f1f5f9; padding:2px 8px; border-radius:4px; border:1px solid #e2e8f0; display:inline-block; white-space:nowrap;">
+                          ${p.brand || '—'}
                         </span>
-                      </button>
-                    </td>
-                    <td>
-                      <div style="display: flex; gap: 6px;">
-                        <button class="btn btn-secondary btn-sm edit-product-btn" data-id="${p.id}" title="Editar">
-                          Editar
-                        </button>
-                        <button class="btn btn-secondary btn-sm duplicate-product-btn" data-id="${p.id}" title="Duplicar">
-                          Duplicar
-                        </button>
-                        <button class="btn btn-sm delete-product-btn" data-id="${p.id}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;" title="Excluir">
-                          ✕
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                `;
+                      </td>
+                      <td>
+                        <span style="font-size:0.8125rem; color:#334155; font-weight:500;">
+                          ${cat ? cat.name : '—'}
+                        </span>
+                      </td>
+                      <td>
+                        <span style="font-size:0.8125rem; color:#64748b;">
+                          ${subName || '—'}
+                        </span>
+                      </td>
+                      <td>
+                        <div style="font-weight:700; color:#0f172a; font-size:0.875rem;">${formatPrice(p.price)}</div>
+                        ${p.old_price ? `<div style="font-size:0.6875rem; text-decoration:line-through; color:#94a3b8;">${formatPrice(p.old_price)}</div>` : ''}
+                      </td>
+                      <td>
+                        <span class="badge" style="font-size:0.75rem; ${(p.stock || 0) <= 0 ? 'background:#fee2e2; color:#b91c1c;' : ((p.stock || 0) <= (p.stock_min || 2) ? 'background:#fef3c7; color:#b45309;' : 'background:#dcfce7; color:#15803d;')}">
+                          ${p.stock || 0} un
+                        </span>
+                      </td>
+                      <td>
+                        ${!isBlocked ? `
+                          <span class="badge" style="background:#dcfce7; color:#15803d; font-size:0.75rem;">Ativo</span>
+                        ` : `
+                          <span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:0.75rem;">Bloqueado</span>
+                        `}
+                      </td>
+                      <td style="text-align:center; width:52px;">
+                        <div class="admin-actions-dropdown">
+                          <button type="button" class="admin-actions-trigger-btn" data-id="${p.id}" title="Ações do produto">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                              <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+                              <circle cx="19" cy="12" r="1.5" fill="currentColor"/>
+                              <circle cx="5" cy="12" r="1.5" fill="currentColor"/>
+                            </svg>
+                          </button>
+                          <div class="admin-actions-menu">
+                            <button type="button" class="admin-action-item edit-product-btn" data-id="${p.id}">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                              <span>Editar</span>
+                            </button>
+                            <button type="button" class="admin-action-item toggle-product-block-btn" data-id="${p.id}" data-active="${!isBlocked}">
+                              ${!isBlocked ? `
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
+                                <span style="color:#c2410c;">Bloquear</span>
+                              ` : `
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                <span style="color:#15803d;">Desbloquear</span>
+                              `}
+                            </button>
+                            <button type="button" class="admin-action-item duplicate-product-btn" data-id="${p.id}">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                              <span>Copiar</span>
+                            </button>
+                            <div class="admin-action-divider"></div>
+                            <button type="button" class="admin-action-item delete-product-btn danger" data-id="${p.id}">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                              <span>Excluir</span>
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  `;
                 }).join('')}
               </tbody>
             </table>
@@ -1541,36 +1612,35 @@ export function renderAdminView() {
             ${filtered.map(p => {
               const cat = categoriesList.find(c => String(c.id) === String(p.category_id));
               const subName = p.subcategory_name || p.subcategory || (cat?.subcategories || []).find(s => String(s.id) === String(p.subcategory_id))?.name || '';
+              const isBlocked = p.is_active === false;
+
               return `
-                <div class="admin-res-card">
+                <div class="admin-res-card" style="padding:12px; border:1px solid #e2e8f0; border-radius:8px; background:#fff; margin-bottom:8px;">
                   <div style="display:flex; gap:12px; align-items:center;">
                     ${p.image ? `
-                      <img src="${p.image}" alt="${p.name}" style="width:54px; height:54px; object-fit:contain; border-radius:8px; border:1px solid #e2e8f0; background:#fff; flex-shrink:0;" />
+                      <img src="${p.image}" alt="${p.name}" style="width:48px; height:48px; object-fit:contain; border-radius:6px; border:1px solid #e2e8f0; background:#fff; flex-shrink:0;" />
                     ` : `
-                      <div style="width:54px; height:54px; background:#f1f5f9; border-radius:8px; border:1px solid #e2e8f0; display:flex; align-items:center; justify-content:center; color:#94a3b8; flex-shrink:0;">
-                        ${Icons.package(20)}
+                      <div style="width:48px; height:48px; background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:0.65rem; flex-shrink:0;">
+                        Sem foto
                       </div>
                     `}
                     <div style="flex:1; min-width:0;">
-                      <div style="font-weight:700; color:#0f172a; font-size:0.9375rem; line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                      <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-family:monospace; font-weight:700; color:#64748b; font-size:0.75rem;">${p.id}</span>
+                        ${!isBlocked ? `
+                          <span class="badge" style="background:#dcfce7; color:#15803d; font-size:0.6875rem;">Ativo</span>
+                        ` : `
+                          <span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:0.6875rem;">Bloqueado</span>
+                        `}
+                      </div>
+                      <div style="font-weight:600; color:#0f172a; font-size:0.875rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                         ${p.name}
                       </div>
-                      <div style="font-size:0.75rem; color:#64748b; font-family:monospace; margin-top:2px;">
-                        SKU: ${p.sku || 'N/A'} • ${p.brand || 'Geral'}
+                      <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">
+                        ${cat ? cat.name : '—'} ${subName ? `• ${subName}` : ''}
                       </div>
-                      <div style="margin-top: 3px; display: inline-flex; align-items: center; gap: 4px; font-size: 0.6875rem; flex-wrap: wrap;">
-                        <span style="background: #eff6ff; color: #1d4ed8; padding: 1px 6px; border-radius: 4px; font-weight: 600;">
-                          ${cat ? cat.name : 'Sem categoria'}
-                        </span>
-                        ${subName ? `
-                          <span style="color: #94a3b8;">↳</span>
-                          <span style="background: #f1f5f9; color: #334155; padding: 1px 6px; border-radius: 4px; font-weight: 600;">
-                            ${subName}
-                          </span>
-                        ` : ''}
-                      </div>
-                      <div style="margin-top:4px; display:flex; align-items:center; gap:6px;">
-                        <strong style="color:#1d4ed8; font-size:0.9375rem;">${formatPrice(p.price)}</strong>
+                      <div style="display:flex; align-items:center; justify-content:space-between; margin-top:4px;">
+                        <strong style="color:#0f172a; font-size:0.875rem;">${formatPrice(p.price)}</strong>
                         <span class="badge" style="font-size:0.6875rem; ${(p.stock || 0) <= 0 ? 'background:#fee2e2; color:#b91c1c;' : ((p.stock || 0) <= (p.stock_min || 2) ? 'background:#fef3c7; color:#b45309;' : 'background:#dcfce7; color:#15803d;')}">
                           ${p.stock || 0} un
                         </span>
@@ -1578,20 +1648,44 @@ export function renderAdminView() {
                     </div>
                   </div>
 
-                  <div class="admin-res-card-actions">
-                    <button class="btn btn-secondary btn-sm edit-product-btn" data-id="${p.id}">
-                      Editar
-                    </button>
-                    <button class="btn btn-secondary btn-sm duplicate-product-btn" data-id="${p.id}">
-                      Duplicar
-                    </button>
-                    <button class="btn btn-sm delete-product-btn" data-id="${p.id}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; flex:0 0 40px;">
-                      ✕
-                    </button>
+                  <div style="display:flex; justify-content:flex-end; margin-top:10px; padding-top:8px; border-top:1px solid #f1f5f9; position:relative;">
+                    <div class="admin-actions-dropdown">
+                      <button type="button" class="admin-actions-trigger-btn" data-id="${p.id}" title="Ações do produto">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                          <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+                          <circle cx="19" cy="12" r="1.5" fill="currentColor"/>
+                          <circle cx="5" cy="12" r="1.5" fill="currentColor"/>
+                        </svg>
+                      </button>
+                      <div class="admin-actions-menu open-up">
+                        <button type="button" class="admin-action-item edit-product-btn" data-id="${p.id}">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                          <span>Editar</span>
+                        </button>
+                        <button type="button" class="admin-action-item toggle-product-block-btn" data-id="${p.id}" data-active="${!isBlocked}">
+                          ${!isBlocked ? `
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
+                            <span style="color:#c2410c;">Bloquear</span>
+                          ` : `
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            <span style="color:#15803d;">Desbloquear</span>
+                          `}
+                        </button>
+                        <button type="button" class="admin-action-item duplicate-product-btn" data-id="${p.id}">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                          <span>Copiar</span>
+                        </button>
+                        <div class="admin-action-divider"></div>
+                        <button type="button" class="admin-action-item delete-product-btn danger" data-id="${p.id}">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                          <span>Excluir</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               `;
-    }).join('')}
+            }).join('')}
           </div>
         `}
       </div>
@@ -1599,145 +1693,148 @@ export function renderAdminView() {
   }
 
   // ===================================================================
-  // ABA 4: CATEGORIAS & SUBCATEGORIAS
-  // ===================================================================
-  // ===================================================================
-  // ABA 4: CATEGORIAS & SUBCATEGORIAS (Estrutura Simples, Direta e Sem Ícones)
-  // ===================================================================
+  // ABA 4: CATEGORIAS & SUBCATEGORIAS (Minimalista, Limpo e Direto)
   function renderCategoriesTab() {
-    const totalSubs = categoriesList.reduce((acc, c) => acc + (Array.isArray(c.subcategories) ? c.subcategories.length : 0), 0);
+    let filteredCats = [...categoriesList];
+    if (categorySearchQuery.trim()) {
+      const q = categorySearchQuery.toLowerCase().trim();
+      filteredCats = filteredCats.filter(c => {
+        const matchCat = (c.name && c.name.toLowerCase().includes(q)) || (c.description && c.description.toLowerCase().includes(q));
+        const matchSub = Array.isArray(c.subcategories) && c.subcategories.some(s =>
+          (s.name && s.name.toLowerCase().includes(q)) || (s.description && s.description.toLowerCase().includes(q))
+        );
+        return matchCat || matchSub;
+      });
+    }
+
+    if (categorySortOrder === 'az') {
+      filteredCats.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt', { sensitivity: 'base' }));
+    } else if (categorySortOrder === 'za') {
+      filteredCats.sort((a, b) => (b.name || '').localeCompare(a.name || '', 'pt', { sensitivity: 'base' }));
+    } else if (categorySortOrder === 'subs_desc') {
+      filteredCats.sort((a, b) => (b.subcategories?.length || 0) - (a.subcategories?.length || 0));
+    } else if (categorySortOrder === 'recent') {
+      filteredCats.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+    }
 
     return `
       <div class="admin-card">
-        <div class="admin-card-header" style="flex-wrap:wrap; gap:16px;">
+        <div class="admin-card-header" style="margin-bottom:16px;">
+          <h2 class="admin-card-title">Categorias & Subcategorias</h2>
+          <button id="openNewCategoryModalBtn" class="btn btn-primary btn-sm" style="font-weight:600; padding:8px 16px;">
+            + Nova Categoria
+          </button>
+        </div>
+
+        <!-- Filtro Rápido Minimalista -->
+        <div style="display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap;">
+          <div style="flex:1; max-width:320px;">
+            <input 
+              type="text" 
+              id="categorySearchInput" 
+              class="form-input" 
+              placeholder="Buscar categoria..." 
+              value="${categorySearchQuery}" 
+              style="padding:7px 12px; font-size:0.875rem;"
+            />
+          </div>
           <div>
-            <h2 class="admin-card-title">
-              <span>Categorias & Subcategorias</span>
-            </h2>
-            <p style="font-size:0.8125rem; color:#64748b; margin-top:2px;">
-              Gerencie os departamentos da loja e suas respectivas subcategorias vinculadas.
-            </p>
-          </div>
-          <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <button id="openNewCategoryModalBtn" class="btn btn-primary" style="padding: 10px 18px; font-weight:700;">
-              + Nova Categoria
-            </button>
-            <button id="openNewSubcategoryModalBtn" class="btn btn-secondary" style="padding: 10px 18px; font-weight:700; background:#f8fafc; border:1px solid #cbd5e1; color:#0f172a;">
-              + Nova Subcategoria
-            </button>
+            <select id="categorySortSelect" class="admin-filter-select" style="font-size:0.8125rem; padding:6px 10px;">
+              <option value="az" ${categorySortOrder === 'az' ? 'selected' : ''}>A → Z</option>
+              <option value="za" ${categorySortOrder === 'za' ? 'selected' : ''}>Z → A</option>
+              <option value="subs_desc" ${categorySortOrder === 'subs_desc' ? 'selected' : ''}>Mais Subcategorias</option>
+              <option value="recent" ${categorySortOrder === 'recent' ? 'selected' : ''}>Mais Recentes</option>
+            </select>
           </div>
         </div>
 
-        <div style="display:flex; gap:16px; margin-bottom:20px; flex-wrap:wrap;">
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px 18px; display:flex; align-items:center; gap:12px; min-width:180px;">
-            <div>
-              <div style="font-size:0.75rem; color:#64748b; font-weight:600; text-transform:uppercase;">Categorias Principais</div>
-              <div style="font-size:1.5rem; font-weight:800; color:#0f172a;">${categoriesList.length}</div>
-            </div>
-          </div>
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px 18px; display:flex; align-items:center; gap:12px; min-width:180px;">
-            <div>
-              <div style="font-size:0.75rem; color:#64748b; font-weight:600; text-transform:uppercase;">Subcategorias Vinculadas</div>
-              <div style="font-size:1.5rem; font-weight:800; color:#2563eb;">${totalSubs}</div>
-            </div>
-          </div>
-        </div>
-
-        ${categoriesList.length === 0 ? `
-          <div class="admin-empty-state">
-            <div class="admin-empty-state-title">Nenhuma categoria cadastrada no banco de dados</div>
-            <div class="admin-empty-state-desc">Cadastre categorias como Telefones, Computadores, Acessórios para estruturar a loja.</div>
+        ${filteredCats.length === 0 ? `
+          <div class="admin-empty-state" style="padding:32px 16px;">
+            <div class="admin-empty-state-title" style="font-size:1rem;">Nenhuma categoria</div>
             <button class="btn btn-primary btn-sm" id="emptyStateNewCatBtn" style="margin-top:10px;">
               + Nova Categoria
             </button>
           </div>
         ` : `
-          <div style="display:flex; flex-direction:column; gap:16px;">
-            ${categoriesList.map(c => {
-              const subs = Array.isArray(c.subcategories) ? c.subcategories : [];
-              return `
-                <div class="admin-category-block" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-                  <!-- Cabeçalho da Categoria -->
-                  <div style="padding:16px 20px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-                    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-                      <span style="display:inline-block; font-size:0.75rem; font-weight:700; background:#e2e8f0; color:#475569; padding:4px 8px; border-radius:6px;">
-                        Ordem #${c.display_order || 1}
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            ${filteredCats.map(c => {
+      const subs = Array.isArray(c.subcategories) ? [...c.subcategories] : [];
+      subs.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt', { sensitivity: 'base' }));
+      const isExpanded = expandedCategoryIds.has(c.id);
+
+      return `
+                <div class="admin-category-block" style="background:#ffffff; border:1px solid ${isExpanded ? '#cbd5e1' : '#e2e8f0'}; border-radius:8px; overflow:hidden;">
+                  <!-- Linha da Categoria -->
+                  <div class="category-accordion-header" data-cat-id="${c.id}" style="padding:12px 16px; background:${isExpanded ? '#f8fafc' : '#ffffff'}; border-bottom:${isExpanded ? '1px solid #f1f5f9' : 'none'}; display:flex; justify-content:space-between; align-items:center; gap:12px; cursor:pointer;">
+                    <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                      <span style="color:#64748b; font-size:0.75rem; transition:transform 0.15s ease; display:inline-block; transform:${isExpanded ? 'rotate(90deg)' : 'none'};">
+                        ▶
                       </span>
-                      <strong style="font-size:1.125rem; color:#0f172a; font-weight:800;">
+                      <strong style="font-size:0.9375rem; color:#0f172a; font-weight:600;">
                         ${c.name}
                       </strong>
-                      <span class="badge" style="${c.is_active !== false ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
-                        ${c.is_active !== false ? 'Ativa' : 'Inativa'}
+                      <span style="font-size:0.75rem; color:#64748b; background:#f1f5f9; padding:2px 7px; border-radius:10px; font-weight:600;">
+                        ${subs.length}
                       </span>
-                      <span class="badge" style="background:#eff6ff; color:#1d4ed8; font-weight:600;">
-                        ${subs.length} ${subs.length === 1 ? 'subcategoria' : 'subcategorias'}
-                      </span>
+                      ${c.is_active === false ? `<span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:0.6875rem;">Inativa</span>` : ''}
                     </div>
 
-                    <div style="display:flex; gap:8px; align-items:center;">
-                      <button class="btn btn-sm btn-primary add-sub-to-cat-btn" data-cat-id="${c.id}" data-cat-name="${c.name}" style="padding:6px 12px; font-size:0.8125rem;">
+                    <div style="display:flex; gap:6px; align-items:center;" onclick="event.stopPropagation()">
+                      <button class="btn btn-xs btn-primary add-sub-to-cat-btn" data-cat-id="${c.id}" data-cat-name="${c.name}" style="padding:4px 10px; font-size:0.75rem; font-weight:600;">
                         + Subcategoria
                       </button>
-                      <button class="btn btn-sm btn-secondary edit-category-btn" data-id="${c.id}" style="padding:6px 12px; font-size:0.8125rem;">
+                      <button class="btn btn-xs btn-secondary edit-category-btn" data-id="${c.id}" style="padding:4px 8px; font-size:0.75rem;">
                         Editar
                       </button>
-                      <button class="btn btn-sm delete-category-btn" data-id="${c.id}" data-cat-name="${c.name}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; padding:6px 10px; font-size:0.8125rem;">
+                      <button class="btn btn-xs delete-category-btn" data-id="${c.id}" data-cat-name="${c.name}" style="background:transparent; color:#e11d48; border:1px solid #fecdd3; padding:4px 8px; font-size:0.75rem;">
                         Excluir
                       </button>
                     </div>
                   </div>
 
-                  ${c.description ? `
-                    <div style="padding:10px 20px; font-size:0.8125rem; color:#64748b; background:#ffffff; border-bottom:1px solid #f1f5f9;">
-                      ${c.description}
+                  <!-- Subcategorias (Aninhadas e Diretas) -->
+                  ${isExpanded ? `
+                    <div style="background:#fafafa; padding:4px 16px 10px 36px;">
+                      ${subs.length === 0 ? `
+                        <div style="padding:8px 0; font-size:0.8125rem; color:#94a3b8; display:flex; align-items:center; gap:10px;">
+                          <span>Nenhuma subcategoria.</span>
+                          <button class="btn btn-xs btn-primary add-sub-to-cat-btn" data-cat-id="${c.id}" data-cat-name="${c.name}" style="padding:2px 8px; font-size:0.75rem;">
+                            + Adicionar
+                          </button>
+                        </div>
+                      ` : `
+                        <div>
+                          ${subs.map((sub, idx) => `
+                            <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; ${idx < subs.length - 1 ? 'border-bottom:1px solid #f1f5f9;' : ''}">
+                              <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="color:#94a3b8; font-size:0.65rem;">•</span>
+                                <span style="font-size:0.84rem; color:#1e293b; font-weight:500;">
+                                  ${sub.name}
+                                </span>
+                                ${sub.is_active === false ? `<span style="font-size:0.65rem; color:#b91c1c; background:#fee2e2; padding:1px 5px; border-radius:4px;">Inativa</span>` : ''}
+                              </div>
+                              <div style="display:flex; gap:6px; align-items:center;">
+                                <button class="btn btn-xs edit-subcategory-btn" data-cat-id="${c.id}" data-sub-id="${sub.id}" style="background:transparent; border:none; color:#64748b; font-size:0.75rem; padding:2px 6px; cursor:pointer;" onmouseover="this.style.color='#0f172a'" onmouseout="this.style.color='#64748b'">
+                                  Editar
+                                </button>
+                                <button class="btn btn-xs delete-subcategory-btn" data-cat-id="${c.id}" data-sub-id="${sub.id}" data-sub-name="${sub.name}" style="background:transparent; border:none; color:#e11d48; font-size:0.75rem; padding:2px 6px; cursor:pointer;" onmouseover="this.style.color='#b91c1c'" onmouseout="this.style.color='#e11d48'">
+                                  Excluir
+                                </button>
+                              </div>
+                            </div>
+                          `).join('')}
+                          <div style="padding-top:6px;">
+                            <button class="btn btn-xs add-sub-to-cat-btn" data-cat-id="${c.id}" data-cat-name="${c.name}" style="background:transparent; border:1px dashed #cbd5e1; color:#2563eb; font-size:0.75rem; padding:3px 10px; border-radius:4px; font-weight:600;">
+                              + Nova Subcategoria
+                            </button>
+                          </div>
+                        </div>
+                      `}
                     </div>
                   ` : ''}
-
-                  <!-- Listagem de Subcategorias Vinculadas -->
-                  <div style="padding:16px 20px;">
-                    <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:#64748b; margin-bottom:10px; letter-spacing:0.5px;">
-                      Subcategorias Vinculadas a "${c.name}"
-                    </div>
-
-                    ${subs.length === 0 ? `
-                      <div style="font-size:0.8125rem; color:#94a3b8; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; padding:12px 16px; display:flex; justify-content:space-between; align-items:center;">
-                        <span>Nenhuma subcategoria vinculada ainda a esta categoria.</span>
-                        <button class="btn btn-xs btn-secondary add-sub-to-cat-btn" data-cat-id="${c.id}" data-cat-name="${c.name}" style="font-size:0.75rem;">
-                          + Vincular Agora
-                        </button>
-                      </div>
-                    ` : `
-                      <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:10px;">
-                        ${subs.map(sub => `
-                          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                            <div style="min-width:0; flex:1;">
-                              <div style="display:flex; align-items:center; gap:6px;">
-                                <span style="font-size:0.6875rem; background:#f1f5f9; color:#475569; padding:2px 6px; border-radius:4px; font-weight:600;">#${sub.display_order || 1}</span>
-                                <strong style="font-size:0.875rem; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${sub.name}</strong>
-                              </div>
-                              ${sub.description ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${sub.description}</div>` : ''}
-                              <div style="margin-top:4px;">
-                                <span class="badge" style="font-size:0.6875rem; padding:2px 6px; ${sub.is_active !== false ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
-                                  ${sub.is_active !== false ? 'Ativa' : 'Inativa'}
-                                </span>
-                              </div>
-                            </div>
-                            <div style="display:flex; gap:6px; flex-shrink:0;">
-                              <button class="btn btn-secondary btn-xs edit-subcategory-btn" data-cat-id="${c.id}" data-sub-id="${sub.id}" style="padding:4px 8px; font-size:0.75rem;">
-                                Editar
-                              </button>
-                              <button class="btn btn-xs delete-subcategory-btn" data-cat-id="${c.id}" data-sub-id="${sub.id}" data-sub-name="${sub.name}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; padding:4px 8px; font-size:0.75rem;">
-                                Excluir
-                              </button>
-                            </div>
-                          </div>
-                        `).join('')}
-                      </div>
-                    `}
-                  </div>
                 </div>
               `;
-            }).join('')}
+    }).join('')}
           </div>
         `}
       </div>
@@ -1753,35 +1850,32 @@ export function renderAdminView() {
         <div class="admin-card-header">
           <div>
             <h2 class="admin-card-title">
-              ${Icons.heart ? Icons.heart(20) : '🖼️'}
-              <span>Banners da Vitrine Inicial (${bannersList.length})</span>
+              ${Icons.image ? Icons.image(20) : '🖼️'}
+              <span>Banners da Vitrine (${bannersList.length})</span>
             </h2>
-            <p style="font-size:0.8125rem; color:#64748b; margin-top:2px;">
-              Envie artes limpas criadas no Canva ou Photoshop. Os banners aparecem na rotação da vitrine da loja.
-            </p>
           </div>
           <button id="openNewBannerModalBtn" class="btn btn-primary" style="gap:6px;">
-            ${Icons.plus(16)}
-            <span>+ Novo Banner</span>
+            ${Icons.plus(15)}
+            <span>Novo Banner</span>
           </button>
         </div>
 
         ${bannersList.length === 0 ? `
           <div class="admin-empty-state">
             <div class="admin-empty-state-icon">🖼️</div>
-            <div class="admin-empty-state-title">Nenhum banner ativo</div>
-            <div class="admin-empty-state-desc">Suba uma imagem de divulgação para a página inicial com link direto para ofertas ou lançamentos.</div>
+            <div class="admin-empty-state-title">Nenhum banner cadastrado</div>
+            <div class="admin-empty-state-desc">Cadastre um banner promocional para a página inicial com link direto para ofertas ou lançamentos.</div>
             <button class="btn btn-primary btn-sm" id="emptyStateNewBannerBtn" style="margin-top:6px;">
-              + Subir Primeiro Banner
+              + Novo Banner
             </button>
           </div>
         ` : `
-          <!-- Grid Visual de Banners (1 col no mobile, 2 ou 3 cols no desktop) -->
+          <!-- Grid Visual de Banners -->
           <div class="admin-banners-grid">
             ${bannersList.map(b => `
               <div class="admin-banner-card">
                 <div class="admin-banner-card-img-wrap">
-                  <span class="admin-banner-card-order-badge">#${b.display_order || 1}</span>
+                  <span class="admin-banner-card-order-badge">Ordem ${b.display_order || 1}</span>
                   <img
                     src="${b.image_url}"
                     alt="${b.title}"
@@ -1792,20 +1886,26 @@ export function renderAdminView() {
                 <div class="admin-banner-card-body">
                   <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
                     <div class="admin-banner-card-title">${b.title}</div>
-                    <button class="btn btn-sm toggle-banner-active-btn" data-id="${b.id}" data-active="${b.is_active !== false}" style="${b.is_active !== false ? 'background:#dcfce7; color:#15803d; border:1px solid #bbf7d0;' : 'background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;'}">
-                      ${b.is_active !== false ? '✓ Ativo' : '✕ Oculto'}
+                    <button class="btn btn-sm toggle-banner-active-btn" data-id="${b.id}" data-active="${b.is_active !== false}" style="font-size:0.6875rem; padding:2px 8px; border-radius:999px; cursor:pointer; ${b.is_active !== false ? 'background:#dcfce7; color:#15803d; border:1px solid #bbf7d0;' : 'background:#f1f5f9; color:#64748b; border:1px solid #e2e8f0;'}">
+                      <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:${b.is_active !== false ? '#16a34a' : '#94a3b8'}; margin-right:4px;"></span>${b.is_active !== false ? 'Ativo' : 'Pausado'}
                     </button>
                   </div>
-                  <div class="admin-banner-card-link">
-                    Destino: ${b.button_link || '#/catalogo'}
+                  <div class="admin-banner-card-link" style="display:flex; align-items:center; gap:4px; color:#64748b; font-size:0.75rem;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                    <span>${b.button_link || '#/catalogo'}</span>
                   </div>
-                  <div style="display:flex; gap:8px; margin-top:8px; border-top:1px solid #f1f5f9; padding-top:10px;">
-                    <button class="btn btn-secondary btn-sm edit-banner-btn" data-id="${b.id}" style="flex:1; justify-content:center;">
-                      Editar
-                    </button>
-                    <button class="btn btn-sm delete-banner-btn" data-id="${b.id}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; padding:6px 12px;">
-                      Excluir
-                    </button>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; border-top:1px solid #f1f5f9; padding-top:8px;">
+                    <span style="font-size:0.75rem; color:#94a3b8; font-family:monospace;">ID: ${b.id}</span>
+                    <div style="display:flex; gap:6px;">
+                      <button class="btn btn-secondary btn-sm edit-banner-btn" data-id="${b.id}" style="padding:4px 10px; font-size:0.75rem; font-weight:600;">
+                        Editar
+                      </button>
+                      <button class="btn btn-secondary btn-sm delete-banner-btn" data-id="${b.id}" title="Excluir banner" style="padding:4px 8px; font-size:0.75rem; color:#dc2626; border-color:#fecaca; background:#fff5f5;">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1817,82 +1917,136 @@ export function renderAdminView() {
   }
 
   // ===================================================================
+  // ===================================================================
   // ABA 6: CUPONS DE DESCONTO
   // ===================================================================
   function renderCouponsTab() {
+    let filtered = couponsList.filter(c => {
+      if (couponStatusFilter === 'active') return c.is_active !== false;
+      if (couponStatusFilter === 'paused') return c.is_active === false;
+      return true;
+    });
+
+    if (couponSearchQuery.trim()) {
+      const q = couponSearchQuery.toLowerCase().trim();
+      filtered = filtered.filter(c =>
+        (c.code && c.code.toLowerCase().includes(q)) ||
+        String(c.id).includes(q) ||
+        String(c.discount_value).includes(q)
+      );
+    }
+
     return `
-      <div class="admin-card">
-        <div class="admin-card-header">
+      <div class="admin-card" style="display:flex; flex-direction:column; min-height:100%; flex:1; box-sizing:border-box;">
+        <div class="admin-card-header" style="margin-bottom:16px;">
           <div>
-            <h2 class="admin-card-title">
-              ${Icons.tag(20)}
-              <span>Cupons Promocionais (${couponsList.length})</span>
-            </h2>
-            <p style="font-size:0.8125rem; color:#64748b; margin-top:2px;">
-              Crie códigos de desconto com valor percentual, fixo em Kwanzas ou frete grátis.
-            </p>
+            <h2 class="admin-card-title">Cupons (${couponsList.length})</h2>
           </div>
-          <button id="openNewCouponModalBtn" class="btn btn-primary" style="gap:6px;">
-            ${Icons.plus(16)}
-            <span>+ Novo Cupom</span>
+          <button id="openNewCouponModalBtn" class="btn btn-primary btn-sm" style="font-weight:600; padding:8px 16px;">
+            + Novo Cupom
           </button>
         </div>
 
-        ${couponsList.length === 0 ? `
-          <div class="admin-empty-state">
-            <div class="admin-empty-state-icon">${Icons.tag(24)}</div>
-            <div class="admin-empty-state-title">Nenhum cupom cadastrado</div>
-            <div class="admin-empty-state-desc">Crie cupons promocionais para fidelizar clientes no checkout.</div>
-            <button class="btn btn-primary btn-sm" id="emptyStateNewCouponBtn" style="margin-top:6px;">
-              + Criar Primeiro Cupom
+        <!-- Filtros Rápidos Minimalistas -->
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:260px; max-width:360px;">
+            <input
+              type="text"
+              id="couponSearchInput"
+              class="form-input"
+              placeholder="Buscar por código ou valor..."
+              value="${couponSearchQuery}"
+              style="padding:7px 12px; font-size:0.875rem;"
+            />
+          </div>
+
+          <select id="couponStatusFilterSelect" class="admin-filter-select" style="font-size:0.8125rem; padding:6px 10px;">
+            <option value="all" ${couponStatusFilter === 'all' ? 'selected' : ''}>Todos os Status</option>
+            <option value="active" ${couponStatusFilter === 'active' ? 'selected' : ''}>Ativos</option>
+            <option value="paused" ${couponStatusFilter === 'paused' ? 'selected' : ''}>Pausados</option>
+          </select>
+        </div>
+
+        ${filtered.length === 0 ? `
+          <div class="admin-empty-state" style="padding:32px 16px;">
+            <div class="admin-empty-state-title" style="font-size:1rem;">Nenhum cupom encontrado</div>
+            <button class="btn btn-primary btn-sm" id="emptyStateNewCouponBtn" style="margin-top:10px;">
+              + Criar Cupom
             </button>
           </div>
         ` : `
           <!-- Desktop: Tabela de Cupons -->
-          <div class="admin-table-wrapper admin-desktop-only">
-            <table class="admin-table">
+          <div class="admin-table-wrapper admin-desktop-only" style="border:1px solid #e2e8f0; border-radius:8px; overflow-x:auto; -webkit-overflow-scrolling:touch; min-height:300px; flex:1; background:#ffffff;">
+            <table class="admin-table" style="min-width:760px; width:100%;">
               <thead>
                 <tr>
+                  <th style="width:55px;">ID</th>
                   <th>Código</th>
                   <th>Desconto</th>
                   <th>Pedido Mínimo</th>
                   <th>Usos / Limite</th>
                   <th>Status</th>
-                  <th>Ações</th>
+                  <th style="width:52px; text-align:center;">Ações</th>
                 </tr>
               </thead>
               <tbody>
-                ${couponsList.map(c => `
+                ${filtered.map(c => `
                   <tr>
-                    <td>
-                      <code style="font-weight: 800; font-size: 0.9375rem; background: #f8fafc; padding: 4px 8px; border-radius: 4px; border: 1px solid #e2e8f0; color: #1d4ed8;">
-                        ${c.code}
-                      </code>
+                    <td style="font-family:ui-monospace, monospace; font-size:0.8125rem; font-weight:700; color:#64748b;">
+                      ${c.id}
                     </td>
                     <td>
-                      <strong>
+                      <span style="font-family:ui-monospace, monospace; font-weight:700; font-size:0.875rem; background:#f1f5f9; padding:3px 8px; border-radius:5px; border:1px solid #e2e8f0; color:#1e293b;">
+                        ${c.code}
+                      </span>
+                    </td>
+                    <td>
+                      <strong style="color:#0f172a; font-size:0.875rem;">
                         ${c.discount_type === 'percent' ? `${c.discount_value}% OFF` : (c.discount_type === 'free_shipping' ? 'Frete Grátis' : formatPrice(c.discount_value))}
                       </strong>
                     </td>
-                    <td>${Number(c.min_order_value) > 0 ? formatPrice(c.min_order_value) : 'Sem valor mínimo'}</td>
-                    <td>
-                      <span style="font-size: 0.8125rem;">${c.total_usado !== undefined ? c.total_usado : (c.times_used || 0)} / ${c.usage_limit || '∞'}</span>
+                    <td style="font-size:0.8125rem; color:#475569;">
+                      ${Number(c.min_order_value) > 0 ? formatPrice(c.min_order_value) : '—'}
+                    </td>
+                    <td style="font-size:0.8125rem; color:#475569;">
+                      ${c.total_usado !== undefined ? c.total_usado : (c.times_used || 0)} / ${c.usage_limit || '∞'}
                     </td>
                     <td>
-                      <button class="toggle-coupon-active-btn" data-id="${c.id}" data-active="${c.is_active !== false}" style="background: none; border: none; cursor: pointer;">
-                        <span class="badge" style="${c.is_active !== false ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
-                          ${c.is_active !== false ? '● Ativo' : '○ Pausado'}
-                        </span>
-                      </button>
+                      ${c.is_active !== false ? `
+                        <span class="badge" style="background:#dcfce7; color:#15803d; font-size:0.75rem;">Ativo</span>
+                      ` : `
+                        <span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:0.75rem;">Pausado</span>
+                      `}
                     </td>
-                    <td>
-                      <div style="display:flex; gap:6px;">
-                        <button class="btn btn-secondary btn-sm edit-coupon-btn" data-id="${c.id}">
-                          Editar
+                    <td style="text-align:center; width:52px;">
+                      <div class="admin-actions-dropdown">
+                        <button type="button" class="admin-actions-trigger-btn" data-id="${c.id}" title="Ações">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+                            <circle cx="19" cy="12" r="1.5" fill="currentColor"/>
+                            <circle cx="5" cy="12" r="1.5" fill="currentColor"/>
+                          </svg>
                         </button>
-                        <button class="btn btn-sm delete-coupon-btn" data-id="${c.id}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;">
-                          Excluir
-                        </button>
+                        <div class="admin-actions-menu">
+                          <button type="button" class="admin-action-item edit-coupon-btn" data-id="${c.id}">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                            <span>Editar</span>
+                          </button>
+                          <button type="button" class="admin-action-item toggle-coupon-active-btn" data-id="${c.id}" data-active="${c.is_active !== false}">
+                            ${c.is_active !== false ? `
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/></svg>
+                              <span style="color:#c2410c;">Pausar</span>
+                            ` : `
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="#16a34a"/></svg>
+                              <span style="color:#15803d;">Ativar</span>
+                            `}
+                          </button>
+                          <div class="admin-action-divider"></div>
+                          <button type="button" class="admin-action-item delete-coupon-btn danger" data-id="${c.id}">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                            <span>Excluir</span>
+                          </button>
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -1901,33 +2055,54 @@ export function renderAdminView() {
             </table>
           </div>
 
-          <!-- Mobile: Cards de Cupons em Estilo Ticket -->
-          <div class="admin-coupons-grid admin-mobile-only">
-            ${couponsList.map(c => `
-              <div class="admin-coupon-ticket">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <code style="font-size:1.125rem; font-weight:900; color:#1d4ed8;">${c.code}</code>
-                  <span class="badge" style="${c.is_active !== false ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
-                    ${c.is_active !== false ? 'Ativo' : 'Pausado'}
+          <!-- Mobile: Cards Responsivos de Cupons -->
+          <div class="admin-mobile-card-list admin-mobile-only">
+            ${filtered.map(c => `
+              <div class="admin-res-card" style="padding:14px; border:1px solid #e2e8f0; border-radius:8px; background:#fff; margin-bottom:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                  <span style="font-family:ui-monospace, monospace; font-weight:700; font-size:0.9375rem; color:#1e293b; background:#f1f5f9; padding:2px 8px; border-radius:4px; border:1px solid #e2e8f0;">
+                    ${c.code}
                   </span>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    ${c.is_active !== false ? `
+                      <span class="badge" style="background:#dcfce7; color:#15803d; font-size:0.75rem;">Ativo</span>
+                    ` : `
+                      <span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:0.75rem;">Pausado</span>
+                    `}
+                    <div class="admin-actions-dropdown">
+                      <button type="button" class="admin-actions-trigger-btn" data-id="${c.id}" title="Ações">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                          <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+                          <circle cx="19" cy="12" r="1.5" fill="currentColor"/>
+                          <circle cx="5" cy="12" r="1.5" fill="currentColor"/>
+                        </svg>
+                      </button>
+                      <div class="admin-actions-menu">
+                        <button type="button" class="admin-action-item edit-coupon-btn" data-id="${c.id}">
+                          <span>Editar</span>
+                        </button>
+                        <button type="button" class="admin-action-item toggle-coupon-active-btn" data-id="${c.id}" data-active="${c.is_active !== false}">
+                          <span>${c.is_active !== false ? 'Pausar' : 'Ativar'}</span>
+                        </button>
+                        <div class="admin-action-divider"></div>
+                        <button type="button" class="admin-action-item delete-coupon-btn danger" data-id="${c.id}">
+                          <span>Excluir</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div style="font-size:1.25rem; font-weight:800; color:#0f172a;">
-                  ${c.discount_type === 'percent' ? `${c.discount_value}% OFF` : (c.discount_type === 'free_shipping' ? 'Frete Grátis' : formatPrice(c.discount_value))}
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; font-size:0.875rem;">
+                  <span style="color:#64748b;">Desconto:</span>
+                  <strong style="color:#0f172a;">${c.discount_type === 'percent' ? `${c.discount_value}% OFF` : (c.discount_type === 'free_shipping' ? 'Frete Grátis' : formatPrice(c.discount_value))}</strong>
                 </div>
-                <div style="font-size:0.75rem; color:#64748b;">
-                  <div>Pedido mínimo: ${Number(c.min_order_value) > 0 ? formatPrice(c.min_order_value) : 'Sem valor mínimo'}</div>
-                  <div>Usos: ${c.total_usado !== undefined ? c.total_usado : (c.times_used || 0)} / ${c.usage_limit || 'Ilimitado'}</div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; font-size:0.8125rem; color:#64748b;">
+                  <span>Pedido Mínimo:</span>
+                  <span>${Number(c.min_order_value) > 0 ? formatPrice(c.min_order_value) : 'Sem mínimo'}</span>
                 </div>
-                <div style="display:flex; gap:8px; border-top:1px dashed #cbd5e1; padding-top:10px; margin-top:4px;">
-                  <button class="btn btn-secondary btn-sm edit-coupon-btn" data-id="${c.id}" style="flex:1;">
-                    Editar
-                  </button>
-                  <button class="btn btn-secondary btn-sm toggle-coupon-active-btn" data-id="${c.id}" data-active="${c.is_active !== false}" style="flex:1;">
-                    ${c.is_active !== false ? 'Pausar' : 'Ativar'}
-                  </button>
-                  <button class="btn btn-sm delete-coupon-btn" data-id="${c.id}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;">
-                    Excluir
-                  </button>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; font-size:0.8125rem; color:#64748b;">
+                  <span>Usos:</span>
+                  <span>${c.total_usado !== undefined ? c.total_usado : (c.times_used || 0)} / ${c.usage_limit || '∞'}</span>
                 </div>
               </div>
             `).join('')}
@@ -1942,66 +2117,140 @@ export function renderAdminView() {
   // ===================================================================
   function renderCatalogsTab() {
     return `
-      <div class="admin-card">
-        <div class="admin-card-header">
+      <div class="admin-card" style="display:flex; flex-direction:column; min-height:100%; flex:1; box-sizing:border-box;">
+        <div class="admin-card-header" style="margin-bottom:16px;">
           <div>
-            <h2 class="admin-card-title">
-              ${Icons.tag(20)}
-              <span>Campanhas & Coleções (${catalogsList.length})</span>
-            </h2>
-            <p style="font-size:0.8125rem; color:#64748b; margin-top:2px;">
-              Crie coleções especiais (Black Friday, Novidades de Verão, etc.) e vincule produtos.
-            </p>
+            <h2 class="admin-card-title">Campanhas (${catalogsList.length})</h2>
           </div>
-          <button id="openNewCatalogModalBtn" class="btn btn-primary" style="gap:6px;">
-            ${Icons.plus(16)}
-            <span>+ Nova Campanha</span>
+          <button id="openNewCatalogModalBtn" class="btn btn-primary btn-sm" style="font-weight:600; padding:8px 16px;">
+            + Nova Campanha
           </button>
         </div>
 
         ${catalogsList.length === 0 ? `
-          <div class="admin-empty-state">
-            <div class="admin-empty-state-icon">${Icons.tag(24)}</div>
-            <div class="admin-empty-state-title">Nenhuma campanha criada</div>
-            <div class="admin-empty-state-desc">Crie coleções temáticas para destacar grupos especiais de produtos.</div>
-            <button class="btn btn-primary btn-sm" id="emptyStateNewCatalogBtn" style="margin-top:6px;">
+          <div class="admin-empty-state" style="padding:32px 16px;">
+            <div class="admin-empty-state-title" style="font-size:1rem;">Nenhuma campanha cadastrada</div>
+            <button class="btn btn-primary btn-sm" id="emptyStateNewCatalogBtn" style="margin-top:10px;">
               + Nova Campanha
             </button>
           </div>
         ` : `
-          <div class="admin-catalogs-grid">
-            ${catalogsList.map(c => `
-              <div class="admin-catalog-card">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-                  <div>
-                    <strong style="font-size:1rem; color:#0f172a;">${c.name}</strong>
-                    <div style="font-size:0.75rem; color:#64748b; font-family:monospace;">slug: #${c.slug}</div>
-                  </div>
-                  <span class="badge" style="${c.is_active !== false ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
-                    ${c.is_active !== false ? 'Ativa' : 'Inativa'}
-                  </span>
-                </div>
+          <!-- Desktop: Tabela de Campanhas -->
+          <div class="admin-table-wrapper admin-desktop-only" style="border:1px solid #e2e8f0; border-radius:8px; overflow-x:auto; -webkit-overflow-scrolling:touch; min-height:300px; flex:1; background:#ffffff;">
+            <table class="admin-table" style="min-width:760px; width:100%;">
+              <thead>
+                <tr>
+                  <th style="width:55px;">ID</th>
+                  <th>Campanha</th>
+                  <th>Slug URL</th>
+                  <th>Badge</th>
+                  <th>Ordem</th>
+                  <th>Status</th>
+                  <th style="width:52px; text-align:center;">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${catalogsList.map(c => `
+                  <tr>
+                    <td style="font-family:ui-monospace, monospace; font-size:0.8125rem; font-weight:700; color:#64748b;">
+                      ${c.id}
+                    </td>
+                    <td>
+                      <div style="font-weight:600; color:#0f172a; font-size:0.875rem;">${c.name}</div>
+                      ${c.description ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">${c.description}</div>` : ''}
+                    </td>
+                    <td>
+                      <span style="font-family:ui-monospace, monospace; font-size:0.8125rem; color:#475569;">
+                        ${c.slug || '—'}
+                      </span>
+                    </td>
+                    <td>
+                      ${c.badge_text ? `
+                        <span class="badge" style="background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; font-weight:600; font-size:0.75rem;">
+                          ${c.badge_text}
+                        </span>
+                      ` : `
+                        <span style="color:#94a3b8; font-size:0.75rem;">—</span>
+                      `}
+                    </td>
+                    <td style="font-size:0.8125rem; color:#475569;">
+                      ${c.display_order || 1}
+                    </td>
+                    <td>
+                      ${c.is_active !== false ? `
+                        <span class="badge" style="background:#dcfce7; color:#15803d; font-size:0.75rem;">Ativa</span>
+                      ` : `
+                        <span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:0.75rem;">Inativa</span>
+                      `}
+                    </td>
+                    <td style="text-align:center; width:52px;">
+                      <div class="admin-actions-dropdown">
+                        <button type="button" class="admin-actions-trigger-btn" data-id="${c.id}" title="Ações">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+                            <circle cx="19" cy="12" r="1.5" fill="currentColor"/>
+                            <circle cx="5" cy="12" r="1.5" fill="currentColor"/>
+                          </svg>
+                        </button>
+                        <div class="admin-actions-menu">
+                          <button type="button" class="admin-action-item edit-catalog-btn" data-id="${c.id}">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                            <span>Editar</span>
+                          </button>
+                          <div class="admin-action-divider"></div>
+                          <button type="button" class="admin-action-item delete-catalog-btn danger" data-id="${c.id}">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                            <span>Excluir</span>
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
 
-                ${c.badge_text ? `
+          <!-- Mobile: Cards Responsivos de Campanhas -->
+          <div class="admin-mobile-card-list admin-mobile-only">
+            ${catalogsList.map(c => `
+              <div class="admin-res-card" style="padding:14px; border:1px solid #e2e8f0; border-radius:8px; background:#fff; margin-bottom:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
                   <div>
-                    <span class="badge" style="background:#f97316; color:#ffffff; font-weight:700;">
-                      ${c.badge_text}
-                    </span>
+                    <strong style="color:#0f172a; font-size:0.9375rem;">${c.name}</strong>
+                    <div style="font-family:ui-monospace, monospace; font-size:0.75rem; color:#64748b; margin-top:2px;">${c.slug || '—'}</div>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    ${c.is_active !== false ? `
+                      <span class="badge" style="background:#dcfce7; color:#15803d; font-size:0.75rem;">Ativa</span>
+                    ` : `
+                      <span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:0.75rem;">Inativa</span>
+                    `}
+                    <div class="admin-actions-dropdown">
+                      <button type="button" class="admin-actions-trigger-btn" data-id="${c.id}" title="Ações">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                          <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+                          <circle cx="19" cy="12" r="1.5" fill="currentColor"/>
+                          <circle cx="5" cy="12" r="1.5" fill="currentColor"/>
+                        </svg>
+                      </button>
+                      <div class="admin-actions-menu">
+                        <button type="button" class="admin-action-item edit-catalog-btn" data-id="${c.id}">
+                          <span>Editar</span>
+                        </button>
+                        <div class="admin-action-divider"></div>
+                        <button type="button" class="admin-action-item delete-catalog-btn danger" data-id="${c.id}">
+                          <span>Excluir</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                ${c.description ? `
+                  <div style="font-size:0.8125rem; color:#475569; margin-top:6px; line-height:1.4;">
+                    ${c.description}
                   </div>
                 ` : ''}
-
-                <div style="font-size:0.8125rem; color:#475569; line-height:1.4; flex:1;">
-                  ${c.description || 'Sem descrição cadastrada.'}
-                </div>
-
-                <div style="display:flex; gap:8px; border-top:1px solid #f1f5f9; padding-top:10px;">
-                  <button class="btn btn-secondary btn-sm edit-catalog-btn" data-id="${c.id}" style="flex:1;">
-                    Editar
-                  </button>
-                  <button class="btn btn-sm delete-catalog-btn" data-id="${c.id}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;">
-                    Excluir
-                  </button>
-                </div>
               </div>
             `).join('')}
           </div>
@@ -2015,9 +2264,15 @@ export function renderAdminView() {
   // ===================================================================
   function renderCustomersTab() {
     let filtered = [...customersList];
+    if (customerStatusFilter === 'active') {
+      filtered = filtered.filter(c => c.status !== 'blocked');
+    } else if (customerStatusFilter === 'blocked') {
+      filtered = filtered.filter(c => c.status === 'blocked');
+    }
     if (customerSearchQuery) {
-      const q = customerSearchQuery.toLowerCase();
+      const q = customerSearchQuery.toLowerCase().trim();
       filtered = filtered.filter(c =>
+        String(c.id).includes(q) ||
         (c.name && c.name.toLowerCase().includes(q)) ||
         (c.email && c.email.toLowerCase().includes(q)) ||
         (c.phone && c.phone.toLowerCase().includes(q))
@@ -2025,121 +2280,180 @@ export function renderAdminView() {
     }
 
     return `
-      <div class="admin-card">
-        <div class="admin-card-header">
+      <div class="admin-card" style="display:flex; flex-direction:column; min-height:100%; flex:1; box-sizing:border-box;">
+        <div class="admin-card-header" style="margin-bottom:16px;">
           <div>
-            <h2 class="admin-card-title">
-              ${Icons.user(20)}
-              <span>Clientes Cadastrados (${customersList.length})</span>
-            </h2>
-            <p style="font-size:0.8125rem; color:#64748b; margin-top:2px;">
-              Consulte dados de contato, morada e histórico de compras dos clientes.
-            </p>
+            <h2 class="admin-card-title">Clientes (${customersList.length})</h2>
           </div>
         </div>
 
-        <div class="admin-filter-bar">
-          <div class="admin-search-wrapper">
-            <span class="admin-search-icon">${Icons.search(16)}</span>
+        <!-- Filtros Rápidos Minimalistas -->
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:260px; max-width:360px;">
             <input
               type="text"
               id="customerSearchInput"
-              class="admin-search-input"
-              placeholder="Buscar cliente por nome, e-mail ou telefone..."
+              class="form-input"
+              placeholder="Buscar por ID, nome, e-mail ou telefone..."
               value="${customerSearchQuery}"
+              style="padding:7px 12px; font-size:0.875rem;"
             />
           </div>
+
+          <select id="customerStatusFilterSelect" class="admin-filter-select" style="font-size:0.8125rem; padding:6px 10px;">
+            <option value="all" ${customerStatusFilter === 'all' ? 'selected' : ''}>Todos os Status</option>
+            <option value="active" ${customerStatusFilter === 'active' ? 'selected' : ''}>Ativos</option>
+            <option value="blocked" ${customerStatusFilter === 'blocked' ? 'selected' : ''}>Bloqueados</option>
+          </select>
         </div>
 
         ${filtered.length === 0 ? `
-          <div class="admin-empty-state">
-            <div class="admin-empty-state-icon">${Icons.user(24)}</div>
-            <div class="admin-empty-state-title">Nenhum cliente encontrado</div>
-            <div class="admin-empty-state-desc">Os clientes que criarem conta ou realizarem pedidos aparecerão nesta lista.</div>
+          <div class="admin-empty-state" style="padding:32px 16px;">
+            <div class="admin-empty-state-title" style="font-size:1rem;">Nenhum cliente encontrado</div>
+            <div style="font-size:0.8125rem; color:#64748b; margin-top:4px;">Nenhum registro corresponde aos filtros selecionados.</div>
           </div>
         ` : `
-          <!-- Desktop: Tabela de Clientes -->
-          <div class="admin-table-wrapper admin-desktop-only">
-            <table class="admin-table">
+          <!-- Desktop: Tabela Corporativa de Clientes -->
+          <div class="admin-table-wrapper admin-desktop-only" style="border:1px solid #e2e8f0; border-radius:8px; overflow-x:auto; -webkit-overflow-scrolling:touch; min-height:300px; flex:1; background:#ffffff;">
+            <table class="admin-table" style="min-width: 860px; width: 100%;">
               <thead>
                 <tr>
-                  <th>Nome do Cliente</th>
+                  <th style="width:55px;">ID</th>
+                  <th>Cliente</th>
                   <th>E-mail</th>
                   <th>Telefone</th>
                   <th>Endereço em Luanda</th>
-                  <th>Total Comprado</th>
-                  <th>Status</th>
-                  <th>Ações</th>
+                  <th style="width:120px;">Total Comprado</th>
+                  <th style="width:95px;">Status</th>
+                  <th style="width:52px; text-align:center;">Ações</th>
                 </tr>
               </thead>
               <tbody>
-                ${filtered.map(c => `
-                  <tr>
-                    <td><strong>${c.name}</strong></td>
-                    <td>${c.email}</td>
-                    <td>${c.phone || '<span style="color:#94a3b8;">Não informado</span>'}</td>
-                    <td>
-                      <div style="font-size:0.8125rem; max-width:200px; color:#0f172a; line-height:1.3;">
-                        ${c.endereco || '<span style="color:#94a3b8;">Não informado</span>'}
-                      </div>
-                    </td>
-                    <td><strong style="color:#1d4ed8;">${formatPrice(c.total_spent || 0)}</strong></td>
-                    <td>
-                      <span class="badge" style="${c.status !== 'blocked' ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
-                        ${c.status !== 'blocked' ? 'Ativo' : 'Bloqueado'}
-                      </span>
-                    </td>
-                    <td>
-                      <button class="btn btn-sm toggle-block-customer-btn" data-id="${c.id}" data-blocked="${c.status === 'blocked'}" style="${c.status === 'blocked' ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
-                        ${c.status === 'blocked' ? 'Desbloquear' : 'Bloquear'}
-                      </button>
-                    </td>
-                  </tr>
-                `).join('')}
+                ${filtered.map(c => {
+                  const phone = c.phone || c.telefone || '';
+                  const cleanPhone = phone.replace(/[^0-9]/g, '');
+                  const waLink = cleanPhone ? `https://wa.me/${cleanPhone.startsWith('244') ? cleanPhone : '244' + cleanPhone}` : null;
+                  const isBlocked = c.status === 'blocked';
+
+                  return `
+                    <tr style="${isBlocked ? 'background:#fafafa; opacity:0.85;' : ''}">
+                      <td style="font-family:ui-monospace, monospace; font-size:0.8125rem; font-weight:700; color:#64748b;">
+                        ${c.id}
+                      </td>
+                      <td>
+                        <div style="font-weight:600; color:#0f172a; font-size:0.875rem;">${c.name}</div>
+                      </td>
+                      <td>
+                        <span style="font-size:0.8125rem; color:#475569;">${c.email}</span>
+                      </td>
+                      <td>
+                        <span style="font-size:0.8125rem; color:#475569;">${phone || '—'}</span>
+                      </td>
+                      <td>
+                        <div style="font-size:0.8125rem; max-width:200px; color:#475569; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                          ${c.endereco || '—'}
+                        </div>
+                      </td>
+                      <td>
+                        <strong style="color:#0f172a; font-size:0.875rem;">${formatPrice(c.total_spent || 0)}</strong>
+                      </td>
+                      <td>
+                        ${!isBlocked ? `
+                          <span class="badge" style="display:inline-flex; align-items:center; background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; font-size:0.75rem; font-weight:600; padding:2px 8px; border-radius:5px;">
+                            <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#16a34a; margin-right:5px;"></span>Ativo
+                          </span>
+                        ` : `
+                          <span class="badge" style="display:inline-flex; align-items:center; background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; font-size:0.75rem; font-weight:600; padding:2px 8px; border-radius:5px;">
+                            <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#ef4444; margin-right:5px;"></span>Bloqueado
+                          </span>
+                        `}
+                      </td>
+                      <td style="text-align:center; width:52px;">
+                        <div class="admin-actions-dropdown">
+                          <button type="button" class="admin-actions-trigger-btn" data-id="${c.id}" title="Ações do cliente">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                              <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+                              <circle cx="19" cy="12" r="1.5" fill="currentColor"/>
+                              <circle cx="5" cy="12" r="1.5" fill="currentColor"/>
+                            </svg>
+                          </button>
+                          <div class="admin-actions-menu">
+                            <button type="button" class="admin-action-item open-customer-modal-btn" data-id="${c.id}">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                              <span>Ver Detalhes</span>
+                            </button>
+                            ${waLink ? `
+                              <a href="${waLink}" target="_blank" rel="noopener noreferrer" class="admin-action-item" style="text-decoration:none;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                                <span style="color:#15803d;">WhatsApp</span>
+                              </a>
+                            ` : ''}
+                            <div class="admin-action-divider"></div>
+                            <button type="button" class="admin-action-item toggle-block-customer-btn ${!isBlocked ? 'danger' : ''}" data-id="${c.id}" data-blocked="${isBlocked}">
+                              ${!isBlocked ? `
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
+                                <span style="color:#dc2626;">Bloquear Conta</span>
+                              ` : `
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                <span style="color:#15803d;">Desbloquear</span>
+                              `}
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
               </tbody>
             </table>
           </div>
 
           <!-- Mobile: Cards de Clientes -->
           <div class="admin-mobile-card-list admin-mobile-only">
-            ${filtered.map(c => `
-              <div class="admin-res-card">
-                <div class="admin-res-card-header">
-                  <div>
-                    <strong style="font-size:0.9375rem; color:#0f172a;">${c.name}</strong>
-                    <div style="font-size:0.75rem; color:#64748b;">${c.email}</div>
+            ${filtered.map(c => {
+              const isBlocked = c.status === 'blocked';
+              return `
+                <div class="admin-res-card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:10px;">
+                  <div class="admin-res-card-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <div>
+                      <strong style="font-size:0.9375rem; color:#0f172a;">${c.name}</strong>
+                      <div style="font-size:0.75rem; color:#64748b;">${c.email}</div>
+                    </div>
+                    ${!isBlocked ? `
+                      <span class="badge" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; font-size:0.75rem;">Ativo</span>
+                    ` : `
+                      <span class="badge" style="background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; font-size:0.75rem;">Bloqueado</span>
+                    `}
                   </div>
-                  <span class="badge" style="${c.status !== 'blocked' ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
-                    ${c.status !== 'blocked' ? 'Ativo' : 'Bloqueado'}
-                  </span>
+                  <div class="admin-res-card-body" style="display:flex; flex-direction:column; gap:6px; font-size:0.8125rem; border-top:1px solid #f1f5f9; padding-top:8px;">
+                    <div style="display:flex; justify-content:space-between;">
+                      <span style="color:#64748b;">Telefone:</span>
+                      <span>${c.phone || '—'}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                      <span style="color:#64748b;">Endereço:</span>
+                      <span style="max-width:180px; text-align:right;">${c.endereco || '—'}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <span style="color:#64748b;">Total Comprado:</span>
+                      <strong style="color:#0f172a; font-size:0.9375rem;">${formatPrice(c.total_spent || 0)}</strong>
+                    </div>
+                  </div>
+                  <div class="admin-res-card-actions" style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px; padding-top:8px; border-top:1px solid #f1f5f9;">
+                    <button class="btn btn-secondary btn-sm open-customer-modal-btn" data-id="${c.id}" style="font-size:0.8125rem; padding:6px 12px;">
+                      Ver Detalhes
+                    </button>
+                  </div>
                 </div>
-                <div class="admin-res-card-body">
-                  <div class="admin-res-card-row">
-                    <span>Telefone:</span>
-                    <span>${c.phone || 'Não informado'}</span>
-                  </div>
-                  <div class="admin-res-card-row">
-                    <span>Endereço:</span>
-                    <span style="max-width:180px; text-align:right;">${c.endereco || 'Não informado'}</span>
-                  </div>
-                  <div class="admin-res-card-row">
-                    <span>Total Comprado:</span>
-                    <strong style="color:#1d4ed8;">${formatPrice(c.total_spent || 0)}</strong>
-                  </div>
-                </div>
-                <div class="admin-res-card-actions">
-                  <button class="btn btn-sm toggle-block-customer-btn" data-id="${c.id}" data-blocked="${c.status === 'blocked'}" style="${c.status === 'blocked' ? 'background:#dcfce7; color:#15803d;' : 'background:#fee2e2; color:#b91c1c;'}">
-                    ${c.status === 'blocked' ? 'Desbloquear Conta' : 'Bloquear Conta'}
-                  </button>
-                </div>
-              </div>
-            `).join('')}
+              `;
+            }).join('')}
           </div>
         `}
       </div>
     `;
   }
 
+  // ===================================================================
   // ===================================================================
   // ABA 9: GESTÃO DE ESTOQUE
   // ===================================================================
@@ -2148,105 +2462,248 @@ export function renderAdminView() {
     const lowStock = productsList.filter(p => (p.stock || 0) > 0 && (p.stock || 0) <= (p.stock_min || 2));
     const totalUnits = productsList.reduce((sum, p) => sum + (p.stock || 0), 0);
 
+    let filtered = productsList.filter(p => {
+      const stock = p.stock || 0;
+      const minStock = p.stock_min || 2;
+      if (stockStatusFilter === 'out') return stock === 0;
+      if (stockStatusFilter === 'low') return stock > 0 && stock <= minStock;
+      if (stockStatusFilter === 'in_stock') return stock > minStock;
+      return true;
+    });
+
+    if (stockSearchQuery.trim()) {
+      const q = stockSearchQuery.toLowerCase().trim();
+      filtered = filtered.filter(p =>
+        String(p.id).includes(q) ||
+        (p.name && p.name.toLowerCase().includes(q)) ||
+        (p.sku && p.sku.toLowerCase().includes(q))
+      );
+    }
+
     return `
-      <div style="display:flex; flex-direction:column; gap:16px;">
-        <!-- Métricas Compactas de Estoque -->
-        <div class="admin-stats-grid">
-          <div class="stat-card">
+      <div style="display:flex; flex-direction:column; gap:16px; min-height:100%; flex:1;">
+        <!-- 3 KPIs Corporativos de Estoque -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
+          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:14px 18px; display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <div class="stat-label">Itens Sem Estoque</div>
-              <div class="stat-val" style="color:#ef4444;">${outOfStock.length}</div>
+              <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#64748b;">Total em Depósito</div>
+              <div style="font-size:1.375rem; font-weight:800; color:#0f172a; margin-top:2px;">${totalUnits} <span style="font-size:0.875rem; font-weight:600; color:#64748b;">unidades</span></div>
             </div>
-            <div style="color:#ef4444;">${Icons.close(20)}</div>
+            <div style="width:36px; height:36px; border-radius:8px; background:#eff6ff; display:flex; align-items:center; justify-content:center; color:#2563eb;">
+              ${Icons.package(18)}
+            </div>
           </div>
 
-          <div class="stat-card">
+          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:14px 18px; display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <div class="stat-label">Nível Crítico</div>
-              <div class="stat-val" style="color:#f59e0b;">${lowStock.length}</div>
+              <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#64748b;">Nível Crítico / Baixo</div>
+              <div style="font-size:1.375rem; font-weight:800; color:#d97706; margin-top:2px;">${lowStock.length} <span style="font-size:0.875rem; font-weight:600; color:#64748b;">produtos</span></div>
             </div>
-            <div style="color:#f59e0b;">${Icons.truck(20)}</div>
+            <div style="width:36px; height:36px; border-radius:8px; background:#fffbeb; display:flex; align-items:center; justify-content:center; color:#d97706;">
+              ${Icons.truck(18)}
+            </div>
           </div>
 
-          <div class="stat-card">
+          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:14px 18px; display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <div class="stat-label">Total em Depósito</div>
-              <div class="stat-val" style="color:#2563eb;">${totalUnits} un</div>
+              <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#64748b;">Sem Estoque / Zerado</div>
+              <div style="font-size:1.375rem; font-weight:800; color:#dc2626; margin-top:2px;">${outOfStock.length} <span style="font-size:0.875rem; font-weight:600; color:#64748b;">produtos</span></div>
             </div>
-            <div style="color:#2563eb;">${Icons.package(20)}</div>
-          </div>
-
-          <div class="stat-card" style="display:flex; align-items:center; justify-content:center;">
-            <button id="openRecordStockModalBtn" class="btn btn-primary" style="width:100%; justify-content:center; padding:10px; font-weight:700;">
-              + Movimentar Estoque
-            </button>
+            <div style="width:36px; height:36px; border-radius:8px; background:#fef2f2; display:flex; align-items:center; justify-content:center; color:#dc2626;">
+              ${Icons.close(18)}
+            </div>
           </div>
         </div>
 
         <!-- Tabela e Lista de Estoque -->
-        <div class="admin-card">
-          <div class="admin-card-header">
-            <h3 class="admin-card-title">
-              ${Icons.cpu(18)}
-              <span>Saldo de Estoque por Produto</span>
-            </h3>
+        <div class="admin-card" style="display:flex; flex-direction:column; min-height:100%; flex:1; box-sizing:border-box;">
+          <div class="admin-card-header" style="margin-bottom:16px;">
+            <div>
+              <h2 class="admin-card-title">Gestão de Estoque (${productsList.length})</h2>
+            </div>
+            <button id="openRecordStockModalBtn" class="btn btn-primary btn-sm" style="font-weight:600; padding:8px 16px;">
+              + Movimentar Estoque
+            </button>
           </div>
 
-          <!-- Desktop: Tabela de Estoque -->
-          <div class="admin-table-wrapper admin-desktop-only">
-            <table class="admin-table">
-              <thead>
-                <tr>
-                  <th>Produto</th>
-                  <th>SKU</th>
-                  <th>Estoque Atual</th>
-                  <th>Estoque Mínimo</th>
-                  <th>Ações Rápidas</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${productsList.map(p => `
+          <!-- Filtros Rápidos Minimalistas -->
+          <div style="display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:260px; max-width:360px;">
+              <input
+                type="text"
+                id="stockSearchInput"
+                class="form-input"
+                placeholder="Buscar por ID, produto ou SKU..."
+                value="${stockSearchQuery}"
+                style="padding:7px 12px; font-size:0.875rem;"
+              />
+            </div>
+
+            <select id="stockStatusFilterSelect" class="admin-filter-select" style="font-size:0.8125rem; padding:6px 10px;">
+              <option value="all" ${stockStatusFilter === 'all' ? 'selected' : ''}>Todos os Saldos</option>
+              <option value="in_stock" ${stockStatusFilter === 'in_stock' ? 'selected' : ''}>Em Estoque</option>
+              <option value="low" ${stockStatusFilter === 'low' ? 'selected' : ''}>Nível Crítico</option>
+              <option value="out" ${stockStatusFilter === 'out' ? 'selected' : ''}>Sem Estoque</option>
+            </select>
+          </div>
+
+          ${filtered.length === 0 ? `
+            <div class="admin-empty-state" style="padding:32px 16px;">
+              <div class="admin-empty-state-title" style="font-size:1rem;">Nenhum produto correspondente ao filtro</div>
+            </div>
+          ` : `
+            <!-- Desktop: Tabela de Estoque -->
+            <div class="admin-table-wrapper admin-desktop-only" style="border:1px solid #e2e8f0; border-radius:8px; overflow-x:auto; -webkit-overflow-scrolling:touch; min-height:300px; flex:1; background:#ffffff;">
+              <table class="admin-table" style="min-width:780px; width:100%;">
+                <thead>
                   <tr>
-                    <td><strong>${p.name}</strong></td>
-                    <td><code>${p.sku || 'N/A'}</code></td>
-                    <td>
-                      <span class="badge" style="${(p.stock || 0) <= 0 ? 'background:#fee2e2; color:#b91c1c;' : ((p.stock || 0) <= (p.stock_min || 2) ? 'background:#fef3c7; color:#b45309;' : 'background:#dcfce7; color:#15803d;')}">
-                        ${p.stock || 0} unidades
-                      </span>
-                    </td>
-                    <td>${p.stock_min || 2} un</td>
-                    <td>
-                      <button class="btn btn-secondary btn-sm quick-add-stock-btn" data-id="${p.id}" data-name="${p.name}">
-                        + Ajustar Saldo
-                      </button>
-                    </td>
+                    <th style="width:55px;">ID</th>
+                    <th style="width:48px;">Foto</th>
+                    <th>Produto</th>
+                    <th>SKU</th>
+                    <th>Estoque Atual</th>
+                    <th>Estoque Mínimo</th>
+                    <th>Status</th>
+                    <th style="width:52px; text-align:center;">Ações</th>
                   </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  ${filtered.map(p => {
+                    const stock = p.stock || 0;
+                    const minStock = p.stock_min || 2;
+                    const isOut = stock <= 0;
+                    const isLow = stock > 0 && stock <= minStock;
 
-          <!-- Mobile: Cards de Estoque -->
-          <div class="admin-mobile-card-list admin-mobile-only">
-            ${productsList.map(p => `
-              <div class="admin-res-card">
-                <div class="admin-res-card-header">
-                  <div>
-                    <strong style="color:#0f172a; font-size:0.9375rem;">${p.name}</strong>
-                    <div style="font-size:0.75rem; color:#64748b; font-family:monospace;">SKU: ${p.sku || 'N/A'}</div>
+                    return `
+                      <tr>
+                        <td style="font-family:ui-monospace, monospace; font-size:0.8125rem; font-weight:700; color:#64748b;">
+                          ${p.id}
+                        </td>
+                        <td style="width:48px;">
+                          ${p.image ? `
+                            <img
+                              src="${p.image}"
+                              alt="${p.name}"
+                              style="width:38px; height:38px; object-fit:contain; border-radius:6px; border:1px solid #e2e8f0; background:#ffffff;"
+                            />
+                          ` : `
+                            <div style="width:38px; height:38px; background:#f8fafc; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#94a3b8; border:1px solid #e2e8f0; font-size:0.65rem;">
+                              Sem foto
+                            </div>
+                          `}
+                        </td>
+                        <td>
+                          <div style="font-weight:600; color:#0f172a; font-size:0.875rem;">${p.name}</div>
+                        </td>
+                        <td>
+                          <span style="font-family:ui-monospace, monospace; font-size:0.8125rem; color:#475569;">
+                            ${p.sku || '—'}
+                          </span>
+                        </td>
+                        <td>
+                          <span style="font-weight:700; font-size:0.9375rem; color:#0f172a;">${stock}</span>
+                          <span style="font-size:0.75rem; color:#64748b;"> un</span>
+                        </td>
+                        <td style="font-size:0.8125rem; color:#475569;">
+                          ${minStock} un
+                        </td>
+                        <td>
+                          ${isOut ? `
+                            <span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:0.75rem;">Sem Estoque</span>
+                          ` : (isLow ? `
+                            <span class="badge" style="background:#fef3c7; color:#b45309; font-size:0.75rem;">Nível Baixo</span>
+                          ` : `
+                            <span class="badge" style="background:#dcfce7; color:#15803d; font-size:0.75rem;">Normal</span>
+                          `)}
+                        </td>
+                        <td style="text-align:center; width:52px;">
+                          <div class="admin-actions-dropdown">
+                            <button type="button" class="admin-actions-trigger-btn" data-id="${p.id}" title="Ações">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+                                <circle cx="19" cy="12" r="1.5" fill="currentColor"/>
+                                <circle cx="5" cy="12" r="1.5" fill="currentColor"/>
+                              </svg>
+                            </button>
+                            <div class="admin-actions-menu">
+                              <button type="button" class="admin-action-item quick-add-stock-btn" data-id="${p.id}" data-name="${p.name}">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                                <span>Ajustar Saldo</span>
+                              </button>
+                              <button type="button" class="admin-action-item edit-product-btn" data-id="${p.id}">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                <span>Editar Produto</span>
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Mobile: Cards de Estoque -->
+            <div class="admin-mobile-card-list admin-mobile-only">
+              ${filtered.map(p => {
+                const stock = p.stock || 0;
+                const minStock = p.stock_min || 2;
+                const isOut = stock <= 0;
+                const isLow = stock > 0 && stock <= minStock;
+
+                return `
+                  <div class="admin-res-card" style="padding:14px; border:1px solid #e2e8f0; border-radius:8px; background:#fff; margin-bottom:8px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                      <div style="display:flex; gap:10px; align-items:center;">
+                        ${p.image ? `
+                          <img src="${p.image}" alt="${p.name}" style="width:36px; height:36px; object-fit:contain; border-radius:6px; border:1px solid #e2e8f0;" />
+                        ` : ''}
+                        <div>
+                          <strong style="color:#0f172a; font-size:0.9375rem;">${p.name}</strong>
+                          <div style="font-family:ui-monospace, monospace; font-size:0.75rem; color:#64748b;">${p.sku || '—'}</div>
+                        </div>
+                      </div>
+                      <div style="display:flex; align-items:center; gap:8px;">
+                        ${isOut ? `
+                          <span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:0.75rem;">Sem Estoque</span>
+                        ` : (isLow ? `
+                          <span class="badge" style="background:#fef3c7; color:#b45309; font-size:0.75rem;">Baixo</span>
+                        ` : `
+                          <span class="badge" style="background:#dcfce7; color:#15803d; font-size:0.75rem;">Normal</span>
+                        `)}
+                        <div class="admin-actions-dropdown">
+                          <button type="button" class="admin-actions-trigger-btn" data-id="${p.id}" title="Ações">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                              <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+                              <circle cx="19" cy="12" r="1.5" fill="currentColor"/>
+                              <circle cx="5" cy="12" r="1.5" fill="currentColor"/>
+                            </svg>
+                          </button>
+                          <div class="admin-actions-menu">
+                            <button type="button" class="admin-action-item quick-add-stock-btn" data-id="${p.id}" data-name="${p.name}">
+                              <span>Ajustar Saldo</span>
+                            </button>
+                            <button type="button" class="admin-action-item edit-product-btn" data-id="${p.id}">
+                              <span>Editar Produto</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; font-size:0.875rem;">
+                      <span style="color:#64748b;">Saldo Atual:</span>
+                      <strong style="color:#0f172a;">${stock} unidades</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; font-size:0.8125rem; color:#64748b;">
+                      <span>Estoque Mínimo:</span>
+                      <span>${minStock} unidades</span>
+                    </div>
                   </div>
-                  <span class="badge" style="${(p.stock || 0) <= 0 ? 'background:#fee2e2; color:#b91c1c;' : ((p.stock || 0) <= (p.stock_min || 2) ? 'background:#fef3c7; color:#b45309;' : 'background:#dcfce7; color:#15803d;')}">
-                    ${p.stock || 0} un
-                  </span>
-                </div>
-                <div class="admin-res-card-actions">
-                  <button class="btn btn-secondary btn-sm quick-add-stock-btn" data-id="${p.id}" data-name="${p.name}">
-                    + Ajustar Saldo
-                  </button>
-                </div>
-              </div>
-            `).join('')}
-          </div>
+                `;
+              }).join('')}
+            </div>
+          `}
         </div>
       </div>
     `;
@@ -2258,80 +2715,74 @@ export function renderAdminView() {
   function renderSettingsTab() {
     const s = storeSettings;
     return `
-      <div class="admin-card">
-        <div class="admin-card-header">
+      <div class="admin-card" style="box-sizing:border-box;">
+        <div class="admin-card-header" style="margin-bottom:16px;">
           <div>
-            <h2 class="admin-card-title">
-              ${Icons.settings ? Icons.settings(20) : '⚙️'}
-              <span>Configurações da Loja</span>
-            </h2>
-            <p style="font-size:0.8125rem; color:#64748b; margin-top:2px;">
-              Edite a identificação da loja, contatos em Luanda, taxas de entrega e políticas comerciais.
-            </p>
+            <h2 class="admin-card-title">Configurações da Loja</h2>
           </div>
         </div>
 
         <form id="storeSettingsForm" style="display:flex; flex-direction:column; gap:16px;">
           <!-- 1. Identidade e Contatos -->
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px;">
-            <h4 style="font-size:0.875rem; font-weight:800; color:#0f172a; margin-bottom:12px;">
-              1. Identidade & Contatos em Luanda
-            </h4>
+          <div class="admin-card-panel" style="border:1px solid #e2e8f0; border-radius:8px; padding:18px 20px; background:#ffffff;">
+            <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; margin-bottom:14px;">
+              Identidade & Contatos em Luanda
+            </div>
             <div class="admin-form-grid-2">
               <div class="form-group">
-                <label class="form-label">Nome da Loja</label>
-                <input type="text" id="setStoreName" class="form-input" value="${s.store_name || 'NovaTech Angola'}" required />
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Nome da Loja</label>
+                <input type="text" id="setStoreName" class="form-input" value="${s.store_name || 'NovaTech Angola'}" style="height:33px; font-size:0.875rem;" required />
               </div>
               <div class="form-group">
-                <label class="form-label">Slogan Comercial</label>
-                <input type="text" id="setSlogan" class="form-input" value="${s.slogan || 'Loja de Tecnologia e Smartphones'}" />
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Slogan Comercial</label>
+                <input type="text" id="setSlogan" class="form-input" value="${s.slogan || 'Loja de Tecnologia e Smartphones'}" style="height:33px; font-size:0.875rem;" />
               </div>
             </div>
 
-            <div class="admin-form-grid-3" style="margin-top:10px;">
+            <div class="admin-form-grid-3" style="margin-top:12px;">
               <div class="form-group">
-                <label class="form-label">Telefone Principal</label>
-                <input type="tel" id="setPhone" class="form-input" value="${s.phone || '+244 923 179 192'}" required />
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Telefone Principal</label>
+                <input type="tel" id="setPhone" class="form-input" value="${s.phone || '+244 923 179 192'}" style="height:33px; font-size:0.875rem;" required />
               </div>
               <div class="form-group">
-                <label class="form-label">WhatsApp Oficial</label>
-                <input type="tel" id="setWhatsapp" class="form-input" value="${s.whatsapp || '+244 923 179 192'}" required />
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">WhatsApp Oficial</label>
+                <input type="tel" id="setWhatsapp" class="form-input" value="${s.whatsapp || '+244 923 179 192'}" style="height:33px; font-size:0.875rem;" required />
               </div>
               <div class="form-group">
-                <label class="form-label">E-mail Comercial</label>
-                <input type="email" id="setEmail" class="form-input" value="${s.email || 'contacto@novatech.co.ao'}" required />
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">E-mail Comercial</label>
+                <input type="email" id="setEmail" class="form-input" value="${s.email || 'contacto@novatech.co.ao'}" style="height:33px; font-size:0.875rem;" required />
               </div>
             </div>
 
-            <div class="form-group" style="margin-top:10px;">
-              <label class="form-label">Endereço Físico</label>
-              <input type="text" id="setAddress" class="form-input" value="${s.address || 'Talatona, Luanda - Angola'}" required />
+            <div class="form-group" style="margin-top:12px;">
+              <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Endereço Físico</label>
+              <input type="text" id="setAddress" class="form-input" value="${s.address || 'Talatona, Luanda - Angola'}" style="height:33px; font-size:0.875rem;" required />
             </div>
           </div>
 
           <!-- 2. Custos de Envio -->
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px;">
-            <h4 style="font-size:0.875rem; font-weight:800; color:#0f172a; margin-bottom:12px;">
-              2. Custos de Envio & Frete Grátis
-            </h4>
+          <div class="admin-card-panel" style="border:1px solid #e2e8f0; border-radius:8px; padding:18px 20px; background:#ffffff;">
+            <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; margin-bottom:14px;">
+              Custos de Envio & Frete Grátis
+            </div>
             <div class="admin-form-grid-3">
               <div class="form-group">
-                <label class="form-label">Entrega Normal (Kz)</label>
-                <input type="number" id="setShippingNormal" class="form-input" value="${s.shipping_price_normal || 3500}" required />
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Entrega Normal (Kz)</label>
+                <input type="number" id="setShippingNormal" class="form-input" value="${s.shipping_price_normal || 3500}" style="height:33px; font-size:0.875rem;" required />
               </div>
               <div class="form-group">
-                <label class="form-label">Entrega Expresso (Kz)</label>
-                <input type="number" id="setShippingExpress" class="form-input" value="${s.shipping_price_express || 6500}" required />
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Entrega Expresso (Kz)</label>
+                <input type="number" id="setShippingExpress" class="form-input" value="${s.shipping_price_express || 6500}" style="height:33px; font-size:0.875rem;" required />
               </div>
               <div class="form-group">
-                <label class="form-label">Frete Grátis Acima de (Kz)</label>
-                <input type="number" id="setFreeShipping" class="form-input" value="${s.free_shipping_threshold || 1000000}" required />
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Frete Grátis Acima de (Kz)</label>
+                <input type="number" id="setFreeShipping" class="form-input" value="${s.free_shipping_threshold || 1000000}" style="height:33px; font-size:0.875rem;" required />
               </div>
             </div>
           </div>
 
           <div style="display:flex; justify-content:flex-end;">
-            <button type="submit" class="btn btn-primary" style="padding:12px 24px; font-weight:700;">
+            <button type="submit" class="btn btn-primary btn-sm" style="font-weight:600; padding:8px 20px; font-size:0.875rem;">
               Salvar Alterações da Loja
             </button>
           </div>
@@ -2571,37 +3022,42 @@ export function renderAdminView() {
 
   // --- HELPERS E BADGES ---
   function renderStatusBadge(status) {
-    switch (status) {
+    const s = String(status || '').toLowerCase();
+    const dot = (color) => `<span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:${color}; margin-right:5px; flex-shrink:0;"></span>`;
+
+    switch (s) {
       case 'received':
-        return '<span class="badge" style="background:#fef3c7; color:#b45309;">● Recebido</span>';
+        return `<span class="badge" style="display:inline-flex; align-items:center; background:#fffbeb; color:#b45309; border:1px solid #fef3c7; font-size:0.75rem; font-weight:600; padding:2px 8px; border-radius:5px;">${dot('#f59e0b')}Recebido</span>`;
       case 'confirmed':
-        return '<span class="badge" style="background:#dcfce7; color:#15803d;">✓ Confirmado</span>';
+        return `<span class="badge" style="display:inline-flex; align-items:center; background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; font-size:0.75rem; font-weight:600; padding:2px 8px; border-radius:5px;">${dot('#16a34a')}Confirmado</span>`;
       case 'preparing':
-        return '<span class="badge" style="background:#e0e7ff; color:#4338ca;">⚡ Em Separação</span>';
+        return `<span class="badge" style="display:inline-flex; align-items:center; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size:0.75rem; font-weight:600; padding:2px 8px; border-radius:5px;">${dot('#3b82f6')}Em Separação</span>`;
       case 'shipped':
-        return '<span class="badge" style="background:#dbeafe; color:#1e40af;">✈ Enviado</span>';
+        return `<span class="badge" style="display:inline-flex; align-items:center; background:#f5f3ff; color:#6d28d9; border:1px solid #ddd6fe; font-size:0.75rem; font-weight:600; padding:2px 8px; border-radius:5px;">${dot('#8b5cf6')}Enviado</span>`;
       case 'delivered':
-        return '<span class="badge" style="background:#d1fae5; color:#065f46;">★ Entregue</span>';
+        return `<span class="badge" style="display:inline-flex; align-items:center; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; font-size:0.75rem; font-weight:600; padding:2px 8px; border-radius:5px;">${dot('#10b981')}Entregue</span>`;
       case 'cancelled':
-        return '<span class="badge" style="background:#fee2e2; color:#b91c1c;">✕ Cancelado</span>';
+        return `<span class="badge" style="display:inline-flex; align-items:center; background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; font-size:0.75rem; font-weight:600; padding:2px 8px; border-radius:5px;">${dot('#ef4444')}Cancelado</span>`;
       default:
-        return `<span class="badge">${status}</span>`;
+        return `<span class="badge" style="display:inline-flex; align-items:center; background:#f8fafc; color:#475569; border:1px solid #e2e8f0; font-size:0.75rem; font-weight:600; padding:2px 8px; border-radius:5px;">${status || '—'}</span>`;
     }
   }
 
   function renderPaymentBadge(status, method = '') {
     const s = String(status || '').toLowerCase();
-    const methodText = method ? ` (${method.toUpperCase()})` : '';
+    const methodText = method ? ` · ${method.toUpperCase()}` : '';
+    const dot = (color) => `<span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:${color}; margin-right:5px; flex-shrink:0;"></span>`;
+
     if (s === 'paid' || s === 'completed' || s === 'pago') {
-      return `<span class="badge" style="background:#dcfce7; color:#15803d; font-size:0.6875rem; font-weight:700;">✓ Pago${methodText}</span>`;
+      return `<span class="badge" style="display:inline-flex; align-items:center; background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; font-size:0.6875rem; font-weight:600; padding:2px 7px; border-radius:5px;">${dot('#16a34a')}Pago${methodText}</span>`;
     }
     if (s === 'pending' || s === 'pendente') {
-      return `<span class="badge" style="background:#fef3c7; color:#b45309; font-size:0.6875rem; font-weight:700;">⏳ Pendente${methodText}</span>`;
+      return `<span class="badge" style="display:inline-flex; align-items:center; background:#fffbeb; color:#b45309; border:1px solid #fef3c7; font-size:0.6875rem; font-weight:600; padding:2px 7px; border-radius:5px;">${dot('#f59e0b')}Pendente${methodText}</span>`;
     }
     if (s === 'failed' || s === 'cancelled' || s === 'recusado') {
-      return `<span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:0.6875rem; font-weight:700;">✕ Recusado${methodText}</span>`;
+      return `<span class="badge" style="display:inline-flex; align-items:center; background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; font-size:0.6875rem; font-weight:600; padding:2px 7px; border-radius:5px;">${dot('#ef4444')}Recusado${methodText}</span>`;
     }
-    return `<span class="badge" style="background:#f1f5f9; color:#475569; font-size:0.6875rem;">${status ? status.toUpperCase() : 'PENDENTE'}${methodText}</span>`;
+    return `<span class="badge" style="display:inline-flex; align-items:center; background:#f8fafc; color:#475569; border:1px solid #e2e8f0; font-size:0.6875rem; font-weight:600; padding:2px 7px; border-radius:5px;">${status ? status.toUpperCase() : 'PENDENTE'}${methodText}</span>`;
   }
 
   // --- LOGOUT UNIFICADO COM PROTEÇÃO DE HISTÓRICO ---
@@ -2662,7 +3118,7 @@ export function renderAdminView() {
   function switchTab(tab) {
     if (!tab) return;
     currentTab = tab;
-    
+
     // Atualiza a URL com a rota correspondente
     if (window.location.hash !== `#/admin/${tab}`) {
       window.history.pushState(null, '', window.location.pathname + `#/admin/${tab}`);
@@ -2720,6 +3176,11 @@ export function renderAdminView() {
       document.addEventListener('click', (e) => {
         if (!e.target.closest('.admin-profile-dropdown-wrapper')) {
           if (profileDropdown) profileDropdown.style.display = 'none';
+        }
+        if (!e.target.closest('.admin-actions-dropdown')) {
+          container.querySelectorAll('.admin-actions-dropdown.is-open').forEach(d => {
+            d.classList.remove('is-open');
+          });
         }
       });
     }
@@ -2796,6 +3257,18 @@ export function renderAdminView() {
       });
     });
 
+    container.querySelectorAll('.copy-order-code-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const code = btn.dataset.code;
+        if (code) {
+          navigator.clipboard.writeText(code);
+          Toast.show(`Código ${code} copiado!`, 'success');
+        }
+      });
+    });
+
     // --- Produtos: Busca, Filtros e Modais ---
     const prodSearch = container.querySelector('#productSearchInput');
     if (prodSearch) {
@@ -2832,6 +3305,69 @@ export function renderAdminView() {
     if (newProdBtn) newProdBtn.addEventListener('click', () => openProductModal());
     if (emptyNewProdBtn) emptyNewProdBtn.addEventListener('click', () => openProductModal());
 
+    // Dropdown de Ações dos Produtos (Desktop e Mobile)
+    container.querySelectorAll('.admin-actions-trigger-btn').forEach(trigger => {
+      trigger.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const dropdown = trigger.closest('.admin-actions-dropdown');
+        const menu = dropdown?.querySelector('.admin-actions-menu');
+        if (!dropdown || !menu) return;
+
+        const isOpen = dropdown.classList.contains('is-open');
+
+        // Fecha todos os outros menus de ações abertos
+        container.querySelectorAll('.admin-actions-dropdown.is-open').forEach(d => {
+          if (d !== dropdown) {
+            d.classList.remove('is-open');
+          }
+        });
+
+        if (!isOpen) {
+          dropdown.classList.add('is-open');
+
+          const rect = trigger.getBoundingClientRect();
+          const tr = trigger.closest('tr');
+          const isTable = Boolean(tr);
+          const tableWrapper = trigger.closest('.admin-table-wrapper');
+
+          let shouldOpenUp = false;
+          if (isTable && tableWrapper) {
+            const wrapRect = tableWrapper.getBoundingClientRect();
+            const spaceInsideWrapBelow = wrapRect.bottom - rect.bottom;
+            const spaceInsideWrapAbove = rect.top - wrapRect.top;
+            // Só abre para cima se estiver na parte inferior da tabela E com espaço suficiente acima E não for primeira ou segunda linha
+            if (spaceInsideWrapBelow < 90 && spaceInsideWrapAbove > 120 && (tr.rowIndex || 0) > 2) {
+              shouldOpenUp = true;
+            }
+          } else {
+            // Em cards mobile ou listas soltas
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const spaceAbove = rect.top;
+            if (spaceBelow < 110 && spaceAbove > 130) {
+              shouldOpenUp = true;
+            }
+          }
+
+          if (shouldOpenUp) {
+            menu.classList.add('open-up');
+          } else {
+            menu.classList.remove('open-up');
+          }
+        } else {
+          dropdown.classList.remove('is-open');
+        }
+      });
+    });
+
+    // Fechar menu de ação ao clicar em qualquer item dentro dele
+    container.querySelectorAll('.admin-actions-menu .admin-action-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const dropdown = item.closest('.admin-actions-dropdown');
+        if (dropdown) dropdown.classList.remove('is-open');
+      });
+    });
+
     container.querySelectorAll('.edit-product-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = Number(btn.dataset.id);
@@ -2848,17 +3384,21 @@ export function renderAdminView() {
       });
     });
 
-    container.querySelectorAll('.toggle-product-active-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
+    container.querySelectorAll('.toggle-product-block-btn, .toggle-product-active-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
         const id = Number(btn.dataset.id);
         const isActive = btn.dataset.active === 'true';
         try {
           await Api.products.update(id, { is_active: !isActive });
-          Toast.show(`Produto ${!isActive ? 'ativado' : 'desativado'} com sucesso!`, 'info');
+          Toast.show(`Produto ${id} ${!isActive ? 'desbloqueado e ativado' : 'bloqueado'} com sucesso!`, 'info');
           await loadAllData();
           render();
         } catch (err) {
-          Toast.show(err.message || 'Erro ao alterar visibilidade.', 'error');
+          Toast.show(err.message || 'Erro ao alterar status do produto.', 'error');
         }
       });
     });
@@ -2879,37 +3419,96 @@ export function renderAdminView() {
       });
     });
 
-    // --- Categorias & Subcategorias ---
+    // --- Categorias & Subcategorias (Aninhamento e Acordeão Interativo) ---
+    const catSearch = container.querySelector('#categorySearchInput');
+    if (catSearch) {
+      catSearch.addEventListener('input', (e) => {
+        categorySearchQuery = e.target.value;
+        if (categorySearchQuery.trim()) {
+          const q = categorySearchQuery.toLowerCase().trim();
+          categoriesList.forEach(c => {
+            const matchCat = (c.name && c.name.toLowerCase().includes(q)) || (c.description && c.description.toLowerCase().includes(q));
+            const matchSub = Array.isArray(c.subcategories) && c.subcategories.some(s =>
+              (s.name && s.name.toLowerCase().includes(q)) || (s.description && s.description.toLowerCase().includes(q))
+            );
+            if (matchCat || matchSub) {
+              expandedCategoryIds.add(c.id);
+            }
+          });
+        }
+        const main = container.querySelector('#adminMainContent');
+        if (main && currentTab === 'categories') {
+          main.innerHTML = renderCategoriesTab();
+          attachTabSpecificEvents();
+        }
+      });
+    }
+
+    const catSort = container.querySelector('#categorySortSelect');
+    if (catSort) {
+      catSort.addEventListener('change', (e) => {
+        categorySortOrder = e.target.value;
+        const main = container.querySelector('#adminMainContent');
+        if (main && currentTab === 'categories') {
+          main.innerHTML = renderCategoriesTab();
+          attachTabSpecificEvents();
+        }
+      });
+    }
+
     const newCatBtn = container.querySelector('#openNewCategoryModalBtn');
     const emptyCatBtn = container.querySelector('#emptyStateNewCatBtn');
     if (newCatBtn) newCatBtn.addEventListener('click', () => openCategoryModal());
     if (emptyCatBtn) emptyCatBtn.addEventListener('click', () => openCategoryModal());
 
-    const newSubBtn = container.querySelector('#openNewSubcategoryModalBtn');
-    if (newSubBtn) newSubBtn.addEventListener('click', () => openSubcategoryModal());
+    // Toggle do Acordeão: Clicar no cabeçalho da categoria abre ou fecha suas subcategorias
+    container.querySelectorAll('.category-accordion-header').forEach(header => {
+      header.addEventListener('click', (e) => {
+        if (e.target.closest('button') || e.target.closest('.btn')) return;
+        const catId = Number(header.dataset.catId);
+        if (expandedCategoryIds.has(catId)) {
+          expandedCategoryIds.delete(catId);
+        } else {
+          expandedCategoryIds.add(catId);
+        }
+        const main = container.querySelector('#adminMainContent');
+        if (main && currentTab === 'categories') {
+          main.innerHTML = renderCategoriesTab();
+          attachTabSpecificEvents();
+        }
+      });
+    });
 
+    // Botão de Adicionar Subcategoria em Categoria Específica
     container.querySelectorAll('.add-sub-to-cat-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
         const catId = Number(btn.dataset.catId);
+        expandedCategoryIds.add(catId); // Garante que a categoria pai fique expandida
         openSubcategoryModal({ parent_id: catId });
       });
     });
 
+    // Botão de Editar Categoria
     container.querySelectorAll('.edit-category-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
         const id = Number(btn.dataset.id);
         const cat = categoriesList.find(c => c.id === id);
         if (cat) openCategoryModal(cat);
       });
     });
 
+    // Botão de Excluir Categoria
     container.querySelectorAll('.delete-category-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
         const id = Number(btn.dataset.id);
         const catName = btn.dataset.catName || 'esta categoria';
         if (confirm(`Tem certeza que deseja excluir permanentemente a categoria "${catName}" e todas as suas subcategorias vinculadas?`)) {
           try {
             await Api.categories.delete(id);
+            expandedCategoryIds.delete(id);
             Toast.show('Categoria excluída com sucesso.', 'success');
             await loadAllData();
             render();
@@ -2920,8 +3519,10 @@ export function renderAdminView() {
       });
     });
 
+    // Botão de Editar Subcategoria
     container.querySelectorAll('.edit-subcategory-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
         const catId = Number(btn.dataset.catId);
         const subId = btn.dataset.subId;
         const cat = categoriesList.find(c => c.id === catId);
@@ -2932,14 +3533,17 @@ export function renderAdminView() {
       });
     });
 
+    // Botão de Excluir Subcategoria
     container.querySelectorAll('.delete-subcategory-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
         const catId = Number(btn.dataset.catId);
         const subId = btn.dataset.subId;
         const subName = btn.dataset.subName || 'esta subcategoria';
         if (confirm(`Deseja remover a subcategoria "${subName}"?`)) {
           try {
             await Api.categories.deleteSubcategory(catId, subId);
+            expandedCategoryIds.add(catId); // Mantém a categoria aberta para conferência imediata
             Toast.show('Subcategoria removida com sucesso.', 'success');
             await loadAllData();
             render();
@@ -3000,6 +3604,30 @@ export function renderAdminView() {
     const emptyCouponBtn = container.querySelector('#emptyStateNewCouponBtn');
     if (newCouponBtn) newCouponBtn.addEventListener('click', () => openCouponModal());
     if (emptyCouponBtn) emptyCouponBtn.addEventListener('click', () => openCouponModal());
+
+    const cpSearch = container.querySelector('#couponSearchInput');
+    if (cpSearch) {
+      cpSearch.addEventListener('input', (e) => {
+        couponSearchQuery = e.target.value;
+        const main = container.querySelector('#adminMainContent');
+        if (main && currentTab === 'coupons') {
+          main.innerHTML = renderCouponsTab();
+          attachTabSpecificEvents();
+        }
+      });
+    }
+
+    const cpStatus = container.querySelector('#couponStatusFilterSelect');
+    if (cpStatus) {
+      cpStatus.addEventListener('change', (e) => {
+        couponStatusFilter = e.target.value;
+        const main = container.querySelector('#adminMainContent');
+        if (main && currentTab === 'coupons') {
+          main.innerHTML = renderCouponsTab();
+          attachTabSpecificEvents();
+        }
+      });
+    }
 
     container.querySelectorAll('.edit-coupon-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -3081,6 +3709,24 @@ export function renderAdminView() {
       });
     }
 
+    const custStatus = container.querySelector('#customerStatusFilterSelect');
+    if (custStatus) {
+      custStatus.addEventListener('change', (e) => {
+        customerStatusFilter = e.target.value;
+        const main = container.querySelector('#adminMainContent');
+        if (main) main.innerHTML = renderCustomersTab();
+        attachTabSpecificEvents();
+      });
+    }
+
+    container.querySelectorAll('.open-customer-modal-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = Number(btn.dataset.id);
+        const cust = customersList.find(c => c.id === id);
+        if (cust) openCustomerDetailsModal(cust);
+      });
+    });
+
     container.querySelectorAll('.toggle-block-customer-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = Number(btn.dataset.id);
@@ -3099,6 +3745,30 @@ export function renderAdminView() {
     // --- Estoque ---
     const recordStockBtn = container.querySelector('#openRecordStockModalBtn');
     if (recordStockBtn) recordStockBtn.addEventListener('click', () => openStockMovementModal());
+
+    const stkSearch = container.querySelector('#stockSearchInput');
+    if (stkSearch) {
+      stkSearch.addEventListener('input', (e) => {
+        stockSearchQuery = e.target.value;
+        const main = container.querySelector('#adminMainContent');
+        if (main && currentTab === 'stock') {
+          main.innerHTML = renderStockTab();
+          attachTabSpecificEvents();
+        }
+      });
+    }
+
+    const stkStatus = container.querySelector('#stockStatusFilterSelect');
+    if (stkStatus) {
+      stkStatus.addEventListener('change', (e) => {
+        stockStatusFilter = e.target.value;
+        const main = container.querySelector('#adminMainContent');
+        if (main && currentTab === 'stock') {
+          main.innerHTML = renderStockTab();
+          attachTabSpecificEvents();
+        }
+      });
+    }
 
     container.querySelectorAll('.quick-add-stock-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -3260,58 +3930,120 @@ export function renderAdminView() {
     const cleanPhone = phone.replace(/[^0-9]/g, '');
     const waLink = cleanPhone ? `https://wa.me/${cleanPhone.startsWith('244') ? cleanPhone : '244' + cleanPhone}` : null;
     const history = Array.isArray(order.status_history) ? order.status_history : [];
+    const cleanCode = String(order.order_code || order.codigo_pedido || order.id).replace(/^#/, '');
+    const proofUrl = order.receipt_url || order.payment_details?.receipt_url || order.payment_details?.comprovativo_url || null;
 
     modal.innerHTML = `
-      <div class="admin-modal-dialog" style="max-width: 680px; max-height: 90vh; overflow-y: auto;">
-        <div class="admin-modal-header" style="position: sticky; top: 0; background: #ffffff; z-index: 10;">
-          <div>
-            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-              <h3 class="admin-modal-title" style="margin: 0;">Pedido ${order.order_code || order.codigo_pedido || order.id}</h3>
-              ${renderStatusBadge(order.status || order.status_pedido)}
-            </div>
-            <span style="font-size: 0.75rem; color: #64748b;">Registrado em ${formatDate(order.created_at || order.criado_em || order.date)}</span>
+      <div class="admin-modal-dialog admin-modal-product-dialog" style="max-width: 680px !important;">
+        <!-- Cabeçalho Executivo -->
+        <div class="admin-modal-product-header">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <h3 class="admin-modal-title" style="margin: 0; font-size: 1.125rem; font-weight: 700; color: #0f172a;">
+              Pedido ${cleanCode}
+            </h3>
+            <span style="font-size: 0.75rem; color: #64748b;">${formatDate(order.created_at || order.criado_em || order.date)}</span>
+            ${renderStatusBadge(order.status || order.status_pedido)}
           </div>
-          <button class="btn btn-secondary btn-sm close-modal-btn">✕</button>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            ${waLink ? `
+              <a href="${waLink}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 5px; color: #15803d; border-color: #bbf7d0; background: #f0fdf4; font-size: 0.75rem; padding: 4px 10px; text-decoration: none;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                <span>WhatsApp</span>
+              </a>
+            ` : ''}
+            <button type="button" class="admin-modal-close-icon close-modal-btn" title="Fechar (Esc)">✕</button>
+          </div>
         </div>
 
-        <div class="admin-modal-body" style="display: flex; flex-direction: column; gap: 16px;">
-          <!-- 1. Dados do Comprador e Entrega -->
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <h4 style="font-size: 0.8125rem; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; margin: 0;">
-                Cliente & Entrega
-              </h4>
-              ${waLink ? `
-                <a href="${waLink}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="color: #15803d; border-color: #bbf7d0; background: #f0fdf4; font-size: 0.6875rem; padding: 4px 10px;">
-                  💬 Conversar no WhatsApp
-                </a>
-              ` : ''}
+        <div class="admin-modal-product-body" style="padding: 14px 18px !important; background: #ffffff !important; display: flex; flex-direction: column; gap: 10px;">
+          <!-- Grid 2 Colunas: Cliente & Pagamento -->
+          <div class="admin-product-bottom-grid">
+            <!-- 1. Cliente & Entrega -->
+            <div class="admin-card-panel">
+              <div class="admin-panel-header">
+                <span class="admin-panel-title">Cliente & Envio</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 6px; font-size: 0.8125rem;">
+                <div style="display: flex; justify-content: space-between;">
+                  <span style="color: #64748b;">Nome:</span>
+                  <strong style="color: #0f172a; text-align: right;">${order.customer_name || order.nome_cliente || 'Não informado'}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <span style="color: #64748b;">Telefone:</span>
+                  <span style="color: #0f172a;">${phone || 'Não informado'}</span>
+                </div>
+                ${(order.customer_email || order.email_cliente) ? `
+                  <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #64748b;">E-mail:</span>
+                    <span style="color: #0f172a; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${order.customer_email || order.email_cliente}</span>
+                  </div>
+                ` : ''}
+                <div style="border-top: 1px dashed #e2e8f0; padding-top: 6px; margin-top: 2px;">
+                  <div style="color: #64748b; font-size: 0.75rem;">Endereço:</div>
+                  <div style="color: #0f172a; font-weight: 500; margin-top: 2px;">${order.shipping_address || order.endereco_entrega || 'Entrega padrão Luanda'}</div>
+                  ${order.ponto_referencia ? `
+                    <div style="color: #64748b; font-size: 0.75rem; margin-top: 3px;">Ref: ${order.ponto_referencia}</div>
+                  ` : ''}
+                  <div style="color: #475569; font-size: 0.75rem; margin-top: 3px;">
+                    Método: ${order.shipping_method === 'express' ? 'Entrega Expressa' : 'Entrega Padrão'}
+                  </div>
+                </div>
+              </div>
             </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 0.8125rem;">
-              <div><strong>Nome:</strong> ${order.customer_name || order.nome_cliente || 'Não informado'}</div>
-              <div><strong>Telefone:</strong> ${phone || 'Não informado'}</div>
-              <div><strong>E-mail:</strong> ${order.customer_email || order.email_cliente || 'Não informado'}</div>
-              <div><strong>Pagamento:</strong> <span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:0.6875rem;">${(order.payment_method || order.metodo_pagamento || 'MULTICAIXA').toUpperCase()}</span></div>
-            </div>
-            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1; font-size: 0.8125rem;">
-              <div><strong>Endereço de Entrega:</strong> ${order.shipping_address || order.endereco_entrega || 'Entrega padrão Luanda'}</div>
-              ${(order.ponto_referencia) ? `<div style="margin-top: 4px; color: #475569;"><strong>Ponto de Referência:</strong> 📍 ${order.ponto_referencia}</div>` : ''}
-              ${order.shipping_method ? `<div style="margin-top: 4px; color: #475569;"><strong>Método de Envio:</strong> ${order.shipping_method === 'express' ? '⚡ Entrega Expressa (até 4h)' : '🚚 Entrega Padrão Luanda (até 24h)'}</div>` : ''}
+
+            <!-- 2. Pagamento & Totais -->
+            <div class="admin-card-panel">
+              <div class="admin-panel-header">
+                <span class="admin-panel-title">Pagamento & Totais</span>
+                ${renderPaymentBadge(order.payment_status, order.payment_method)}
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 5px; font-size: 0.8125rem;">
+                <div style="display: flex; justify-content: space-between;">
+                  <span style="color: #64748b;">Método:</span>
+                  <span style="font-weight: 600; color: #0f172a;">${(order.payment_method || order.metodo_pagamento || 'MULTICAIXA').toUpperCase()}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <span style="color: #64748b;">Subtotal:</span>
+                  <span>${formatPrice(order.subtotal || order.total)}</span>
+                </div>
+                ${order.discount ? `
+                  <div style="display: flex; justify-content: space-between; color: #16a34a;">
+                    <span>Desconto:</span>
+                    <span>- ${formatPrice(order.discount)}</span>
+                  </div>
+                ` : ''}
+                ${order.shipping_price ? `
+                  <div style="display: flex; justify-content: space-between; color: #64748b;">
+                    <span>Taxa Entrega:</span>
+                    <span>${formatPrice(order.shipping_price)}</span>
+                  </div>
+                ` : ''}
+                <div style="display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid #e2e8f0; padding-top: 6px; margin-top: 4px;">
+                  <span style="font-weight: 700; color: #0f172a;">Total:</span>
+                  <strong style="font-size: 1.05rem; color: #0f172a;">${formatPrice(order.total)}</strong>
+                </div>
+                ${proofUrl ? `
+                  <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed #e2e8f0;">
+                    <a href="${proofUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="width: 100%; justify-content: center; font-size: 0.75rem; padding: 5px;">
+                      📄 Ver Comprovativo Bancário
+                    </a>
+                  </div>
+                ` : ''}
+              </div>
             </div>
           </div>
 
-          <!-- 2. Lista de Produtos do Pedido -->
-          <div style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; background: #ffffff;">
-            <h4 style="font-size: 0.8125rem; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 10px 0;">
-              Produtos Adquiridos (${items.length})
-            </h4>
-
+          <!-- 3. Itens do Pedido -->
+          <div class="admin-card-panel">
+            <div class="admin-panel-header">
+              <span class="admin-panel-title">Itens do Pedido (${items.length})</span>
+            </div>
             ${items.length === 0 ? `
-              <div style="font-size: 0.8125rem; color: #64748b; text-align: center; padding: 12px 0;">
-                Nenhum detalhe de item específico registrado para este pedido.
+              <div style="font-size: 0.8125rem; color: #94a3b8; text-align: center; padding: 12px 0;">
+                Nenhum item detalhado neste pedido.
               </div>
             ` : `
-              <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto;">
                 ${items.map(it => {
                   const name = it.product_name || it.name || it.nome_produto || 'Produto';
                   const img = it.product_image || it.image || it.imagem_produto || '';
@@ -3319,27 +4051,29 @@ export function renderAdminView() {
                   const qty = Number(it.quantity || it.quantidade || 1);
                   const itemTotal = Number(it.total_price || it.preco_total || (price * qty));
                   const variant = it.selected_variant || it.variant || {};
-                  const variantStr = Object.entries(variant).map(([k, v]) => `${k}: ${v}`).join(' | ');
+                  const variantStr = Object.entries(variant).map(([k, v]) => `${k}: ${v}`).join(' · ');
 
                   return `
-                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px; border-radius: 8px; background: #f8fafc; border: 1px solid #f1f5f9;">
-                      <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 8px; border-radius: 6px; background: #f8fafc; border: 1px solid #f1f5f9;">
+                      <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
                         ${img ? `
-                          <img src="${img}" alt="${name}" style="width: 44px; height: 44px; object-fit: contain; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; flex-shrink: 0;" />
+                          <img src="${img}" alt="${name}" style="width: 36px; height: 36px; object-fit: contain; background: #fff; border: 1px solid #e2e8f0; border-radius: 5px; flex-shrink: 0;" />
                         ` : `
-                          <div style="width: 44px; height: 44px; background: #e2e8f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #64748b; flex-shrink: 0;">
-                            ${Icons.package(20)}
+                          <div style="width: 36px; height: 36px; background: #e2e8f0; border-radius: 5px; display: flex; align-items: center; justify-content: center; color: #94a3b8; flex-shrink: 0;">
+                            ${Icons.package(16)}
                           </div>
                         `}
                         <div style="min-width: 0;">
-                          <div style="font-size: 0.8125rem; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px;" title="${name}">${name}</div>
-                          ${it.product_sku ? `<div style="font-size: 0.6875rem; color: #64748b;">SKU: ${it.product_sku}</div>` : ''}
-                          ${variantStr ? `<div style="font-size: 0.6875rem; color: #3b82f6;">${variantStr}</div>` : ''}
-                          <div style="font-size: 0.75rem; color: #64748b;">${qty}x ${formatPrice(price)}</div>
+                          <div style="font-size: 0.8125rem; font-weight: 600; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px;" title="${name}">${name}</div>
+                          <div style="display: flex; gap: 6px; align-items: center; font-size: 0.6875rem; color: #64748b;">
+                            ${it.product_sku ? `<span>SKU: ${it.product_sku}</span>` : ''}
+                            ${variantStr ? `<span style="color: #2563eb;">${variantStr}</span>` : ''}
+                            <span>${qty}x ${formatPrice(price)}</span>
+                          </div>
                         </div>
                       </div>
                       <div style="text-align: right; flex-shrink: 0;">
-                        <strong style="font-size: 0.875rem; color: #0f172a;">${formatPrice(itemTotal)}</strong>
+                        <strong style="font-size: 0.8125rem; color: #0f172a;">${formatPrice(itemTotal)}</strong>
                       </div>
                     </div>
                   `;
@@ -3348,62 +4082,34 @@ export function renderAdminView() {
             `}
           </div>
 
-          <!-- 3. Resumo Financeiro -->
-          <div style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; background: #ffffff;">
-            <h4 style="font-size: 0.8125rem; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px 0;">
-              Resumo Financeiro
-            </h4>
-            <div style="display: flex; flex-direction: column; gap: 4px; font-size: 0.8125rem;">
-              <div style="display: flex; justify-content: space-between;">
-                <span style="color: #64748b;">Subtotal:</span>
-                <strong>${formatPrice(order.subtotal || order.total)}</strong>
-              </div>
-              ${order.discount ? `
-                <div style="display: flex; justify-content: space-between; color: #16a34a;">
-                  <span>Desconto Aplicado:</span>
-                  <strong>- ${formatPrice(order.discount)}</strong>
-                </div>
-              ` : ''}
-              ${order.shipping_price ? `
-                <div style="display: flex; justify-content: space-between; color: #64748b;">
-                  <span>Taxa de Entrega:</span>
-                  <strong>${formatPrice(order.shipping_price)}</strong>
-                </div>
-              ` : ''}
-              <div style="display: flex; justify-content: space-between; font-size: 1rem; font-weight: 900; color: #1d4ed8; border-top: 1px solid #f1f5f9; padding-top: 8px; margin-top: 4px;">
-                <span>Total Oficial:</span>
-                <span>${formatPrice(order.total)}</span>
-              </div>
+          <!-- 4. Alteração de Status & Notas -->
+          <div class="admin-card-panel">
+            <div class="admin-panel-header">
+              <span class="admin-panel-title">Status Operacional</span>
             </div>
-          </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; color: #475569;">Atualizar Status:</label>
+                <select id="modalOrderStatusSelect" class="form-input" style="height: 33px; font-size: 0.8125rem; padding: 4px 8px;">
+                  <option value="received" ${(order.status === 'received' || order.status_pedido === 'received') ? 'selected' : ''}>Recebido</option>
+                  <option value="confirmed" ${(order.status === 'confirmed' || order.status_pedido === 'confirmed') ? 'selected' : ''}>Confirmado / Pago</option>
+                  <option value="preparing" ${(order.status === 'preparing' || order.status_pedido === 'preparing') ? 'selected' : ''}>Em Separação</option>
+                  <option value="shipped" ${(order.status === 'shipped' || order.status_pedido === 'shipped') ? 'selected' : ''}>Enviado</option>
+                  <option value="delivered" ${(order.status === 'delivered' || order.status_pedido === 'delivered') ? 'selected' : ''}>Entregue</option>
+                  <option value="cancelled" ${(order.status === 'cancelled' || order.status_pedido === 'cancelled') ? 'selected' : ''}>Cancelado</option>
+                </select>
+              </div>
 
-          <!-- 4. Alteração de Status e Notas Administrativas -->
-          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px;">
-            <h4 style="font-size: 0.8125rem; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 10px 0;">
-              Gestão Operacional de Status
-            </h4>
-
-            <div class="form-group" style="margin-bottom: 12px;">
-              <label class="form-label" style="font-size: 0.8125rem; font-weight: 700;">Status do Pedido (Reflete instantaneamente no rastreamento do cliente):</label>
-              <select id="modalOrderStatusSelect" class="admin-filter-select" style="width: 100%; font-size: 0.875rem; padding: 8px 12px;">
-                <option value="received" ${(order.status === 'received' || order.status_pedido === 'received') ? 'selected' : ''}>Recebido (Aguardando processamento)</option>
-                <option value="confirmed" ${(order.status === 'confirmed' || order.status_pedido === 'confirmed') ? 'selected' : ''}>Confirmado / Pago</option>
-                <option value="preparing" ${(order.status === 'preparing' || order.status_pedido === 'preparing') ? 'selected' : ''}>Em Separação no Depósito</option>
-                <option value="shipped" ${(order.status === 'shipped' || order.status_pedido === 'shipped') ? 'selected' : ''}>Enviado / Em Trânsito para Entrega</option>
-                <option value="delivered" ${(order.status === 'delivered' || order.status_pedido === 'delivered') ? 'selected' : ''}>Entregue com Sucesso ao Cliente</option>
-                <option value="cancelled" ${(order.status === 'cancelled' || order.status_pedido === 'cancelled') ? 'selected' : ''}>Cancelado</option>
-              </select>
-            </div>
-
-            <div class="form-group" style="margin-bottom: 8px;">
-              <label class="form-label" style="font-size: 0.8125rem; font-weight: 700;">Observações / Notas Internas do Admin:</label>
-              <textarea id="modalOrderNotesInput" class="form-textarea" rows="2" style="width: 100%; font-size: 0.8125rem;" placeholder="Ex: Código de rastreio da transportadora, confirmação de comprovante via Multicaixa, etc.">${order.admin_notes || order.notas_admin || ''}</textarea>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; color: #475569;">Notas Internas / Rastreio:</label>
+                <input type="text" id="modalOrderNotesInput" class="form-input" style="height: 33px; font-size: 0.8125rem; padding: 4px 8px;" placeholder="Ex: Código de rastreio, notas..." value="${order.admin_notes || order.notas_admin || ''}" />
+              </div>
             </div>
 
             ${history.length > 0 ? `
-              <div style="margin-top: 10px; border-top: 1px dashed #cbd5e1; padding-top: 8px;">
-                <span style="font-size: 0.6875rem; font-weight: 800; color: #64748b; text-transform: uppercase;">Histórico de Alterações:</span>
-                <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px; font-size: 0.75rem; color: #475569;">
+              <div style="margin-top: 8px; border-top: 1px dashed #e2e8f0; padding-top: 6px;">
+                <span style="font-size: 0.6875rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Histórico:</span>
+                <div style="display: flex; flex-direction: column; gap: 3px; margin-top: 3px; font-size: 0.75rem; color: #475569;">
                   ${history.map(h => `
                     <div>• <strong>${(h.status || '').toUpperCase()}</strong> em ${formatDate(h.timestamp)} ${h.notes ? `(${h.notes})` : ''}</div>
                   `).join('')}
@@ -3412,10 +4118,11 @@ export function renderAdminView() {
             ` : ''}
           </div>
 
-          <div class="admin-modal-footer" style="padding: 0; margin-top: 4px;">
-            <button class="btn btn-secondary close-modal-btn">Fechar</button>
-            <button id="saveOrderStatusBtn" class="btn btn-primary" style="padding: 10px 24px; font-weight: 800;">
-              Salvar Alterações Operacionais
+          <!-- Rodapé de Ações do Modal -->
+          <div class="admin-modal-footer" style="padding: 10px 16px; background: #ffffff; border-top: 1px solid #e2e8f0; margin-top: 4px; border-radius: 8px; display: flex; justify-content: flex-end; align-items: center; gap: 8px;">
+            <button type="button" class="btn btn-secondary btn-sm close-modal-btn" style="height: 33px; padding: 0 16px; font-weight: 600;">Fechar</button>
+            <button type="button" id="saveOrderStatusBtn" class="btn btn-primary btn-sm" style="height: 33px; padding: 0 18px; font-weight: 600;">
+              Salvar Alterações
             </button>
           </div>
         </div>
@@ -3433,20 +4140,153 @@ export function renderAdminView() {
       const notes = modal.querySelector('#modalOrderNotesInput')?.value.trim() || '';
 
       saveBtn.disabled = true;
-      saveBtn.innerHTML = 'Salvando no banco...';
+      saveBtn.innerHTML = 'Salvando...';
 
       try {
         await Api.orders.updateStatus(order.id, newStatus, notes);
-        Toast.show('Status do pedido atualizado e sincronizado com o cliente com sucesso!', 'success');
+        Toast.show('Status do pedido atualizado!', 'success');
         modal.remove();
         await loadAllData();
         render();
       } catch (err) {
         Toast.show(err.message || 'Erro ao atualizar pedido.', 'error');
         saveBtn.disabled = false;
-        saveBtn.innerHTML = 'Salvar Alterações Operacionais';
+        saveBtn.innerHTML = 'Salvar Alterações';
       }
     });
+  }
+
+  // Modal de Detalhes do Cliente
+  function openCustomerDetailsModal(customer) {
+    const modal = document.createElement('div');
+    modal.className = 'admin-modal-overlay';
+
+    const phone = customer.phone || customer.telefone || '';
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    const waLink = cleanPhone ? `https://wa.me/${cleanPhone.startsWith('244') ? cleanPhone : '244' + cleanPhone}` : null;
+    const isBlocked = customer.status === 'blocked';
+
+    const cOrders = ordersList.filter(o =>
+      (o.customer_email && o.customer_email.toLowerCase() === (customer.email || '').toLowerCase()) ||
+      (phone && (o.customer_phone === phone || o.telefone_cliente === phone)) ||
+      (o.user_id && String(o.user_id) === String(customer.id))
+    );
+
+    const totalSpent = cOrders.length > 0
+      ? cOrders.reduce((sum, o) => sum + Number(o.total || 0), 0)
+      : Number(customer.total_spent || 0);
+
+    modal.innerHTML = `
+      <div class="admin-modal-dialog admin-modal-product-dialog" style="max-width: 660px !important;">
+        <div class="admin-modal-product-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <h3 class="admin-modal-title" style="margin: 0; font-size: 1.125rem; font-weight: 700; color: #0f172a;">
+              ${customer.name}
+            </h3>
+            <span style="font-family: ui-monospace, monospace; font-size: 0.75rem; font-weight: 600; color: #64748b; background: #f1f5f9; padding: 2px 7px; border-radius: 4px; border: 1px solid #e2e8f0;">
+              ${customer.id}
+            </span>
+            ${!isBlocked ? `
+              <span class="badge" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; font-size:0.75rem;">Ativo</span>
+            ` : `
+              <span class="badge" style="background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; font-size:0.75rem;">Bloqueado</span>
+            `}
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            ${waLink ? `
+              <a href="${waLink}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 5px; color: #15803d; border-color: #bbf7d0; background: #f0fdf4; font-size: 0.75rem; padding: 4px 10px; text-decoration: none;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                <span>WhatsApp</span>
+              </a>
+            ` : ''}
+            <button type="button" class="admin-modal-close-icon close-modal-btn" title="Fechar (Esc)">✕</button>
+          </div>
+        </div>
+
+        <div class="admin-modal-product-body" style="padding: 14px 18px !important; background: #ffffff !important; display: flex; flex-direction: column; gap: 10px;">
+          <!-- Grid 2 Colunas: Contato & Resumo -->
+          <div class="admin-product-bottom-grid">
+            <div class="admin-card-panel">
+              <div class="admin-panel-header">
+                <span class="admin-panel-title">Contato & Endereço</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 6px; font-size: 0.8125rem;">
+                <div style="display: flex; justify-content: space-between;">
+                  <span style="color: #64748b;">E-mail:</span>
+                  <strong style="color: #0f172a;">${customer.email}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <span style="color: #64748b;">Telefone:</span>
+                  <span style="color: #0f172a;">${phone || 'Não informado'}</span>
+                </div>
+                <div style="border-top: 1px dashed #e2e8f0; padding-top: 6px; margin-top: 2px;">
+                  <div style="color: #64748b; font-size: 0.75rem;">Endereço de Entrega:</div>
+                  <div style="color: #0f172a; font-weight: 500; margin-top: 2px;">${customer.endereco || 'Não informado'}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="admin-card-panel">
+              <div class="admin-panel-header">
+                <span class="admin-panel-title">Histórico de Compras</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 6px; font-size: 0.8125rem;">
+                <div style="display: flex; justify-content: space-between;">
+                  <span style="color: #64748b;">Total de Pedidos:</span>
+                  <strong style="color: #0f172a;">${cOrders.length} pedido${cOrders.length !== 1 ? 's' : ''}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid #e2e8f0; padding-top: 6px; margin-top: 4px;">
+                  <span style="font-weight: 700; color: #0f172a;">Volume Total:</span>
+                  <strong style="font-size: 1.05rem; color: #0f172a;">${formatPrice(totalSpent)}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pedidos Recentes do Cliente -->
+          <div class="admin-card-panel">
+            <div class="admin-panel-header">
+              <span class="admin-panel-title">Pedidos do Cliente (${cOrders.length})</span>
+            </div>
+            ${cOrders.length === 0 ? `
+              <div style="font-size: 0.8125rem; color: #94a3b8; text-align: center; padding: 12px 0;">
+                Nenhum pedido registrado para este cliente até o momento.
+              </div>
+            ` : `
+              <div style="display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto;">
+                ${cOrders.map(o => {
+                  const cleanCode = String(o.order_code || o.codigo_pedido || o.id).replace(/^#/, '');
+                  return `
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 10px; border-radius: 6px; background: #f8fafc; border: 1px solid #f1f5f9; font-size: 0.8125rem;">
+                      <div>
+                        <strong style="font-family: ui-monospace, monospace; color: #0f172a;">${cleanCode}</strong>
+                        <span style="font-size: 0.75rem; color: #64748b; margin-left: 6px;">${formatDate(o.created_at)}</span>
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <strong style="color: #0f172a;">${formatPrice(o.total)}</strong>
+                        ${renderStatusBadge(o.status)}
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            `}
+          </div>
+
+          <div class="admin-modal-footer" style="padding: 10px 16px; background: #ffffff; border-top: 1px solid #e2e8f0; margin-top: 4px; border-radius: 8px; display: flex; justify-content: flex-end; align-items: center; gap: 8px;">
+            <button type="button" class="btn btn-secondary btn-sm close-modal-btn" style="height: 33px; padding: 0 16px; font-weight: 600;">Fechar</button>
+            <button type="button" class="btn btn-sm toggle-block-customer-btn ${!isBlocked ? 'danger' : 'btn-primary'}" data-id="${customer.id}" data-blocked="${isBlocked}" style="height: 33px; padding: 0 16px; font-weight: 600;">
+              ${!isBlocked ? 'Bloquear Cliente' : 'Desbloquear Conta'}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    modal.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', () => modal.remove()));
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+    modal.querySelector('.toggle-block-customer-btn')?.addEventListener('click', () => modal.remove());
   }
 
   // 2. Modal de Produto
@@ -3455,112 +4295,216 @@ export function renderAdminView() {
     const modal = document.createElement('div');
     modal.className = 'admin-modal-overlay';
     modal.innerHTML = `
-      <div class="admin-modal-dialog">
-        <div class="admin-modal-header">
-          <h3 class="admin-modal-title">${isEdit ? 'Editar Produto' : 'Cadastrar Novo Produto'}</h3>
-          <button class="btn btn-secondary btn-sm close-modal-btn">✕</button>
+      <div class="admin-modal-dialog admin-modal-product-dialog">
+        <!-- Header Minimalista -->
+        <div class="admin-modal-product-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <h3 class="admin-modal-title" style="margin: 0; font-size: 1.125rem; font-weight: 700; color: #0f172a;">
+              ${isEdit ? 'Editar Produto' : 'Novo Produto'}
+            </h3>
+            ${isEdit ? `
+              <span style="font-family: ui-monospace, monospace; font-size: 0.75rem; font-weight: 600; color: #64748b; background: #f1f5f9; padding: 2px 7px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                ${prod.id}
+              </span>
+            ` : ''}
+          </div>
+          <button type="button" class="admin-modal-close-icon close-modal-btn" title="Fechar (Esc)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
 
-        <form id="productForm" class="admin-modal-body">
-          <div class="admin-form-grid-2">
-            <div class="form-group">
-              <label class="form-label">Nome do Produto *</label>
-              <input type="text" id="pName" class="form-input" value="${prod?.name || ''}" placeholder="Ex: iPhone 16 Pro Max 256GB" required />
+        <form id="productForm" class="admin-modal-product-body">
+          <!-- CARD SUPERIOR: IDENTIFICAÇÃO & DADOS COMERCIAIS -->
+          <div class="admin-card-panel" style="margin-bottom: 10px;">
+            <div class="admin-panel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <h4 class="admin-panel-title">Geral & Comercial</h4>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="hidden" id="pStatus" value="${prod?.is_active !== false ? 'true' : 'false'}" />
+                <div class="admin-status-segmented-control">
+                  <button type="button" class="admin-status-segmented-btn ${prod?.is_active !== false ? 'active status-active' : ''}" data-status="true">
+                    <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #16a34a;"></span>
+                    <span>Ativo</span>
+                  </button>
+                  <button type="button" class="admin-status-segmented-btn ${prod?.is_active === false ? 'active status-blocked' : ''}" data-status="false">
+                    <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #94a3b8;"></span>
+                    <span>Pausado</span>
+                  </button>
+                </div>
+              </div>
             </div>
+
+            <!-- Linha 1: Nome (2fr), Marca (1fr), Categoria (1fr), Subcategoria (1fr) -->
+            <div style="display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-bottom: 8px;">
+              <div class="form-group">
+                <label class="admin-form-label" for="pName">Nome do Produto *</label>
+                <input type="text" id="pName" class="form-input" value="${prod?.name || ''}" placeholder="Ex: iPhone 16 Pro Max 256GB" required style="font-weight: 600;" />
+              </div>
+
+              <div class="form-group">
+                <label class="admin-form-label" for="pBrand">Marca *</label>
+                <input type="text" id="pBrand" class="form-input" list="mobileBrandSuggestions" value="${prod?.brand || ''}" placeholder="Ex: Apple" required style="font-weight: 600;" />
+                <datalist id="mobileBrandSuggestions">
+                  <option value="Apple">
+                  <option value="Samsung">
+                  <option value="Xiaomi">
+                  <option value="Motorola">
+                  <option value="Huawei">
+                  <option value="Google Pixel">
+                  <option value="Realme">
+                  <option value="Infinix">
+                  <option value="Tecno">
+                  <option value="OnePlus">
+                  <option value="Honor">
+                  <option value="Oppo">
+                  <option value="Vivo">
+                  <option value="Sony">
+                  <option value="Nokia">
+                  <option value="NovaTech">
+                </datalist>
+              </div>
+
+              <div class="form-group">
+                <label class="admin-form-label" for="pCategory">Categoria *</label>
+                <select id="pCategory" class="form-input" style="font-weight: 600;" required>
+                  <option value="">Selecione...</option>
+                  ${categoriesList.map(c => `
+                    <option value="${c.id}" ${String(prod?.category_id) === String(c.id) ? 'selected' : ''}>${c.name}</option>
+                  `).join('')}
+                </select>
+              </div>
+
+              <div class="form-group" id="pSubcategoryWrapper">
+                <label id="pSubcategoryLabel" class="admin-form-label" for="pSubcategory">Subcategoria *</label>
+                <select id="pSubcategory" class="form-input" style="font-weight: 600;" required>
+                  <option value="">Selecione...</option>
+                </select>
+                <div id="pSubcategoryNotice" style="margin-top: 2px; font-size: 0.7rem;"></div>
+              </div>
+            </div>
+
+            <!-- Linha 2: Preço Venda, Preço Original, Estoque Atual, Estoque Mínimo -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+              <div class="form-group">
+                <label class="admin-form-label" for="pPrice">Preço de Venda *</label>
+                <div class="admin-input-affix-group">
+                  <span class="admin-input-prefix">Kz</span>
+                  <input type="number" id="pPrice" class="form-input has-prefix" value="${prod?.price || ''}" placeholder="0" required style="font-weight: 700;" />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="admin-form-label" for="pOldPrice" style="display: flex; justify-content: space-between;">
+                  <span>Preço Original</span>
+                  <span id="priceDiscountBadge" style="display: none; font-size: 0.6875rem; font-weight: 700; color: #16a34a;"></span>
+                </label>
+                <div class="admin-input-affix-group">
+                  <span class="admin-input-prefix">Kz</span>
+                  <input type="number" id="pOldPrice" class="form-input has-prefix" value="${prod?.old_price || prod?.oldPrice || ''}" placeholder="0" style="color: #64748b;" />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="admin-form-label" for="pStock">Estoque Atual *</label>
+                <div class="admin-input-affix-group">
+                  <input type="number" id="pStock" class="form-input has-suffix" value="${prod?.stock !== undefined ? prod.stock : 10}" required style="font-weight: 700;" />
+                  <span class="admin-input-suffix">un</span>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="admin-form-label" for="pStockMin">Estoque Mínimo *</label>
+                <div class="admin-input-affix-group">
+                  <input type="number" id="pStockMin" class="form-input has-suffix" value="${prod?.stock_min || 2}" required style="font-weight: 700;" />
+                  <span class="admin-input-suffix">un</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Linha 3: Descrição Compacta -->
             <div class="form-group">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <label class="form-label" style="margin-bottom:0;">Código SKU *</label>
-                <button type="button" id="btnGenSku" style="background:none; border:none; color:#2563eb; font-size:0.75rem; font-weight:700; cursor:pointer;">
-                  ⚡ Gerar SKU
+              <label class="admin-form-label" for="pDesc">Descrição do Produto</label>
+              <textarea id="pDesc" class="form-input" rows="2" placeholder="Breve apresentação comercial e diferenciais..." style="resize: vertical; min-height: 48px; font-size: 0.8125rem;">${prod?.description || prod?.descricao || ''}</textarea>
+            </div>
+          </div>
+
+          <!-- SEÇÃO INFERIOR: 2 COLUNAS EQUILIBRADAS (FOTOS + DESTAQUES vs FICHA TÉCNICA) -->
+          <div class="admin-product-bottom-grid">
+            <!-- COLUNA ESQUERDA: FOTOS & DESTAQUES -->
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <!-- Card: Fotos -->
+              <div class="admin-card-panel" style="flex: 1; margin-bottom: 0;">
+                <div class="admin-panel-header">
+                  <h4 class="admin-panel-title">Fotos</h4>
+                </div>
+                <div id="productGalleryUploaderMount"></div>
+              </div>
+
+              <!-- Card: Destaques -->
+              <div class="admin-card-panel" style="margin-bottom: 0;">
+                <div class="admin-panel-header">
+                  <h4 class="admin-panel-title">Destaques na Vitrine</h4>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">
+                  <div class="admin-toggle-switch-card ${prod?.is_featured ? 'checked' : ''}" style="margin-bottom: 0;">
+                    <span style="font-size: 0.75rem; font-weight: 600; color: #1e293b;">Vitrine</span>
+                    <input type="checkbox" id="pIsFeatured" ${prod?.is_featured ? 'checked' : ''} style="display:none;" />
+                    <div class="admin-switch-slider"></div>
+                  </div>
+
+                  <div class="admin-toggle-switch-card ${prod?.is_deal ? 'checked' : ''}" style="margin-bottom: 0;">
+                    <span style="font-size: 0.75rem; font-weight: 600; color: #1e293b;">Oferta</span>
+                    <input type="checkbox" id="pIsDeal" ${prod?.is_deal ? 'checked' : ''} style="display:none;" />
+                    <div class="admin-switch-slider"></div>
+                  </div>
+
+                  <div class="admin-toggle-switch-card ${prod?.is_new ? 'checked' : ''}" style="margin-bottom: 0;">
+                    <span style="font-size: 0.75rem; font-weight: 600; color: #1e293b;">Novo</span>
+                    <input type="checkbox" id="pIsNew" ${prod?.is_new ? 'checked' : ''} style="display:none;" />
+                    <div class="admin-switch-slider"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- COLUNA DIREITA: FICHA TÉCNICA -->
+            <div class="admin-card-panel" style="display: flex; flex-direction: column; margin-bottom: 0;">
+              <div class="admin-panel-header">
+                <h4 class="admin-panel-title">Ficha Técnica</h4>
+                <button type="button" id="btnAddCustomSpec" class="btn btn-secondary btn-sm" style="font-size: 0.6875rem; font-weight: 600; padding: 2px 8px;">
+                  + Linha
                 </button>
               </div>
-              <input type="text" id="pSku" class="form-input" value="${prod?.sku || ''}" placeholder="NV-APL-IP16-256" required />
-            </div>
-          </div>
 
-          <!-- Classificação Obrigatória Sequencial: Primeiro a Categoria, e DEPOIS aparece a Subcategoria -->
-          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px; margin-bottom: 14px;">
-            <div class="form-group" style="margin-bottom: 0;">
-              <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; font-weight: 700;">
-                <span>1. Categoria Principal *</span>
-                <span style="font-size: 0.75rem; color: #dc2626; font-weight: 600;">Obrigatório</span>
-              </label>
-              <select id="pCategory" class="admin-filter-select" style="width: 100%; font-weight: 600;" required>
-                <option value="">Selecione primeiro a categoria...</option>
-                ${categoriesList.map(c => `
-                  <option value="${c.id}" ${String(prod?.category_id) === String(c.id) ? 'selected' : ''}>${c.name}</option>
-                `).join('')}
-              </select>
-            </div>
-
-            <!-- Este bloco fica OCULTO até que a Categoria seja selecionada -->
-            <div id="pSubcategoryWrapper" style="display: none; margin-top: 14px; padding-top: 14px; border-top: 1px dashed #cbd5e1;">
-              <div class="form-group" style="margin-bottom: 0;">
-                <label id="pSubcategoryLabel" class="form-label" style="display: flex; align-items: center; justify-content: space-between; font-weight: 700;">
-                  <span>2. Subcategoria Vinculada *</span>
-                  <span style="font-size: 0.75rem; color: #dc2626; font-weight: 600;">Obrigatório</span>
-                </label>
-                <select id="pSubcategory" class="admin-filter-select" style="width: 100%; font-weight: 600;" required>
-                  <option value="">Selecione a subcategoria...</option>
-                </select>
-                <div id="pSubcategoryNotice" style="margin-top: 6px; font-size: 0.75rem;"></div>
+              <!-- Tags Rápidas -->
+              <div style="margin-bottom: 8px;">
+                <div class="admin-quick-spec-wrap">
+                  <button type="button" class="admin-quick-spec-btn" data-spec="Processador" data-val-hint="Ex: A18 Pro">Processador</button>
+                  <button type="button" class="admin-quick-spec-btn" data-spec="Memória RAM" data-val-hint="Ex: 8 GB">RAM</button>
+                  <button type="button" class="admin-quick-spec-btn" data-spec="Armazenamento" data-val-hint="Ex: 256 GB">Armazenamento</button>
+                  <button type="button" class="admin-quick-spec-btn" data-spec="Tela" data-val-hint="Ex: 6.7 OLED">Tela</button>
+                  <button type="button" class="admin-quick-spec-btn" data-spec="Câmera" data-val-hint="Ex: 48 MP">Câmera</button>
+                  <button type="button" class="admin-quick-spec-btn" data-spec="Bateria" data-val-hint="Ex: 4.500 mAh">Bateria</button>
+                  <button type="button" class="admin-quick-spec-btn" data-spec="Cor" data-val-hint="Ex: Titânio Natural">Cor</button>
+                  <button type="button" class="admin-quick-spec-btn" data-spec="Garantia" data-val-hint="Ex: 12 Meses">Garantia</button>
+                </div>
               </div>
+
+              <!-- Lista Chave / Valor -->
+              <div id="adminSpecsList" style="display: flex; flex-direction: column; max-height: 220px; overflow-y: auto; flex: 1;"></div>
             </div>
           </div>
 
-          <div class="admin-form-grid-3">
-            <div class="form-group">
-              <label class="form-label">Marca *</label>
-              <input type="text" id="pBrand" class="form-input" value="${prod?.brand || 'NovaTech'}" required />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Preço Normal (Kz) *</label>
-              <input type="number" id="pPrice" class="form-input" value="${prod?.price || ''}" placeholder="2798750" required />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Preço Promocional (Kz)</label>
-              <input type="number" id="pOldPrice" class="form-input" value="${prod?.old_price || prod?.oldPrice || ''}" placeholder="3100000" />
-            </div>
-          </div>
-
-          <div class="admin-form-grid-2">
-            <div class="form-group">
-              <label class="form-label">Estoque Atual *</label>
-              <input type="number" id="pStock" class="form-input" value="${prod?.stock !== undefined ? prod.stock : 10}" required />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Estoque Mínimo *</label>
-              <input type="number" id="pStockMin" class="form-input" value="${prod?.stock_min || 2}" required />
-            </div>
-          </div>
-
-          <!-- Componente de Upload Direto da Foto com Pré-visualização -->
-          <div id="productImageUploaderMount" style="margin-bottom: 6px;"></div>
-
-          <div class="form-group">
-            <label class="form-label">Descrição do Produto</label>
-            <textarea id="pDesc" class="form-input" rows="3" placeholder="Detalhes, especificações e diferenciais do produto...">${prod?.description || ''}</textarea>
-          </div>
-
-          <!-- Destaques -->
-          <div style="display: flex; gap: 14px; flex-wrap: wrap; background: #f8fafc; padding: 12px; border-radius: 10px;">
-            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8125rem; font-weight: 700; cursor: pointer;">
-              <input type="checkbox" id="pIsDeal" ${prod?.is_deal ? 'checked' : ''} />
-              <span>Oferta Especial</span>
-            </label>
-            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8125rem; font-weight: 700; cursor: pointer;">
-              <input type="checkbox" id="pIsNew" ${prod?.is_new ? 'checked' : ''} />
-              <span>Novidade</span>
-            </label>
-            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8125rem; font-weight: 700; cursor: pointer;">
-              <input type="checkbox" id="pIsFeatured" ${prod?.is_featured ? 'checked' : ''} />
-              <span>Destaque na Vitrine</span>
-            </label>
-          </div>
-
-          <div class="admin-modal-footer" style="padding: 0; margin-top: 10px;">
-            <button type="button" class="btn btn-secondary close-modal-btn">Cancelar</button>
-            <button type="submit" id="saveProductBtn" class="btn btn-primary">${isEdit ? 'Salvar Alterações' : 'Cadastrar Produto'}</button>
+          <!-- Rodapé de Ações -->
+          <div class="admin-modal-footer" style="padding: 10px 16px; background: #ffffff; border-top: 1px solid #e2e8f0; margin-top: 10px; border-radius: 8px; display: flex; justify-content: flex-end; align-items: center; gap: 8px;">
+            <button type="button" class="btn btn-secondary close-modal-btn" style="padding: 6px 14px; font-weight: 600; font-size: 0.8125rem;">
+              Cancelar
+            </button>
+            <button type="submit" id="saveProductBtn" class="btn btn-primary" style="padding: 6px 18px; font-weight: 600; font-size: 0.8125rem;">
+              ${isEdit ? 'Salvar Alterações' : 'Salvar Produto'}
+            </button>
           </div>
         </form>
       </div>
@@ -3568,17 +4512,61 @@ export function renderAdminView() {
 
     document.body.appendChild(modal);
 
+    // Controle Segmented do Status Ativo / Bloqueado
+    const statusValInput = modal.querySelector('#pStatus');
+    const statusBtns = modal.querySelectorAll('.admin-status-segmented-btn');
+    statusBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        statusBtns.forEach(b => {
+          b.classList.remove('active', 'status-active', 'status-blocked');
+        });
+        const isAct = btn.dataset.status === 'true';
+        btn.classList.add('active', isAct ? 'status-active' : 'status-blocked');
+        statusValInput.value = btn.dataset.status;
+      });
+    });
+
+    // Switches Interativos para os Selos Promocionais
+    modal.querySelectorAll('.admin-toggle-switch-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        const checkbox = card.querySelector('input[type="checkbox"]');
+        if (e.target !== checkbox) {
+          checkbox.checked = !checkbox.checked;
+        }
+        card.classList.toggle('checked', checkbox.checked);
+      });
+    });
+
+    // Calculadora automática de economia / desconto em tempo real
+    const priceInput = modal.querySelector('#pPrice');
+    const oldPriceInput = modal.querySelector('#pOldPrice');
+    const discountBadge = modal.querySelector('#priceDiscountBadge');
+
+    function updateDiscountCalculation() {
+      const p = Number(priceInput.value) || 0;
+      const old = Number(oldPriceInput.value) || 0;
+      if (old > p && p > 0) {
+        const diff = old - p;
+        const pct = Math.round((diff / old) * 100);
+        discountBadge.style.display = 'inline-block';
+        discountBadge.textContent = `-${pct}% (${formatPrice(diff)} economia)`;
+      } else {
+        discountBadge.style.display = 'none';
+      }
+    }
+
+    priceInput?.addEventListener('input', updateDiscountCalculation);
+    oldPriceInput?.addEventListener('input', updateDiscountCalculation);
+    updateDiscountCalculation();
+
     const catSelect = modal.querySelector('#pCategory');
-    const subWrapper = modal.querySelector('#pSubcategoryWrapper');
-    const subLabel = modal.querySelector('#pSubcategoryLabel');
     const subSelect = modal.querySelector('#pSubcategory');
     const subNotice = modal.querySelector('#pSubcategoryNotice');
 
     function populateSubcategories(catId, preselectedSubId = null, preselectedSubName = null) {
       if (!catId) {
-        // Inicialmente ou se desmarcar categoria: campo de subcategoria fica totalmente OCULTO
-        subWrapper.style.display = 'none';
         subSelect.innerHTML = '<option value="">Selecione primeiro a categoria...</option>';
+        subSelect.disabled = true;
         subSelect.value = '';
         subNotice.innerHTML = '';
         return;
@@ -3586,52 +4574,40 @@ export function renderAdminView() {
 
       const category = categoriesList.find(c => String(c.id) === String(catId));
       if (!category) {
-        subWrapper.style.display = 'none';
+        subSelect.innerHTML = '<option value="">Categoria não encontrada</option>';
+        subSelect.disabled = true;
         return;
       }
-
-      // APARECE o campo de subcategoria dinamicamente
-      subWrapper.style.display = 'block';
-      subLabel.innerHTML = `
-        <span>2. Subcategoria de <strong style="color:#2563eb;">${category.name}</strong> *</span>
-        <span style="font-size: 0.75rem; color: #dc2626; font-weight: 600;">Obrigatório</span>
-      `;
 
       const subs = Array.isArray(category?.subcategories) ? category.subcategories : [];
 
       if (subs.length === 0) {
-        subSelect.style.display = 'none';
-        subSelect.value = '';
+        subSelect.disabled = false;
+        subSelect.innerHTML = '<option value="">Sem subcategorias nesta categoria</option>';
         subNotice.innerHTML = `
-          <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:10px 12px;">
-            <div style="color:#b91c1c; font-weight:700; font-size:0.8125rem;">⚠️ A categoria "${category.name}" não possui nenhuma subcategoria cadastrada.</div>
-            <div style="font-size:0.75rem; color:#475569; margin-top:3px;">
-              Como o produto exige subcategoria obrigatória, cadastre uma subcategoria para esta categoria:
-            </div>
-            <button type="button" id="btnQuickAddSubToCat" class="btn btn-primary btn-sm" style="margin-top:8px; font-weight:700; background:#2563eb;">
-              + Cadastrar Subcategoria em ${category.name}
-            </button>
-          </div>
+          <span style="color:#b45309; font-size:0.75rem;">
+            Esta categoria ainda não tem subcategorias cadastradas.
+            <button type="button" id="btnQuickAddSub" style="background:none; border:none; color:#2563eb; font-weight:700; cursor:pointer; text-decoration:underline; padding:0; margin-left:4px;">+ Criar subcategoria</button>
+          </span>
         `;
-        const quickAddBtn = subNotice.querySelector('#btnQuickAddSubToCat');
-        if (quickAddBtn) {
-          quickAddBtn.addEventListener('click', () => {
+        const quickBtn = subNotice.querySelector('#btnQuickAddSub');
+        if (quickBtn) {
+          quickBtn.addEventListener('click', () => {
             openSubcategoryModal({ parent_id: category.id });
           });
         }
         return;
       }
 
-      subSelect.style.display = 'block';
       subSelect.disabled = false;
-      subSelect.innerHTML = `<option value="">Selecione a subcategoria de "${category.name}"...</option>` +
+      subSelect.innerHTML = `<option value="">Selecione a subcategoria...</option>` +
         subs.map(s => {
           const isSelected = (preselectedSubId && String(s.id) === String(preselectedSubId)) ||
             (preselectedSubName && s.name.toLowerCase() === preselectedSubName.toLowerCase());
           return `<option value="${s.id}" data-name="${s.name}" ${isSelected ? 'selected' : ''}>${s.name}</option>`;
         }).join('');
 
-      subNotice.innerHTML = `<span style="color:#15803d; font-size:0.75rem; font-weight:600;">✓ Subcategorias de "${category.name}" carregadas (${subs.length} disponíveis).</span>`;
+      subNotice.innerHTML = '';
     }
 
     catSelect.addEventListener('change', () => {
@@ -3640,12 +4616,14 @@ export function renderAdminView() {
 
     if (prod?.category_id) {
       populateSubcategories(prod.category_id, prod.subcategory_id, prod.subcategory_name || prod.subcategory);
+    } else {
+      populateSubcategories('');
     }
 
     const onCategoriesUpdated = () => {
       const currentCatVal = catSelect.value;
       const currentSubVal = subSelect.value;
-      catSelect.innerHTML = '<option value="">Selecione primeiro a categoria...</option>' +
+      catSelect.innerHTML = '<option value="">Selecione a categoria...</option>' +
         categoriesList.map(c => `
           <option value="${c.id}" ${String(currentCatVal) === String(c.id) ? 'selected' : ''}>${c.name}</option>
         `).join('');
@@ -3660,23 +4638,84 @@ export function renderAdminView() {
       modal.remove();
     };
 
-    const prodImgUploader = createImageUploader({
-      id: 'prodImgUpload',
-      label: 'Foto Principal do Produto',
-      initialUrl: prod?.image || '',
-      helperText: 'Tire uma foto ou escolha da galeria/computador. Compressão automática ativada.',
+    // Galeria Multi-Imagens Minimalista
+    const initialGallery = (Array.isArray(prod?.gallery) && prod.gallery.length > 0)
+      ? prod.gallery
+      : (prod?.image ? [prod.image] : []);
+
+    const multiUploader = createMultiImageUploader({
+      id: 'prodGalleryUpload',
+      minimal: true,
+      initialImages: initialGallery,
       maxDimension: 1200
     });
-    modal.querySelector('#productImageUploaderMount').appendChild(prodImgUploader.element);
+    modal.querySelector('#productGalleryUploaderMount').appendChild(multiUploader.element);
 
-    modal.querySelector('#btnGenSku')?.addEventListener('click', () => {
-      const brand = modal.querySelector('#pBrand').value.trim() || 'NV';
-      const name = modal.querySelector('#pName').value.trim() || 'PROD';
-      const brandCode = brand.substring(0, 3).toUpperCase();
-      const nameCode = name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase();
-      const rand = Math.floor(1000 + Math.random() * 9000);
-      modal.querySelector('#pSku').value = `NV-${brandCode}-${nameCode}-${rand}`;
+    // Gerenciador Dinâmico de Especificações Minimalista
+    const specsList = modal.querySelector('#adminSpecsList');
+    const btnAddCustomSpec = modal.querySelector('#btnAddCustomSpec');
+
+    function createSpecRow(key = '', val = '', placeholderHint = '') {
+      const row = document.createElement('div');
+      row.className = 'admin-spec-row-corporate admin-spec-row';
+      row.innerHTML = `
+        <input type="text" class="form-input spec-key" placeholder="Item (ex: RAM)" value="${key.replace(/"/g, '&quot;')}" style="font-size:0.8125rem; padding:6px 9px; background:#fff; font-weight:600;" />
+        <input type="text" class="form-input spec-value" placeholder="${placeholderHint || 'Valor'}" value="${val.replace(/"/g, '&quot;')}" style="font-size:0.8125rem; padding:6px 9px; background:#fff;" />
+        <button type="button" class="admin-spec-del-btn btn-remove-spec" title="Remover">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      `;
+      row.querySelector('.btn-remove-spec').addEventListener('click', () => row.remove());
+      return row;
+    }
+
+    if (btnAddCustomSpec && specsList) {
+      btnAddCustomSpec.addEventListener('click', () => {
+        const row = createSpecRow('', '', 'Valor');
+        specsList.appendChild(row);
+        const kInput = row.querySelector('.spec-key');
+        if (kInput) kInput.focus();
+      });
+    }
+
+    modal.querySelectorAll('.admin-quick-spec-btn').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const specName = chip.dataset.spec;
+        const hint = chip.dataset.valHint || '';
+        if (specsList) {
+          const row = createSpecRow(specName, '', hint);
+          specsList.appendChild(row);
+          const vInput = row.querySelector('.spec-value');
+          if (vInput) vInput.focus();
+        }
+      });
     });
+
+    // Pré-carrega especificações existentes do produto
+    const existingSpecs = (typeof prod?.specs === 'object' && prod?.specs !== null) ? prod.specs :
+      (typeof prod?.especificacoes === 'object' && prod?.especificacoes !== null ? prod.especificacoes : {});
+
+    let countLoaded = 0;
+    if (existingSpecs && typeof existingSpecs === 'object' && specsList) {
+      Object.entries(existingSpecs).forEach(([k, v]) => {
+        const lower = k.toLowerCase().trim();
+        if (!['subcategoria_id', 'subcategory_id', 'subcategoria_nome', 'subcategory_name', 'subcategoria', 'subcategory', 'category_id', 'id', '_descricao'].includes(lower)) {
+          if (v !== undefined && v !== null && String(v).trim() !== '') {
+            specsList.appendChild(createSpecRow(k, String(v)));
+            countLoaded++;
+          }
+        }
+      });
+    }
+
+    if (countLoaded === 0 && !isEdit && specsList) {
+      specsList.appendChild(createSpecRow('Processador', '', 'Ex: A18 Pro'));
+      specsList.appendChild(createSpecRow('Memória RAM', '', 'Ex: 8 GB'));
+      specsList.appendChild(createSpecRow('Armazenamento', '', 'Ex: 256 GB'));
+    }
 
     modal.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', closeModal));
     modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
@@ -3686,9 +4725,9 @@ export function renderAdminView() {
       const saveBtn = modal.querySelector('#saveProductBtn');
 
       const nameVal = modal.querySelector('#pName').value.trim();
-      const skuVal = modal.querySelector('#pSku').value.trim();
       const catVal = catSelect.value;
       const subVal = subSelect.value;
+      const isActiveVal = modal.querySelector('#pStatus').value === 'true';
 
       if (!nameVal) {
         Toast.show('O nome do produto é obrigatório.', 'warning');
@@ -3696,49 +4735,57 @@ export function renderAdminView() {
         return;
       }
 
-      if (!skuVal) {
-        Toast.show('O código SKU do produto é obrigatório.', 'warning');
-        modal.querySelector('#pSku').focus();
-        return;
-      }
-
       if (!catVal) {
-        Toast.show('Primeiro selecione a Categoria do produto.', 'warning');
+        Toast.show('Selecione a Categoria do produto.', 'warning');
         catSelect.focus();
         return;
       }
 
-      if (subWrapper.style.display === 'none' || !subVal || subSelect.style.display === 'none') {
-        Toast.show('Selecione obrigatoriamente a Subcategoria vinculada a esta categoria.', 'warning');
-        if (subSelect.style.display !== 'none') subSelect.focus();
-        return;
+      let subName = '';
+      if (subSelect && subSelect.value && subSelect.style.display !== 'none') {
+        const selectedSubOption = subSelect.options[subSelect.selectedIndex];
+        subName = selectedSubOption?.dataset?.name || selectedSubOption?.text || '';
       }
 
-      const selectedSubOption = subSelect.options[subSelect.selectedIndex];
-      const subName = selectedSubOption?.dataset?.name || selectedSubOption?.text || '';
+      // Galeria e Capa
+      const galleryImages = multiUploader.getImages();
+      const coverImage = multiUploader.getCover() || null;
+
+      // Coleta especificações dinâmicas
+      const specsObj = {};
+      modal.querySelectorAll('.admin-spec-row').forEach(row => {
+        const k = row.querySelector('.spec-key')?.value?.trim();
+        const v = row.querySelector('.spec-value')?.value?.trim();
+        if (k && v) specsObj[k] = v;
+      });
 
       saveBtn.disabled = true;
       saveBtn.textContent = 'Salvando produto no banco...';
 
       const payload = {
         name: nameVal,
-        sku: skuVal,
-        brand: modal.querySelector('#pBrand').value.trim(),
+        brand: modal.querySelector('#pBrand').value.trim() || 'NovaTech',
         price: Number(modal.querySelector('#pPrice').value),
         old_price: modal.querySelector('#pOldPrice').value ? Number(modal.querySelector('#pOldPrice').value) : null,
         category_id: Number(catVal),
-        subcategory_id: subVal,
+        subcategory_id: subVal ? Number(subVal) : null,
         subcategory_name: subName,
         subcategory: subName,
         stock: Number(modal.querySelector('#pStock').value),
         stock_min: Number(modal.querySelector('#pStockMin').value),
-        image: prodImgUploader.getValue().trim() || null,
+        image: coverImage,
+        gallery: galleryImages,
         description: modal.querySelector('#pDesc').value.trim(),
+        specs: specsObj,
         is_deal: modal.querySelector('#pIsDeal').checked,
         is_new: modal.querySelector('#pIsNew').checked,
         is_featured: modal.querySelector('#pIsFeatured').checked,
-        is_active: true
+        is_active: isActiveVal
       };
+
+      if (isEdit && prod?.sku) {
+        payload.sku = prod.sku;
+      }
 
       try {
         if (isEdit) {
@@ -3777,6 +4824,8 @@ export function renderAdminView() {
         stock: prod.stock !== undefined ? Number(prod.stock) : 10,
         stock_min: prod.stock_min !== undefined ? Number(prod.stock_min) : 2,
         image: prod.image || null,
+        gallery: Array.isArray(prod.gallery) ? prod.gallery : (prod.image ? [prod.image] : []),
+        specs: (typeof prod.specs === 'object' && prod.specs !== null) ? prod.specs : {},
         description: prod.description || '',
         is_deal: Boolean(prod.is_deal),
         is_new: Boolean(prod.is_new),
@@ -3815,20 +4864,14 @@ export function renderAdminView() {
             <textarea id="catDesc" class="form-input" rows="2" placeholder="Breve descrição dos produtos desta categoria...">${cat?.description || ''}</textarea>
           </div>
 
-          <div class="admin-form-grid-2">
-            <div class="form-group">
-              <label class="form-label">Ordem de Exibição (Opcional)</label>
-              <input type="number" id="catOrder" class="form-input" value="${cat?.display_order !== undefined ? cat.display_order : (categoriesList.length + 1)}" min="1" />
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Status *</label>
-              <select id="catStatus" class="admin-filter-select" style="width:100%;">
-                <option value="true" ${cat?.is_active !== false ? 'selected' : ''}>Ativa</option>
-                <option value="false" ${cat?.is_active === false ? 'selected' : ''}>Inativa</option>
-              </select>
-            </div>
+          <div class="form-group">
+            <label class="form-label">Status *</label>
+            <select id="catStatus" class="admin-filter-select" style="width:100%;">
+              <option value="true" ${cat?.is_active !== false ? 'selected' : ''}>Ativa (Visível na loja)</option>
+              <option value="false" ${cat?.is_active === false ? 'selected' : ''}>Inativa (Oculta da loja)</option>
+            </select>
           </div>
+          <input type="hidden" id="catOrder" value="${cat?.display_order !== undefined ? cat.display_order : (categoriesList.length + 1)}" />
 
           <div class="admin-modal-footer" style="padding: 0; margin-top: 14px;">
             <button type="button" class="btn btn-secondary close-modal-btn">Cancelar</button>
@@ -3868,9 +4911,11 @@ export function renderAdminView() {
       try {
         if (isEdit) {
           await Api.categories.update(cat.id, payload);
+          expandedCategoryIds.add(Number(cat.id));
           Toast.show('Categoria atualizada com sucesso no banco de dados!', 'success');
         } else {
-          await Api.categories.create(payload);
+          const res = await Api.categories.create(payload);
+          if (res && res.id) expandedCategoryIds.add(Number(res.id));
           Toast.show('Categoria criada com sucesso no banco de dados!', 'success');
         }
         modal.remove();
@@ -3888,6 +4933,7 @@ export function renderAdminView() {
   function openSubcategoryModal({ parent_id = null, sub = null } = {}) {
     const isEdit = Boolean(sub);
     const selectedParentId = parent_id || (sub ? categoriesList.find(c => (c.subcategories || []).some(s => String(s.id) === String(sub.id)))?.id : '');
+    const parentCat = categoriesList.find(c => String(c.id) === String(selectedParentId));
 
     const modal = document.createElement('div');
     modal.className = 'admin-modal-overlay';
@@ -3901,7 +4947,7 @@ export function renderAdminView() {
         <form id="subcategoryForm" class="admin-modal-body">
           <div class="form-group">
             <label class="form-label">Categoria Pai *</label>
-            <select id="subParentSelect" class="admin-filter-select" style="width:100%;" required ${isEdit ? 'disabled' : ''}>
+            <select id="subParentSelect" class="admin-filter-select" style="width:100%; font-weight:600;" required ${isEdit ? 'disabled' : ''}>
               <option value="">Selecione a categoria pai...</option>
               ${categoriesList.map(c => `
                 <option value="${c.id}" ${String(c.id) === String(selectedParentId) ? 'selected' : ''}>${c.name}</option>
@@ -3919,20 +4965,14 @@ export function renderAdminView() {
             <textarea id="subDesc" class="form-input" rows="2" placeholder="Breve descrição da subcategoria...">${sub?.description || ''}</textarea>
           </div>
 
-          <div class="admin-form-grid-2">
-            <div class="form-group">
-              <label class="form-label">Ordem de Exibição (Opcional)</label>
-              <input type="number" id="subOrder" class="form-input" value="${sub?.display_order !== undefined ? sub.display_order : 1}" min="1" />
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Status *</label>
-              <select id="subStatus" class="admin-filter-select" style="width:100%;">
-                <option value="true" ${sub?.is_active !== false ? 'selected' : ''}>Ativa</option>
-                <option value="false" ${sub?.is_active === false ? 'selected' : ''}>Inativa</option>
-              </select>
-            </div>
+          <div class="form-group">
+            <label class="form-label">Status *</label>
+            <select id="subStatus" class="admin-filter-select" style="width:100%;">
+              <option value="true" ${sub?.is_active !== false ? 'selected' : ''}>Ativa (Visível na loja)</option>
+              <option value="false" ${sub?.is_active === false ? 'selected' : ''}>Inativa (Oculta da loja)</option>
+            </select>
           </div>
+          <input type="hidden" id="subOrder" value="${sub?.display_order !== undefined ? sub.display_order : 1}" />
 
           <div class="admin-modal-footer" style="padding: 0; margin-top: 14px;">
             <button type="button" class="btn btn-secondary close-modal-btn">Cancelar</button>
@@ -3981,12 +5021,14 @@ export function renderAdminView() {
             subcategory_id: sub.id,
             ...payload
           });
+          expandedCategoryIds.add(Number(selectedParentId));
           Toast.show('Subcategoria atualizada com sucesso no banco de dados!', 'success');
         } else {
           await Api.categories.createSubcategory({
             parent_id: parentId,
             ...payload
           });
+          expandedCategoryIds.add(Number(parentId));
           Toast.show('Subcategoria vinculada com sucesso no banco de dados!', 'success');
         }
         modal.remove();
@@ -4000,75 +5042,112 @@ export function renderAdminView() {
     });
   }
 
-  // 5. Modal de Banner (Arte Gráfica Limpa)
+  // 5. Modal de Banner (Arte Gráfica Limpa & Minimalista)
   function openBannerModal(banner = null) {
     const isEdit = Boolean(banner);
     const modal = document.createElement('div');
     modal.className = 'admin-modal-overlay';
     modal.innerHTML = `
-      <div class="admin-modal-dialog">
-        <div class="admin-modal-header">
-          <div>
-            <span class="badge" style="background:#2563eb; color:#fff; font-size:0.6875rem;">ARTE DA VITRINE</span>
-            <h3 class="admin-modal-title" style="margin-top: 4px;">${isEdit ? 'Editar Banner' : 'Novo Banner da Vitrine'}</h3>
+      <div class="admin-modal-dialog admin-modal-product-dialog" style="max-width: 620px !important;">
+        <!-- Header Minimalista -->
+        <div class="admin-modal-product-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <h3 class="admin-modal-title" style="margin: 0; font-size: 1.125rem; font-weight: 700; color: #0f172a;">
+              ${isEdit ? 'Editar Banner' : 'Novo Banner'}
+            </h3>
+            ${isEdit ? `
+              <span style="font-family: ui-monospace, monospace; font-size: 0.75rem; font-weight: 600; color: #64748b; background: #f1f5f9; padding: 2px 7px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                ${banner.id}
+              </span>
+            ` : ''}
           </div>
-          <button class="btn btn-secondary btn-sm close-modal-btn">✕</button>
+          <button type="button" class="admin-modal-close-icon close-modal-btn" title="Fechar (Esc)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
 
-        <form id="bannerForm" class="admin-modal-body">
-          <div class="form-group">
-            <label class="form-label">Identificação / Título da Campanha</label>
-            <input 
-              type="text" 
-              id="bnTitle" 
-              class="form-input" 
-              value="${banner?.title || ''}" 
-              placeholder="Ex: Campanha Especial iPhone 16 & Apple" 
-              required 
-            />
-            <small style="color: #64748b; font-size: 0.75rem; margin-top: 2px; display: block;">
-              Identificação interna do banner e acessibilidade (alt text). A arte do banner é exibida limpa na vitrine.
-            </small>
+        <form id="bannerForm" class="admin-modal-product-body" style="padding: 14px 18px !important; background: #ffffff !important;">
+          <!-- Card Arte do Banner -->
+          <div class="admin-card-panel" style="margin-bottom: 10px;">
+            <div class="admin-panel-header" style="margin-bottom: 8px;">
+              <h4 class="admin-panel-title">Arte do Banner</h4>
+            </div>
+            <div id="bannerImageUploaderMount"></div>
           </div>
 
-          <div id="bannerImageUploaderMount" style="margin-bottom: 8px;"></div>
+          <!-- Card Configurações da Campanha -->
+          <div class="admin-card-panel" style="margin-bottom: 10px;">
+            <div class="admin-panel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <h4 class="admin-panel-title">Configurações</h4>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="hidden" id="bnIsActive" value="${banner?.is_active !== false ? 'true' : 'false'}" />
+                <div class="admin-status-segmented-control">
+                  <button type="button" class="admin-status-segmented-btn ${banner?.is_active !== false ? 'active status-active' : ''}" data-status="true">
+                    <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #16a34a;"></span>
+                    <span>Ativo</span>
+                  </button>
+                  <button type="button" class="admin-status-segmented-btn ${banner?.is_active === false ? 'active status-blocked' : ''}" data-status="false">
+                    <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #94a3b8;"></span>
+                    <span>Pausado</span>
+                  </button>
+                </div>
+              </div>
+            </div>
 
-          <div class="admin-form-grid-2">
+            <!-- Linha: Título e Ordem -->
+            <div style="display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); gap: 8px; margin-bottom: 8px;">
+              <div class="form-group">
+                <label class="admin-form-label" for="bnTitle">Título da Campanha *</label>
+                <input 
+                  type="text" 
+                  id="bnTitle" 
+                  class="form-input" 
+                  value="${banner?.title || ''}" 
+                  placeholder="Ex: Campanha Especial iPhone 16" 
+                  required 
+                  style="font-weight: 600;"
+                />
+              </div>
+
+              <div class="form-group">
+                <label class="admin-form-label" for="bnOrder">Ordem *</label>
+                <input 
+                  type="number" 
+                  id="bnOrder" 
+                  class="form-input" 
+                  value="${banner?.display_order || (bannersList.length + 1)}" 
+                  min="1" 
+                  required 
+                  style="font-weight: 600;"
+                />
+              </div>
+            </div>
+
+            <!-- Linha: Link de Destino -->
             <div class="form-group">
-              <label class="form-label">Link de Destino ao Clicar</label>
+              <label class="admin-form-label" for="bnButtonLink">Link de Destino ao Clicar *</label>
               <input 
                 type="text" 
                 id="bnButtonLink" 
                 class="form-input" 
                 value="${banner?.button_link || '#/catalogo'}" 
-                placeholder="#/catalogo ou link do produto" 
-                required 
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Ordem no Carrossel</label>
-              <input 
-                type="number" 
-                id="bnOrder" 
-                class="form-input" 
-                value="${banner?.display_order || (bannersList.length + 1)}" 
-                min="1" 
+                placeholder="#/catalogo ou link da categoria/produto" 
                 required 
               />
             </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Status de Publicação</label>
-            <select id="bnIsActive" class="admin-filter-select" style="width: 100%;">
-              <option value="true" ${banner?.is_active !== false ? 'selected' : ''}>✓ Ativo na Vitrine (Visível para clientes)</option>
-              <option value="false" ${banner?.is_active === false ? 'selected' : ''}>✕ Oculto / Rascunho</option>
-            </select>
-          </div>
-
-          <div class="admin-modal-footer" style="padding: 0; margin-top: 10px;">
-            <button type="button" class="btn btn-secondary close-modal-btn">Cancelar</button>
-            <button type="submit" class="btn btn-primary">${isEdit ? 'Salvar Alterações' : 'Publicar Banner'}</button>
+          <!-- Rodapé de Ações -->
+          <div class="admin-modal-footer" style="padding: 10px 16px; background: #ffffff; border-top: 1px solid #e2e8f0; margin-top: 10px; border-radius: 8px; display: flex; justify-content: flex-end; align-items: center; gap: 8px;">
+            <button type="button" class="btn btn-secondary close-modal-btn" style="padding: 6px 14px; font-weight: 600; font-size: 0.8125rem;">
+              Cancelar
+            </button>
+            <button type="submit" class="btn btn-primary" style="padding: 6px 18px; font-weight: 600; font-size: 0.8125rem;">
+              ${isEdit ? 'Salvar Alterações' : 'Publicar Banner'}
+            </button>
           </div>
         </form>
       </div>
@@ -4076,11 +5155,22 @@ export function renderAdminView() {
 
     document.body.appendChild(modal);
 
+    // Controle Segmented do Status Ativo / Pausado
+    const statusValInput = modal.querySelector('#bnIsActive');
+    const statusBtns = modal.querySelectorAll('.admin-status-segmented-btn');
+    statusBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        statusBtns.forEach(b => b.classList.remove('active', 'status-active', 'status-blocked'));
+        const isAct = btn.dataset.status === 'true';
+        btn.classList.add('active', isAct ? 'status-active' : 'status-blocked');
+        statusValInput.value = btn.dataset.status;
+      });
+    });
+
     const bnImgUploader = createImageUploader({
       id: 'bnImgUpload',
-      label: 'Arte do Banner Promocional',
+      minimal: true,
       initialUrl: banner?.image_url || '',
-      helperText: 'Tire uma foto ou suba a arte feita no Canva/Photoshop. Formato panorâmico (JPG, PNG, WEBP).',
       maxDimension: 1920
     });
     modal.querySelector('#bannerImageUploaderMount').appendChild(bnImgUploader.element);
@@ -4136,7 +5226,7 @@ export function renderAdminView() {
     const isEdit = Boolean(coupon);
     const modal = document.createElement('div');
     modal.className = 'admin-modal-overlay';
-    
+
     // Normalização das datas para o input date (YYYY-MM-DD)
     const formatDateInput = (d) => {
       if (!d) return '';
@@ -4152,66 +5242,83 @@ export function renderAdminView() {
     const initialEndDate = formatDateInput(coupon?.end_date || coupon?.data_fim || coupon?.expires_at);
 
     modal.innerHTML = `
-      <div class="admin-modal-dialog" style="max-width:560px;">
-        <div class="admin-modal-header">
-          <h3 class="admin-modal-title">${isEdit ? `Editar Cupom: ${coupon.code}` : 'Novo Cupom de Desconto'}</h3>
-          <button class="btn btn-secondary btn-sm close-modal-btn">✕</button>
+      <div class="admin-modal-dialog admin-modal-product-dialog" style="max-width:540px;">
+        <div class="admin-modal-product-header">
+          <h3 class="admin-modal-title" style="font-size:1.125rem; font-weight:700; color:#0f172a;">
+            ${isEdit ? `Editar Cupom: ${coupon.code}` : 'Novo Cupom de Desconto'}
+          </h3>
+          <button type="button" class="btn-clean close-modal-btn" title="Fechar" style="background:none; border:none; font-size:1.25rem; cursor:pointer; color:#64748b;">✕</button>
         </div>
 
-        <form id="couponForm" class="admin-modal-body">
-          <div class="admin-form-grid-2">
-            <div class="form-group">
-              <label class="form-label">Código do Cupom *</label>
-              <input type="text" id="cpCode" class="form-input" value="${coupon?.code || ''}" placeholder="Ex: NOVATECH10" style="text-transform:uppercase; font-weight:800;" required />
+        <form id="couponForm" class="admin-modal-product-body" style="padding:16px 20px !important; background:#ffffff !important; display:flex; flex-direction:column; gap:12px;">
+          <!-- Painel 1: Dados do Cupom -->
+          <div class="admin-card-panel" style="border:1px solid #e2e8f0; border-radius:8px; padding:14px 16px; background:#ffffff;">
+            <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; margin-bottom:12px;">
+              Regras do Desconto
             </div>
-            <div class="form-group">
-              <label class="form-label">Tipo de Desconto *</label>
-              <select id="cpType" class="admin-filter-select" style="width:100%;">
-                <option value="percent" ${coupon?.discount_type === 'percent' ? 'selected' : ''}>Porcentagem (%)</option>
-                <option value="fixed" ${coupon?.discount_type === 'fixed' ? 'selected' : ''}>Valor Fixo em Kwanzas (Kz)</option>
-                <option value="free_shipping" ${coupon?.discount_type === 'free_shipping' ? 'selected' : ''}>Frete Grátis</option>
-              </select>
+            <div class="admin-form-grid-2">
+              <div class="form-group">
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Código do Cupom *</label>
+                <input type="text" id="cpCode" class="form-input" value="${coupon?.code || ''}" placeholder="Ex: NOVATECH10" style="text-transform:uppercase; font-weight:800; height:33px; font-size:0.875rem;" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Tipo de Desconto *</label>
+                <select id="cpType" class="admin-filter-select" style="width:100%; height:33px; font-size:0.8125rem;">
+                  <option value="percent" ${coupon?.discount_type === 'percent' ? 'selected' : ''}>Porcentagem (%)</option>
+                  <option value="fixed" ${coupon?.discount_type === 'fixed' ? 'selected' : ''}>Valor Fixo em Kwanzas (Kz)</option>
+                  <option value="free_shipping" ${coupon?.discount_type === 'free_shipping' ? 'selected' : ''}>Frete Grátis</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="admin-form-grid-2" style="margin-top:10px;">
+              <div class="form-group">
+                <label class="form-label" id="cpValueLabel" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Valor do Desconto *</label>
+                <input type="number" id="cpValue" class="form-input" value="${coupon?.discount_value !== undefined ? coupon.discount_value : ''}" placeholder="Ex: 10 ou 5000" style="height:33px; font-size:0.875rem;" ${coupon?.discount_type === 'free_shipping' ? 'disabled value="0"' : 'required'} />
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Pedido Mínimo (Kz)</label>
+                <input type="number" id="cpMinOrder" class="form-input" value="${coupon?.min_order_value || 0}" placeholder="0 = Sem mínimo" style="height:33px; font-size:0.875rem;" />
+              </div>
             </div>
           </div>
 
-          <div class="admin-form-grid-2">
-            <div class="form-group">
-              <label class="form-label" id="cpValueLabel">Valor do Desconto *</label>
-              <input type="number" id="cpValue" class="form-input" value="${coupon?.discount_value !== undefined ? coupon.discount_value : ''}" placeholder="Ex: 10 para 10% ou 5000 para Kz 5.000" ${coupon?.discount_type === 'free_shipping' ? 'disabled value="0"' : 'required'} />
+          <!-- Painel 2: Limites e Validade -->
+          <div class="admin-card-panel" style="border:1px solid #e2e8f0; border-radius:8px; padding:14px 16px; background:#ffffff;">
+            <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; margin-bottom:12px;">
+              Validade & Limitações
             </div>
-            <div class="form-group">
-              <label class="form-label">Valor Mínimo do Pedido (Kz)</label>
-              <input type="number" id="cpMinOrder" class="form-input" value="${coupon?.min_order_value || 0}" placeholder="0 = Sem mínimo" />
+            <div class="admin-form-grid-2">
+              <div class="form-group">
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Data de Início</label>
+                <input type="date" id="cpStartDate" class="form-input" value="${initialStartDate}" style="height:33px; font-size:0.875rem;" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Data de Término</label>
+                <input type="date" id="cpEndDate" class="form-input" value="${initialEndDate}" style="height:33px; font-size:0.875rem;" />
+              </div>
+            </div>
+
+            <div class="admin-form-grid-2" style="margin-top:10px;">
+              <div class="form-group">
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Limite Total de Usos</label>
+                <input type="number" id="cpLimit" class="form-input" value="${coupon?.usage_limit || ''}" placeholder="Vazio = Ilimitado" style="height:33px; font-size:0.875rem;" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Status do Cupom</label>
+                <select id="cpIsActive" class="admin-filter-select" style="width:100%; height:33px; font-size:0.8125rem;">
+                  <option value="true" ${coupon?.is_active !== false ? 'selected' : ''}>Ativo (Disponível)</option>
+                  <option value="false" ${coupon?.is_active === false ? 'selected' : ''}>Pausado / Inativo</option>
+                </select>
+              </div>
             </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Limite Total de Usos</label>
-            <input type="number" id="cpLimit" class="form-input" value="${coupon?.usage_limit || ''}" placeholder="Vazio = Ilimitado" />
-          </div>
-
-          <div class="admin-form-grid-2">
-            <div class="form-group">
-              <label class="form-label">Data de Início da Validade</label>
-              <input type="date" id="cpStartDate" class="form-input" value="${initialStartDate}" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Data de Término / Expiração</label>
-              <input type="date" id="cpEndDate" class="form-input" value="${initialEndDate}" />
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Status do Cupom</label>
-            <select id="cpIsActive" class="admin-filter-select" style="width:100%;">
-              <option value="true" ${coupon?.is_active !== false ? 'selected' : ''}>Ativo (Disponível para clientes)</option>
-              <option value="false" ${coupon?.is_active === false ? 'selected' : ''}>Pausado / Inativo</option>
-            </select>
-          </div>
-
-          <div class="admin-modal-footer" style="padding: 0; margin-top: 14px;">
-            <button type="button" class="btn btn-secondary close-modal-btn">Cancelar</button>
-            <button type="submit" id="saveCouponBtn" class="btn btn-primary">${isEdit ? 'Salvar Alterações' : 'Criar Cupom'}</button>
+          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+            <button type="button" class="btn btn-secondary btn-sm close-modal-btn" style="padding:7px 16px; font-size:0.8125rem;">Cancelar</button>
+            <button type="submit" id="saveCouponBtn" class="btn btn-primary btn-sm" style="font-weight:600; padding:7px 18px; font-size:0.8125rem;">
+              ${isEdit ? 'Salvar Alterações' : 'Criar Cupom'}
+            </button>
           </div>
         </form>
       </div>
@@ -4294,43 +5401,49 @@ export function renderAdminView() {
     const modal = document.createElement('div');
     modal.className = 'admin-modal-overlay';
     modal.innerHTML = `
-      <div class="admin-modal-dialog">
-        <div class="admin-modal-header">
-          <h3 class="admin-modal-title">${isEdit ? 'Editar Campanha' : 'Nova Campanha Comercial'}</h3>
-          <button class="btn btn-secondary btn-sm close-modal-btn">✕</button>
+      <div class="admin-modal-dialog admin-modal-product-dialog" style="max-width:520px;">
+        <div class="admin-modal-product-header">
+          <h3 class="admin-modal-title" style="font-size:1.125rem; font-weight:700; color:#0f172a;">
+            ${isEdit ? 'Editar Campanha' : 'Nova Campanha Comercial'}
+          </h3>
+          <button type="button" class="btn-clean close-modal-btn" title="Fechar" style="background:none; border:none; font-size:1.25rem; cursor:pointer; color:#64748b;">✕</button>
         </div>
 
-        <form id="catalogForm" class="admin-modal-body">
-          <div class="admin-form-grid-2">
-            <div class="form-group">
-              <label class="form-label">Nome da Campanha</label>
-              <input type="text" id="clName" class="form-input" value="${cat?.name || ''}" placeholder="Ex: Black Friday 2026" required />
+        <form id="catalogForm" class="admin-modal-product-body" style="padding:16px 20px !important; background:#ffffff !important; display:flex; flex-direction:column; gap:12px;">
+          <div class="admin-card-panel" style="border:1px solid #e2e8f0; border-radius:8px; padding:14px 16px; background:#ffffff;">
+            <div class="admin-form-grid-2">
+              <div class="form-group">
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Nome da Campanha *</label>
+                <input type="text" id="clName" class="form-input" value="${cat?.name || ''}" placeholder="Ex: Black Friday 2026" style="height:33px; font-size:0.875rem;" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Slug URL</label>
+                <input type="text" id="clSlug" class="form-input" value="${cat?.slug || ''}" placeholder="black-friday" style="height:33px; font-size:0.875rem;" />
+              </div>
             </div>
-            <div class="form-group">
-              <label class="form-label">Slug</label>
-              <input type="text" id="clSlug" class="form-input" value="${cat?.slug || ''}" placeholder="black-friday" />
+
+            <div class="admin-form-grid-2" style="margin-top:10px;">
+              <div class="form-group">
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Badge Comercial</label>
+                <input type="text" id="clBadge" class="form-input" value="${cat?.badge_text || ''}" placeholder="Ex: ATÉ 40% OFF" style="height:33px; font-size:0.875rem;" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Ordem de Exibição *</label>
+                <input type="number" id="clOrder" class="form-input" value="${cat?.display_order || 1}" style="height:33px; font-size:0.875rem;" required />
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-top:10px;">
+              <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Descrição Comercial</label>
+              <textarea id="clDesc" class="form-input" rows="2" style="font-size:0.875rem;">${cat?.description || ''}</textarea>
             </div>
           </div>
 
-          <div class="admin-form-grid-2">
-            <div class="form-group">
-              <label class="form-label">Badge Comercial</label>
-              <input type="text" id="clBadge" class="form-input" value="${cat?.badge_text || ''}" placeholder="ATÉ 40% OFF" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Ordem de Exibição</label>
-              <input type="number" id="clOrder" class="form-input" value="${cat?.display_order || 1}" required />
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Descrição Comercial</label>
-            <textarea id="clDesc" class="form-input" rows="2">${cat?.description || ''}</textarea>
-          </div>
-
-          <div class="admin-modal-footer" style="padding:0;">
-            <button type="button" class="btn btn-secondary close-modal-btn">Cancelar</button>
-            <button type="submit" class="btn btn-primary">${isEdit ? 'Salvar' : 'Criar Campanha'}</button>
+          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+            <button type="button" class="btn btn-secondary btn-sm close-modal-btn" style="padding:7px 16px; font-size:0.8125rem;">Cancelar</button>
+            <button type="submit" class="btn btn-primary btn-sm" style="font-weight:600; padding:7px 18px; font-size:0.8125rem;">
+              ${isEdit ? 'Salvar' : 'Criar Campanha'}
+            </button>
           </div>
         </form>
       </div>
@@ -4374,48 +5487,54 @@ export function renderAdminView() {
     const modal = document.createElement('div');
     modal.className = 'admin-modal-overlay';
     modal.innerHTML = `
-      <div class="admin-modal-dialog">
-        <div class="admin-modal-header">
-          <h3 class="admin-modal-title">Movimentação de Estoque</h3>
-          <button class="btn btn-secondary btn-sm close-modal-btn">✕</button>
+      <div class="admin-modal-dialog admin-modal-product-dialog" style="max-width:520px;">
+        <div class="admin-modal-product-header">
+          <h3 class="admin-modal-title" style="font-size:1.125rem; font-weight:700; color:#0f172a;">
+            Movimentação de Estoque
+          </h3>
+          <button type="button" class="btn-clean close-modal-btn" title="Fechar" style="background:none; border:none; font-size:1.25rem; cursor:pointer; color:#64748b;">✕</button>
         </div>
 
-        <form id="stockMovementForm" class="admin-modal-body">
-          <div class="form-group">
-            <label class="form-label">Produto</label>
-            <select id="smProduct" class="admin-filter-select" style="width:100%;" required>
-              <option value="">Selecione o produto</option>
-              ${productsList.map(p => `
-                <option value="${p.id}" ${preset?.product_id === p.id ? 'selected' : ''}>
-                  ${p.name} (Atual: ${p.stock} un)
-                </option>
-              `).join('')}
-            </select>
-          </div>
-
-          <div class="admin-form-grid-2">
+        <form id="stockMovementForm" class="admin-modal-product-body" style="padding:16px 20px !important; background:#ffffff !important; display:flex; flex-direction:column; gap:12px;">
+          <div class="admin-card-panel" style="border:1px solid #e2e8f0; border-radius:8px; padding:14px 16px; background:#ffffff;">
             <div class="form-group">
-              <label class="form-label">Tipo de Movimento</label>
-              <select id="smType" class="admin-filter-select" style="width:100%;">
-                <option value="in" ${preset?.movement_type === 'in' ? 'selected' : ''}>▲ Entrada (Adicionar ao depósito)</option>
-                <option value="out" ${preset?.movement_type === 'out' ? 'selected' : ''}>▼ Saída (Remover do depósito)</option>
-                <option value="adjustment">● Balanço / Ajuste Geral</option>
+              <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Produto *</label>
+              <select id="smProduct" class="admin-filter-select" style="width:100%; height:33px; font-size:0.8125rem;" required>
+                <option value="">Selecione o produto</option>
+                ${productsList.map(p => `
+                  <option value="${p.id}" ${preset?.product_id === p.id ? 'selected' : ''}>
+                    ${p.name} (Atual: ${p.stock || 0} un)
+                  </option>
+                `).join('')}
               </select>
             </div>
-            <div class="form-group">
-              <label class="form-label">Quantidade</label>
-              <input type="number" id="smQty" class="form-input" min="1" placeholder="Ex: 5" required />
+
+            <div class="admin-form-grid-2" style="margin-top:10px;">
+              <div class="form-group">
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Tipo de Movimento *</label>
+                <select id="smType" class="admin-filter-select" style="width:100%; height:33px; font-size:0.8125rem;">
+                  <option value="in" ${preset?.movement_type === 'in' ? 'selected' : ''}>Entrada (+)</option>
+                  <option value="out" ${preset?.movement_type === 'out' ? 'selected' : ''}>Saída (-)</option>
+                  <option value="adjustment">Ajuste de Balanço</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Quantidade *</label>
+                <input type="number" id="smQty" class="form-input" min="1" placeholder="Ex: 5" style="height:33px; font-size:0.875rem;" required />
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-top:10px;">
+              <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Motivo ou Observação *</label>
+              <input type="text" id="smReason" class="form-input" placeholder="Ex: Chegada de remessa de fornecedor" style="height:33px; font-size:0.875rem;" required />
             </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Motivo ou Observação</label>
-            <input type="text" id="smReason" class="form-input" placeholder="Ex: Chegada de remessa de fornecedor" required />
-          </div>
-
-          <div class="admin-modal-footer" style="padding:0;">
-            <button type="button" class="btn btn-secondary close-modal-btn">Cancelar</button>
-            <button type="submit" class="btn btn-primary">Registrar no Estoque</button>
+          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+            <button type="button" class="btn btn-secondary btn-sm close-modal-btn" style="padding:7px 16px; font-size:0.8125rem;">Cancelar</button>
+            <button type="submit" class="btn btn-primary btn-sm" style="font-weight:600; padding:7px 18px; font-size:0.8125rem;">
+              Registrar Movimento
+            </button>
           </div>
         </form>
       </div>

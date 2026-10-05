@@ -4013,6 +4013,145 @@ img {
   color: #ffffff;
 }
 
+/* Oculta botão de aplicar filtros do mobile no desktop */
+.mobile-sidebar-footer {
+  display: none !important;
+}
+
+/* Toggle de Modo de Visualização do Catálogo (Grade & Lista) */
+.catalog-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.catalog-view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.catalog-view-btn:hover {
+  color: #0f172a;
+}
+
+.catalog-view-btn.active {
+  background: #ffffff;
+  color: #2563eb;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* Modo Lista do Catálogo */
+.products-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.product-card-list {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 16px;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.product-card-list:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+}
+
+.product-card-list .list-img-wrap {
+  width: 68px;
+  height: 68px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.product-card-list .list-img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.product-card-list .list-info-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.product-card-list .list-brand-stock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.product-card-list .list-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.product-card-list .list-title:hover {
+  color: #2563eb;
+}
+
+.product-card-list .list-price-col {
+  text-align: right;
+  flex-shrink: 0;
+  margin-right: 12px;
+}
+
+.product-card-list .list-cur-price {
+  font-size: 1.0625rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.product-card-list .list-old-price {
+  font-size: 0.75rem;
+  text-decoration: line-through;
+  color: #94a3b8;
+  margin-bottom: 2px;
+}
+
+.product-card-list .list-action-col {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 /* ===================================================================
    RESPONSIVE MEDIA QUERIES
    =================================================================== */
@@ -5311,8 +5450,30 @@ img {
 /* Tabelas Administrativas */
 .admin-table-wrapper {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
+  min-height: 280px;
+  padding-bottom: 75px;
+  scrollbar-width: thin;
+}
+
+.admin-table-wrapper::-webkit-scrollbar {
+  height: 6px;
+}
+
+.admin-table-wrapper::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.admin-table-wrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.admin-table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .admin-table {
@@ -5320,6 +5481,11 @@ img {
   border-collapse: collapse;
   font-size: 0.875rem;
   text-align: left;
+}
+
+.admin-table th,
+.admin-table td {
+  white-space: nowrap;
 }
 
 .admin-table th {
@@ -5342,6 +5508,141 @@ img {
 
 .admin-table tr:hover td {
   background: #fafafa;
+}
+
+.admin-table-wrapper {
+  padding-bottom: 75px;
+}
+
+/* Dropdown de Ações das Tabelas / Cards Administrativos */
+.admin-actions-dropdown {
+  position: relative;
+  display: inline-block;
+  text-align: left;
+}
+
+.admin-actions-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #64748b;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.admin-actions-trigger-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.admin-actions-trigger-btn:active {
+  background: #e2e8f0;
+  transform: scale(0.95);
+}
+
+.admin-actions-dropdown.is-open .admin-actions-trigger-btn {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #2563eb;
+}
+
+.admin-actions-menu {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 165px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 10px -6px rgba(15, 23, 42, 0.08);
+  padding: 6px;
+  z-index: 999;
+  text-align: left;
+  animation: adminActionsFadeIn 0.15s ease-out;
+}
+
+@keyframes adminActionsFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.admin-actions-menu.open-up {
+  top: auto !important;
+  bottom: calc(100% + 6px) !important;
+  animation: adminActionsFadeInUp 0.15s ease-out;
+}
+
+@keyframes adminActionsFadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.admin-actions-dropdown.is-open .admin-actions-menu {
+  display: block;
+}
+
+.admin-action-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.admin-action-item svg {
+  flex-shrink: 0;
+}
+
+.admin-action-item:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.admin-action-item.danger {
+  color: #e11d48;
+}
+
+.admin-action-item.danger:hover {
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.admin-action-divider {
+  height: 1px;
+  background: #f1f5f9;
+  margin: 4px 0;
 }
 
 /* Modais Administrativos (Dialog no Desktop, Bottom-Sheet no Mobile) */
@@ -5393,9 +5694,12 @@ img {
 .admin-modal-body {
   padding: 24px;
   overflow-y: auto;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  scrollbar-width: thin;
 }
 
 .admin-modal-footer {
@@ -5541,13 +5845,14 @@ img {
 }
 
 .whatsapp-btn {
-  height: 54px;
-  padding: 0 20px 0 16px;
+  width: 56px;
+  height: 56px;
+  padding: 0;
   background: #25d366;
-  border-radius: 9999px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
   color: #ffffff;
   box-shadow: 0 8px 24px rgba(37, 211, 102, 0.45);
   cursor: pointer;
@@ -5557,7 +5862,7 @@ img {
 }
 
 .whatsapp-btn:hover {
-  transform: scale(1.05) translateY(-2px);
+  transform: scale(1.08) translateY(-2px);
   background: #20ba59;
   box-shadow: 0 12px 28px rgba(37, 211, 102, 0.6);
 }
@@ -6121,28 +6426,28 @@ body.admin-backoffice-mode .cart-overlay {
 
 body.admin-backoffice-mode {
   padding-bottom: 0 !important;
-  background-color: #0b0f19 !important;
+  background-color: #f8fafc !important;
   color: #0f172a;
-  scrollbar-width: thin;
-  scrollbar-color: #374151 #0b0f19;
+  height: 100vh !important;
+  overflow: hidden !important;
 }
 
 body.admin-backoffice-mode::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 body.admin-backoffice-mode::-webkit-scrollbar-track {
-  background: #0b0f19;
+  background: #f8fafc;
 }
 
 body.admin-backoffice-mode::-webkit-scrollbar-thumb {
-  background: #374151;
-  border-radius: 4px;
+  background: #cbd5e1;
+  border-radius: 999px;
 }
 
 body.admin-backoffice-mode::-webkit-scrollbar-thumb:hover {
-  background: #4b5563;
+  background: #94a3b8;
 }
 
 body.admin-backoffice-mode #mainContentArea {
@@ -6150,23 +6455,27 @@ body.admin-backoffice-mode #mainContentArea {
   margin: 0 !important;
   max-width: 100% !important;
   width: 100% !important;
-  min-height: 100vh;
+  height: 100vh !important;
+  overflow: hidden !important;
+  background: #f8fafc !important;
 }
 
 .admin-backoffice-page {
   width: 100%;
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
   background: #f8fafc;
   display: flex;
   flex-direction: column;
 }
 
-/* 2. Topbar Corporativa Executiva Limpa */
+/* 2. Topbar Corporativa Executiva Limpa (Estática no Topo) */
 .admin-enterprise-topbar {
   background: #0b1120;
   border-bottom: 1px solid #1e293b;
-  position: sticky;
-  top: 0;
+  position: relative;
+  flex-shrink: 0;
   z-index: 120;
   height: 62px;
   display: flex;
@@ -6378,30 +6687,104 @@ body.admin-backoffice-mode #mainContentArea {
   border-color: #ef4444 !important;
 }
 
-/* 3. Main Workspace Grid */
+/* 3. Main Workspace Grid (Duplo Painel: Sidebar Estática + Conteúdo Independente) */
 .admin-enterprise-body {
   max-width: 1600px;
   margin: 0 auto;
   width: 100%;
-  padding: 24px;
+  padding: 18px 24px;
   box-sizing: border-box;
   display: grid;
   grid-template-columns: 260px 1fr;
   gap: 24px;
   flex: 1;
+  height: calc(100vh - 62px);
+  min-height: 0;
+  overflow: hidden;
 }
 
-/* Sidebar Corporativa */
+/* Sidebar Corporativa (100% ESTÁTICA - não rola com as categorias) */
 .admin-enterprise-sidebar {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 16px 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  position: sticky;
-  top: 80px;
-  max-height: calc(100vh - 100px);
+  border-radius: 12px;
+  padding: 16px 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  height: 100%;
+  max-height: 100%;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.admin-enterprise-sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.admin-enterprise-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-enterprise-sidebar::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 999px;
+}
+
+.admin-enterprise-sidebar::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
+
+/* Área de Conteúdo Principal (Rola suavemente sem mexer na Sidebar da esquerda) */
+.admin-content-area {
+  height: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+  padding-right: 6px;
+  padding-bottom: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.admin-content-area > .admin-card {
+  min-height: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  margin-bottom: 0;
+}
+
+.admin-content-area > .admin-card .admin-table-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+.admin-content-area > .admin-card .admin-table-wrapper .admin-table {
+  flex-shrink: 0;
+}
+
+.admin-content-area::-webkit-scrollbar {
+  width: 6px;
+}
+
+.admin-content-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-content-area::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+.admin-content-area::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .admin-sidebar-group-title {
@@ -6461,6 +6844,43 @@ body.admin-backoffice-mode #mainContentArea {
 .admin-nav-item.active .admin-nav-pill-badge {
   background: #2563eb;
   color: #ffffff;
+}
+
+/* Acordeão Corporativo de Categorias & Subcategorias */
+.admin-category-block {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s ease;
+}
+
+.admin-category-block:hover {
+  border-color: #cbd5e1;
+}
+
+.category-accordion-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease;
+}
+
+.category-accordion-header:hover {
+  background: #f8fafc !important;
+}
+
+.category-toggle-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 /* Drawer Mobile */
@@ -6833,14 +7253,31 @@ body.admin-backoffice-mode #mainContentArea {
 }
 
 @media (max-width: 991px) {
+  body.admin-backoffice-mode,
+  body.admin-backoffice-mode #mainContentArea,
+  .admin-backoffice-page {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
   .admin-enterprise-body {
     grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
     padding: 14px 12px;
     gap: 14px;
   }
 
   .admin-enterprise-sidebar {
     display: none;
+  }
+
+  .admin-content-area {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
   }
 
   .admin-mobile-drawer-btn {
@@ -7194,4 +7631,353 @@ input:-webkit-autofill:active {
   -webkit-box-shadow: 0 0 0 1000px #1f2937 inset !important;
   -webkit-text-fill-color: #ffffff !important;
   transition: background-color 5000s ease-in-out 0s;
+}
+
+/* ===================================================================
+   MODAL COMPACTO DE CADASTRO DE PRODUTOS (Enterprise Backoffice)
+   Layout Ultra-Compacto, Balanceado, Sem Espaços Vazios, Superfície Branca
+   =================================================================== */
+
+.admin-modal-product-dialog {
+  max-width: 980px !important;
+  width: 95% !important;
+  max-height: 90vh !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+  box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.22) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.admin-modal-product-header {
+  padding: 12px 18px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.admin-modal-close-icon {
+  background: transparent;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.admin-modal-close-icon:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.admin-modal-product-body {
+  padding: 14px 18px !important;
+  background: #ffffff !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  flex: 1 !important;
+  scrollbar-width: thin;
+}
+
+/* Campos compactos no modal de produto */
+.admin-modal-product-dialog .form-input,
+.admin-modal-product-dialog .form-select {
+  width: 100% !important;
+  height: 33px !important;
+  padding: 5px 9px !important;
+  font-size: 0.8125rem !important;
+  border-radius: 6px !important;
+  border: 1px solid #cbd5e1 !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  box-sizing: border-box !important;
+  line-height: 1.25 !important;
+}
+
+.admin-modal-product-dialog .form-input:focus,
+.admin-modal-product-dialog .form-select:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12) !important;
+  outline: none !important;
+}
+
+.admin-modal-product-dialog textarea.form-input {
+  height: auto !important;
+  min-height: 52px !important;
+  padding: 6px 9px !important;
+  line-height: 1.35 !important;
+}
+
+.admin-modal-product-dialog .admin-form-label {
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  color: #334155 !important;
+  margin-bottom: 2px !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-modal-product-dialog .admin-form-label .req {
+  color: #ef4444;
+  margin-left: 2px;
+  font-weight: 700;
+}
+
+.admin-modal-product-dialog .form-group {
+  margin-bottom: 0 !important;
+}
+
+/* Painéis / Cards Compactos */
+.admin-card-panel {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  box-shadow: none;
+}
+
+.admin-card-panel:last-child {
+  margin-bottom: 0;
+}
+
+.admin-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.admin-panel-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+/* Input Affix Compacto (Kz / un) */
+.admin-input-affix-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.admin-input-prefix {
+  position: absolute;
+  left: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.admin-input-suffix {
+  position: absolute;
+  right: 8px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #94a3b8;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.admin-input-affix-group input.has-prefix {
+  padding-left: 28px !important;
+}
+
+.admin-input-affix-group input.has-suffix {
+  padding-right: 28px !important;
+}
+
+/* Status Segmented Control Compacto */
+.admin-status-segmented-control {
+  display: inline-flex;
+  gap: 3px;
+  background: #f1f5f9;
+  padding: 2px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.admin-status-segmented-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.admin-status-segmented-btn.active.status-active {
+  background: #ffffff;
+  color: #15803d;
+  border-color: #bbf7d0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.admin-status-segmented-btn.active.status-blocked {
+  background: #ffffff;
+  color: #b45309;
+  border-color: #fde68a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Switches Compactos de Destaques */
+.admin-toggle-switch-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.admin-toggle-switch-card:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.admin-toggle-switch-card.checked {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.admin-switch-slider {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  background: #cbd5e1;
+  border-radius: 999px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.admin-switch-slider::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.admin-toggle-switch-card.checked .admin-switch-slider {
+  background: #2563eb;
+}
+
+.admin-toggle-switch-card.checked .admin-switch-slider::after {
+  transform: translateX(14px);
+}
+
+/* Tags de Ficha Técnica Compactas */
+.admin-quick-spec-wrap {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.admin-quick-spec-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.admin-quick-spec-btn:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #2563eb;
+}
+
+/* Linha de Especificação Compacta */
+.admin-spec-row-corporate {
+  display: grid;
+  grid-template-columns: minmax(110px, 1.2fr) minmax(130px, 2fr) 28px;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 6px;
+  border-radius: 5px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 4px;
+}
+
+.admin-spec-row-corporate .form-input {
+  height: 28px !important;
+  font-size: 0.75rem !important;
+  padding: 3px 7px !important;
+}
+
+.admin-spec-del-btn {
+  background: transparent;
+  border: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.admin-spec-del-btn:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* Grid Inferior de 2 Colunas Perfeitamente Balanceadas */
+.admin-product-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: stretch;
+}
+
+@media (max-width: 860px) {
+  .admin-product-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-modal-product-dialog {
+    width: 100% !important;
+    max-height: 96vh !important;
+    border-radius: 14px 14px 0 0 !important;
+  }
 }

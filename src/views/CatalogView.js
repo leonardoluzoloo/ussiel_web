@@ -11,11 +11,37 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
   const container = document.createElement('div');
   container.className = 'container';
 
-  // State 100% Zerado (Alimentado pelo Administrador via Supabase)
-  let activeProducts = [];
-  let activeCategories = [];
+  // Pré-carregamento imediato do cache local persistente para eliminar qualquer flash ou layout shift no F5
+  const getCachedList = (key) => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      }
+    } catch {}
+    return [];
+  };
+
+  const cachedBanners = getCachedList('novatech_admin_banners_v4_clean').filter(b => b.is_active !== false && (b.image_url || b.image));
+  const cachedProds = getCachedList('novatech_admin_produtos_v4_clean').filter(p => p.is_active !== false);
+  const cachedCats = getCachedList('novatech_admin_categorias_v4_clean').filter(c => c.is_active !== false);
+
+  let activeProducts = cachedProds.map(p => ({
+    ...p,
+    oldPrice: p.old_price !== undefined ? p.old_price : p.oldPrice,
+    badges: Array.isArray(p.badges) ? p.badges : (p.badges ? (typeof p.badges === 'string' ? JSON.parse(p.badges) : p.badges) : []),
+    gallery: Array.isArray(p.gallery) ? p.gallery : (p.gallery ? (typeof p.gallery === 'string' ? JSON.parse(p.gallery) : p.gallery) : [p.image]),
+    variants: (typeof p.variants === 'object' && p.variants !== null) ? p.variants : (p.variants ? JSON.parse(p.variants) : {}),
+    specs: (typeof p.specs === 'object' && p.specs !== null) ? p.specs : (p.specs ? JSON.parse(p.specs) : {})
+  }));
+  let activeCategories = cachedCats;
+  let activeBanners = cachedBanners;
+  let isDatabaseLoaded = false;
+
   let currentCategory = null;
   let currentSubcategory = null; // subcategoria ativa
+  let expandedCategoryIds = new Set(); // controle de categorias expandidas
   let selectedBrands = [];
   let maxPrice = 6000000;
   let onlyInStock = false;
@@ -23,7 +49,13 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
   let minRating = 0;
   let sortBy = 'relevant';
   let viewMode = 'grid'; // 'grid' | 'list'
-  let allBrands = [];
+  let allBrands = [...new Set(activeProducts.map(p => p.brand).filter(Boolean))];
+
+  // Pré-resolve categoria pelo slug imediatamente se já estiver em cache
+  if (categorySlug && activeCategories.length > 0) {
+    currentCategory = activeCategories.find(c => c.slug === categorySlug) || null;
+    if (currentCategory) expandedCategoryIds.add(currentCategory.id);
+  }
 
   async function syncFromDatabase() {
     try {
@@ -37,11 +69,13 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
         Api.banners.getActive()
       ]);
 
+      isDatabaseLoaded = true;
       activeCategories = realCats || [];
 
       // Resolve categoria ativa pelo slug
       if (categorySlug && activeCategories.length > 0) {
         currentCategory = activeCategories.find(c => c.slug === categorySlug) || null;
+        if (currentCategory) expandedCategoryIds.add(currentCategory.id);
       }
 
       // Resolve subcategoria ativa pelo slug (vem de #/subcategoria/:slug ou filtro)
@@ -53,12 +87,13 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
             currentSubcategory = found;
             // Se veio por rota de subcategoria, ativa também a categoria pai
             if (!currentCategory) currentCategory = cat;
+            if (cat) expandedCategoryIds.add(cat.id);
             break;
           }
         }
       }
 
-      activeBanners = realBanners || [];
+      activeBanners = (realBanners && realBanners.length > 0) ? realBanners : activeBanners;
 
       if (realProds && realProds.length > 0) {
         activeProducts = realProds.map(p => ({
@@ -70,13 +105,14 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
           specs: (typeof p.specs === 'object' && p.specs !== null) ? p.specs : (p.specs ? JSON.parse(p.specs) : {})
         }));
         allBrands = [...new Set(activeProducts.map(p => p.brand).filter(Boolean))];
-      } else {
+      } else if (isDatabaseLoaded && (!realProds || realProds.length === 0)) {
         activeProducts = [];
         allBrands = [];
       }
       render();
     } catch (e) {
       console.warn('[Catálogo] Sincronização:', e.message);
+      isDatabaseLoaded = true;
     }
   }
 
@@ -183,7 +219,6 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
   ];
 
   let activeFlagshipIndex = 0;
-  let activeBanners = [];
   let autoplayTimer = null;
   const AUTOPLAY_INTERVAL = 5000; // 5 segundos por banner
 
@@ -204,14 +239,16 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
         stopAutoplay();
         return;
       }
-      const currentList = (activeBanners && activeBanners.length > 0) ? activeBanners : defaultInstitutionalBanner;
+      const hasActiveBanners = activeBanners && activeBanners.length > 0;
+      const currentList = hasActiveBanners ? activeBanners : (isDatabaseLoaded ? defaultInstitutionalBanner : []);
       if (currentList.length <= 1) return;
       goToSlide(activeFlagshipIndex + 1);
     }, AUTOPLAY_INTERVAL);
   }
 
   function goToSlide(newIndex) {
-    const list = (activeBanners && activeBanners.length > 0) ? activeBanners : defaultInstitutionalBanner;
+    const hasActiveBanners = activeBanners && activeBanners.length > 0;
+    const list = hasActiveBanners ? activeBanners : (isDatabaseLoaded ? defaultInstitutionalBanner : []);
     if (!list || list.length === 0) return;
 
     activeFlagshipIndex = ((newIndex % list.length) + list.length) % list.length;
@@ -220,47 +257,46 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
     const heroBox = container.querySelector('#heroCommercialBox');
     if (!heroBox) return;
 
-    // Efeito suave de transição
-    heroBox.classList.add('slide-transitioning');
+    const bannerTitle = f.title || 'NovaTech Angola';
+    const bannerImg = f.image_url || f.image || '';
+    const bannerLink = f.button_link || (f.slug ? `#/produto/${f.slug}` : '#/catalogo');
 
-    setTimeout(() => {
-      const bannerTitle = f.title || 'NovaTech Angola';
-      const bannerImg = f.image_url || f.image || '';
-      const bannerLink = f.button_link || (f.slug ? `#/produto/${f.slug}` : '#/catalogo');
-
-      const heroLink = container.querySelector('#heroLink');
-      if (heroLink) {
-        heroLink.href = bannerLink;
-        heroLink.title = bannerTitle;
-        heroLink.setAttribute('aria-label', bannerTitle);
-        if (bannerImg) {
-          heroLink.innerHTML = `<img src="${bannerImg}" alt="${bannerTitle}" class="hero-clean-banner-img" id="heroProductImage" />`;
-        }
+    const heroLink = container.querySelector('#heroLink');
+    if (heroLink) {
+      heroLink.href = bannerLink;
+      heroLink.title = bannerTitle;
+      heroLink.setAttribute('aria-label', bannerTitle);
+      if (bannerImg) {
+        heroLink.innerHTML = `<img src="${bannerImg}" alt="${bannerTitle}" class="hero-clean-banner-img" id="heroProductImage" />`;
+      } else {
+        heroLink.innerHTML = `
+          <div class="hero-clean-fallback-banner">
+            <div class="hero-fallback-brand-badge">NOVATECH ANGOLA</div>
+            <h2 class="hero-fallback-title">${bannerTitle}</h2>
+            <p class="hero-fallback-sub">Tecnologia de Ponta, Smartphones e Acessórios com Entrega em Luanda</p>
+            <span class="btn btn-primary" style="margin-top: 12px; padding: 10px 24px; font-weight: 700;">Conferir Novidades →</span>
+          </div>
+        `;
       }
+    }
 
-      // Atualiza indicadores de bolinhas
-      const dots = container.querySelectorAll('.hero-dot');
-      dots.forEach((dot, idx) => {
-        if (idx === activeFlagshipIndex) {
-          dot.classList.add('active');
-        } else {
-          dot.classList.remove('active');
-        }
-      });
-
-      heroBox.classList.remove('slide-transitioning');
-    }, 150);
+    // Atualiza indicadores de bolinhas
+    const dots = container.querySelectorAll('.hero-dot');
+    dots.forEach((dot, idx) => {
+      dot.classList.toggle('active', idx === activeFlagshipIndex);
+    });
   }
 
   function render() {
     const filtered = getFilteredProducts();
     const isHomePage = !currentCategory && !searchQuery && !isDeals && !isNew;
-    const currentBannerList = (activeBanners && activeBanners.length > 0) ? activeBanners : defaultInstitutionalBanner;
-    const f = currentBannerList[activeFlagshipIndex % currentBannerList.length];
+    const hasActiveBanners = activeBanners && activeBanners.length > 0;
+    const currentBannerList = hasActiveBanners ? activeBanners : (isDatabaseLoaded ? defaultInstitutionalBanner : []);
+    const f = currentBannerList.length > 0 ? currentBannerList[activeFlagshipIndex % currentBannerList.length] : null;
 
-    const bannerTitle = f.title || 'NovaTech Angola';
-    const bannerImg = f.image_url || f.image;
-    const bannerLink = f.button_link || (f.slug ? `#/produto/${f.slug}` : '#/catalogo');
+    const bannerTitle = f?.title || 'NovaTech Angola';
+    const bannerImg = f ? (f.image_url || f.image) : '';
+    const bannerLink = f ? (f.button_link || (f.slug ? `#/produto/${f.slug}` : '#/catalogo')) : '#/catalogo';
 
     const titleText = isDeals ? 'Ofertas & Promoções da Semana' :
       isNew ? 'Lançamentos & Novidades Tecnológicas' :
@@ -277,18 +313,22 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
         <!-- Header Hero Banner (Banner Limpo Oficial: Imagem integral com link) -->
         <section class="hero-clean-banner-section" style="margin-top: 16px; margin-bottom: 28px;">
           <div class="hero-clean-banner-box" id="heroCommercialBox">
-            <a href="${bannerLink}" class="hero-clean-banner-link" id="heroLink" title="${bannerTitle}" aria-label="${bannerTitle}">
-              ${bannerImg ? `
-                <img src="${bannerImg}" alt="${bannerTitle}" class="hero-clean-banner-img" id="heroProductImage" />
-              ` : `
-                <div class="hero-clean-fallback-banner">
-                  <div class="hero-fallback-brand-badge">NOVATECH ANGOLA</div>
-                  <h2 class="hero-fallback-title">${bannerTitle}</h2>
-                  <p class="hero-fallback-sub">Tecnologia de Ponta, Smartphones e Acessórios com Entrega em Luanda</p>
-                  <span class="btn btn-primary" style="margin-top: 12px; padding: 10px 24px; font-weight: 700;">Conferir Novidades →</span>
-                </div>
-              `}
-            </a>
+            ${f ? `
+              <a href="${bannerLink}" class="hero-clean-banner-link" id="heroLink" title="${bannerTitle}" aria-label="${bannerTitle}">
+                ${bannerImg ? `
+                  <img src="${bannerImg}" alt="${bannerTitle}" class="hero-clean-banner-img" id="heroProductImage" />
+                ` : `
+                  <div class="hero-clean-fallback-banner">
+                    <div class="hero-fallback-brand-badge">NOVATECH ANGOLA</div>
+                    <h2 class="hero-fallback-title">${bannerTitle}</h2>
+                    <p class="hero-fallback-sub">Tecnologia de Ponta, Smartphones e Acessórios com Entrega em Luanda</p>
+                    <span class="btn btn-primary" style="margin-top: 12px; padding: 10px 24px; font-weight: 700;">Conferir Novidades →</span>
+                  </div>
+                `}
+              </a>
+            ` : `
+              <div class="hero-clean-banner-skeleton" style="width: 100%; height: 320px; background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%); background-size: 200% 100%; animation: adminShimmer 1.5s infinite; border-radius: 16px;"></div>
+            `}
 
             <!-- Setas e Dots condicionais -->
             ${currentBannerList.length > 1 ? `
@@ -308,16 +348,22 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
         </section>
       ` : `
         <!-- Filter Header Banner -->
-        <div style="margin-top: 24px; margin-bottom: 24px; background: linear-gradient(135deg, #0b0f19 0%, #1e293b 100%); color: #ffffff; padding: 32px 28px; border-radius: var(--radius-lg); position: relative; overflow: hidden;">
+        <div style="margin-top: 20px; margin-bottom: 24px; background: linear-gradient(135deg, #090d16 0%, #1e293b 100%); color: #ffffff; padding: 28px 32px; border-radius: var(--radius-lg); position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+          <div style="position: absolute; right: -20px; bottom: -20px; opacity: 0.08; color: #ffffff; pointer-events: none;">
+            ${Icons.package(180)}
+          </div>
           <div style="position: relative; z-index: 2; max-width: 700px;">
-            <div style="font-size: 0.8125rem; font-weight: 700; text-transform: uppercase; color: #38bdf8; letter-spacing: 0.08em; margin-bottom: 8px;">
-              ${currentCategory ? 'Departamento' : isDeals ? 'Ofertas Especiais' : isNew ? 'Lançamentos' : 'Pesquisa'}
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+              <span style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: #38bdf8; letter-spacing: 0.1em; background: rgba(56, 189, 248, 0.15); padding: 4px 10px; border-radius: 9999px;">
+                ${currentCategory ? 'Departamento Oficial' : isDeals ? 'Ofertas Especiais' : isNew ? 'Lançamentos' : 'Catálogo'}
+              </span>
+              ${currentSubcategory ? `<span style="color: #94a3b8; font-size: 0.8125rem;">/ ${currentSubcategory.name || currentSubcategory.nome}</span>` : ''}
             </div>
-            <h1 style="font-family: var(--font-display); font-size: 2.25rem; font-weight: 900; margin-bottom: 8px;">
+            <h1 style="font-family: var(--font-display); font-size: 2.25rem; font-weight: 900; margin-bottom: 8px; letter-spacing: -0.02em;">
               ${titleText}
             </h1>
-            <p style="color: #cbd5e1; font-size: 0.9375rem; line-height: 1.5;">
-              ${descText}
+            <p style="color: #cbd5e1; font-size: 0.9375rem; line-height: 1.5; margin: 0;">
+              ${descText || `Explore todos os produtos originais de alta tecnologia da linha ${titleText} com pronta entrega em Luanda.`}
             </p>
           </div>
         </div>
@@ -349,56 +395,77 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
             </div>
           </div>
 
-          <!-- Category Selector -->
+          <!-- Category Selector (Com suporte a expandir/recolher subcategorias e scroll limitado) -->
           <div class="filter-section">
-            <h4 class="filter-title">Categorias</h4>
-            <div class="filter-options-list">
-              <label class="filter-label">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+              <h4 class="filter-title" style="margin: 0;">Categorias</h4>
+              <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">${activeCategories.length} disponíveis</span>
+            </div>
+            <div class="filter-options-list" style="max-height: 380px; overflow-y: auto; padding-right: 4px;">
+              <label class="filter-label" style="cursor: pointer;">
                 <span class="filter-left-inline">
                   <input type="radio" name="catRadio" value="all" ${!currentCategory ? 'checked' : ''} />
-                  <span>Todas</span>
+                  <span style="font-weight: ${!currentCategory ? '700' : '500'};">Todas as Categorias</span>
                 </span>
                 <span class="filter-count">(${activeProducts.length})</span>
               </label>
+
               ${activeCategories.length === 0 ? `
                 <div style="font-size: 0.75rem; color: var(--text-muted); padding: 4px 0;">
                   Nenhuma categoria cadastrada ainda.
                 </div>
-              ` : activeCategories.map(c => `
-                <label class="filter-label">
-                  <span class="filter-left-inline">
-                    <input type="radio" name="catRadio" value="${c.slug}" ${currentCategory?.slug === c.slug ? 'checked' : ''} />
-                    <span>${c.name}</span>
-                  </span>
-                  <span class="filter-count">(${activeProducts.filter(p => String(p.category_id) === String(c.id) || p.category === c.slug).length})</span>
-                </label>
-              `).join('')}
+              ` : activeCategories.map(c => {
+                const subs = Array.isArray(c.subcategories) ? c.subcategories : [];
+                const isSelected = currentCategory?.slug === c.slug || String(currentCategory?.id) === String(c.id);
+                const isExpanded = expandedCategoryIds.has(c.id) || isSelected;
+                const catProdCount = activeProducts.filter(p => String(p.category_id) === String(c.id) || p.category === c.slug).length;
+
+                return `
+                  <div class="cat-accordion-item" style="margin-bottom: 4px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; border-radius: 6px; padding: 2px 0;">
+                      <label class="filter-label" style="flex: 1; margin: 0; cursor: pointer;">
+                        <span class="filter-left-inline">
+                          <input type="radio" name="catRadio" value="${c.slug}" ${isSelected ? 'checked' : ''} />
+                          <span style="font-weight: ${isSelected ? '700' : '500'}; color: ${isSelected ? 'var(--primary-700)' : 'var(--text-main)'};">${c.name}</span>
+                        </span>
+                        <span class="filter-count">(${catProdCount})</span>
+                      </label>
+                      ${subs.length > 0 ? `
+                        <button type="button" class="btn-toggle-subcat" data-cat-id="${c.id}" aria-label="Expandir ou recolher subcategorias" title="${isExpanded ? 'Recolher' : 'Expandir'} subcategorias" style="background: none; border: none; padding: 4px 6px; cursor: pointer; color: #64748b; font-size: 0.75rem; display: flex; align-items: center;">
+                          ${isExpanded ? '▲' : '▼'}
+                        </button>
+                      ` : ''}
+                    </div>
+
+                    <!-- Subcategorias Aninhadas Expansíveis -->
+                    ${(subs.length > 0 && isExpanded) ? `
+                      <div class="nested-subcats" style="margin-left: 20px; padding-left: 8px; border-left: 2px solid var(--primary-100, #e2e8f0); margin-top: 4px; margin-bottom: 6px; display: flex; flex-direction: column; gap: 4px;">
+                        <label class="filter-label" style="font-size: 0.8125rem; margin: 0; cursor: pointer;">
+                          <span class="filter-left-inline">
+                            <input type="radio" name="subcatRadio" value="all_${c.id}" data-parent-cat="${c.slug}" ${isSelected && !currentSubcategory ? 'checked' : ''} />
+                            <span style="color: #64748b;">Todas de ${c.name}</span>
+                          </span>
+                        </label>
+                        ${subs.map(s => {
+                          const isSubSelected = currentSubcategory?.slug === s.slug || String(currentSubcategory?.id) === String(s.id);
+                          const subProdCount = activeProducts.filter(p => String(p.subcategory_id) === String(s.id) || p.subcategory === s.slug).length;
+                          return `
+                            <label class="filter-label" style="font-size: 0.8125rem; margin: 0; cursor: pointer;">
+                              <span class="filter-left-inline">
+                                <input type="radio" name="subcatRadio" value="${s.slug || s.id}" data-parent-cat="${c.slug}" ${isSubSelected ? 'checked' : ''} />
+                                <span style="font-weight: ${isSubSelected ? '700' : '400'}; color: ${isSubSelected ? 'var(--primary-600)' : 'var(--text-secondary)'};">${s.name || s.nome}</span>
+                              </span>
+                              <span class="filter-count" style="font-size: 0.7rem;">(${subProdCount})</span>
+                            </label>
+                          `;
+                        }).join('')}
+                      </div>
+                    ` : ''}
+                  </div>
+                `;
+              }).join('')}
             </div>
           </div>
-
-          <!-- Subcategory Selector (quando categoria selecionada tem subcategorias) -->
-          ${currentCategory && Array.isArray(currentCategory.subcategories) && currentCategory.subcategories.length > 0 ? `
-            <div class="filter-section" style="padding-left: 12px; border-left: 2px solid var(--primary-200, #cbd5e1);">
-              <h4 class="filter-title" style="font-size: 0.8125rem; color: var(--primary-700);">Subcategorias</h4>
-              <div class="filter-options-list">
-                <label class="filter-label">
-                  <span class="filter-left-inline">
-                    <input type="radio" name="subcatRadio" value="all" ${!currentSubcategory ? 'checked' : ''} />
-                    <span>Todas de ${currentCategory.name}</span>
-                  </span>
-                </label>
-                ${currentCategory.subcategories.map(s => `
-                  <label class="filter-label">
-                    <span class="filter-left-inline">
-                      <input type="radio" name="subcatRadio" value="${s.slug || s.id}" ${currentSubcategory?.slug === s.slug || currentSubcategory?.id === s.id ? 'checked' : ''} />
-                      <span>${s.name || s.nome}</span>
-                    </span>
-                    <span class="filter-count">(${activeProducts.filter(p => String(p.subcategory_id) === String(s.id) || p.subcategory === s.slug).length})</span>
-                  </label>
-                `).join('')}
-              </div>
-            </div>
-          ` : ''}
 
           <!-- Price Filter -->
           <div class="filter-section">
@@ -464,9 +531,9 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
             </div>
           </div>
 
-          <!-- Minimum Rating -->
+          <!-- Avaliação -->
           <div class="filter-section">
-            <h4 class="filter-title">Avaliação Mínima</h4>
+            <h4 class="filter-title">Avaliação</h4>
             <div class="filter-options-list">
               <label class="filter-label">
                 <span class="filter-left-inline">
@@ -476,14 +543,14 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
               </label>
               <label class="filter-label">
                 <span class="filter-left-inline">
-                  <input type="radio" name="ratingRadio" value="4.8" ${minRating === 4.8 ? 'checked' : ''} />
-                  <span style="color: var(--accent-amber);">★★★★★ 4.8+</span>
+                  <input type="radio" name="ratingRadio" value="4" ${minRating === 4 ? 'checked' : ''} />
+                  <span>4 estrelas ou mais</span>
                 </span>
               </label>
             </div>
           </div>
 
-          <div class="mobile-sidebar-footer">
+          <div class="mobile-sidebar-footer mobile-only" style="display: none;">
             <button id="applyMobileFiltersBtn" class="btn btn-primary btn-full">
               Aplicar Filtros (${filtered.length})
             </button>
@@ -495,18 +562,42 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
           <!-- Controls Bar -->
           <div class="catalog-header">
             <div class="catalog-results-count">
-              Mostrando <strong>${filtered.length}</strong> produtos
+              Mostrando <strong>${filtered.length}</strong> ${filtered.length === 1 ? 'produto' : 'produtos'}
             </div>
 
-            <div class="catalog-controls">
-              <label style="font-size: 0.8125rem; color: var(--text-secondary); font-weight: 600;">Ordenar por:</label>
-              <select class="sort-select" id="catalogSortSelect">
-                <option value="relevant" ${sortBy === 'relevant' ? 'selected' : ''}>Mais Relevantes</option>
-                <option value="price_asc" ${sortBy === 'price_asc' ? 'selected' : ''}>Menor Preço</option>
-                <option value="price_desc" ${sortBy === 'price_desc' ? 'selected' : ''}>Maior Preço</option>
-                <option value="rating" ${sortBy === 'rating' ? 'selected' : ''}>Melhor Avaliados</option>
-                <option value="newest" ${sortBy === 'newest' ? 'selected' : ''}>Novidades</option>
-              </select>
+            <div class="catalog-controls" style="display:flex; align-items:center; gap:12px;">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <label style="font-size: 0.8125rem; color: var(--text-secondary); font-weight: 600;">Ordenar por:</label>
+                <select class="sort-select" id="catalogSortSelect">
+                  <option value="relevant" ${sortBy === 'relevant' ? 'selected' : ''}>Mais Relevantes</option>
+                  <option value="price_asc" ${sortBy === 'price_asc' ? 'selected' : ''}>Menor Preço</option>
+                  <option value="price_desc" ${sortBy === 'price_desc' ? 'selected' : ''}>Maior Preço</option>
+                  <option value="rating" ${sortBy === 'rating' ? 'selected' : ''}>Melhor Avaliados</option>
+                  <option value="newest" ${sortBy === 'newest' ? 'selected' : ''}>Novidades</option>
+                </select>
+              </div>
+
+              <!-- View Mode Toggle: Grid ou Lista -->
+              <div class="catalog-view-toggle">
+                <button type="button" class="catalog-view-btn ${viewMode === 'grid' ? 'active' : ''}" id="viewGridBtn" title="Visualização em Grade">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                  </svg>
+                </button>
+                <button type="button" class="catalog-view-btn ${viewMode === 'list' ? 'active' : ''}" id="viewListBtn" title="Visualização em Lista">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="8" y1="6" x2="21" y2="6"></line>
+                    <line x1="8" y1="12" x2="21" y2="12"></line>
+                    <line x1="8" y1="18" x2="21" y2="18"></line>
+                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -544,7 +635,7 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
               </div>
             </div>
           ` : `
-            <div class="products-grid" id="catalogProductsGrid">
+            <div class="${viewMode === 'list' ? 'products-list' : 'products-grid'}" id="catalogProductsGrid">
               <!-- Appended via JS -->
             </div>
           `}
@@ -555,13 +646,33 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
     // Append Product Cards
     const grid = container.querySelector('#catalogProductsGrid');
     if (grid) {
-      filtered.forEach(p => grid.appendChild(createProductCard(p)));
+      filtered.forEach(p => grid.appendChild(createProductCard(p, viewMode)));
     }
 
     attachFilterEvents();
   }
 
   function attachFilterEvents() {
+    // View Mode Toggle (Grid vs Lista)
+    const gridBtn = container.querySelector('#viewGridBtn');
+    const listBtn = container.querySelector('#viewListBtn');
+    if (gridBtn) {
+      gridBtn.onclick = () => {
+        if (viewMode !== 'grid') {
+          viewMode = 'grid';
+          render();
+        }
+      };
+    }
+    if (listBtn) {
+      listBtn.onclick = () => {
+        if (viewMode !== 'list') {
+          viewMode = 'list';
+          render();
+        }
+      };
+    }
+
     // Sort Select
     const sortSelect = container.querySelector('#catalogSortSelect');
     if (sortSelect) {
@@ -571,6 +682,21 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
       };
     }
 
+    // Toggle Category Expansion
+    container.querySelectorAll('.btn-toggle-subcat').forEach(btn => {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const catId = Number(btn.dataset.catId);
+        if (expandedCategoryIds.has(catId)) {
+          expandedCategoryIds.delete(catId);
+        } else {
+          expandedCategoryIds.add(catId);
+        }
+        render();
+      };
+    });
+
     // Category Radio
     container.querySelectorAll('input[name="catRadio"]').forEach(radio => {
       radio.onchange = () => {
@@ -578,7 +704,10 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
         if (radio.value === 'all') {
           currentCategory = null;
         } else {
-          currentCategory = activeCategories.find(c => c.slug === radio.value);
+          currentCategory = activeCategories.find(c => c.slug === radio.value) || null;
+          if (currentCategory) {
+            expandedCategoryIds.add(currentCategory.id);
+          }
         }
         render();
       };
@@ -587,7 +716,13 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
     // Subcategory Radio
     container.querySelectorAll('input[name="subcatRadio"]').forEach(radio => {
       radio.onchange = () => {
-        if (radio.value === 'all') {
+        const parentSlug = radio.dataset.parentCat;
+        if (parentSlug && (!currentCategory || currentCategory.slug !== parentSlug)) {
+          currentCategory = activeCategories.find(c => c.slug === parentSlug) || currentCategory;
+          if (currentCategory) expandedCategoryIds.add(currentCategory.id);
+        }
+
+        if (radio.value.startsWith('all_')) {
           currentSubcategory = null;
         } else {
           const subs = currentCategory && Array.isArray(currentCategory.subcategories) ? currentCategory.subcategories : [];

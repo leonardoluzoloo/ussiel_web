@@ -49,14 +49,10 @@ export function setupWhatsAppButton() {
       </div>
     </div>
 
-    <!-- Floating Trigger Button (Super visível no Desktop e Mobile) -->
-    <div class="whatsapp-btn" id="whatsappTriggerBtn" title="Fale conosco no WhatsApp">
+    <!-- Floating Trigger Button (Ícone limpo oficial circular) -->
+    <div class="whatsapp-btn" id="whatsappTriggerBtn" title="Fale conosco no WhatsApp" aria-label="Fale conosco no WhatsApp">
       <div class="whatsapp-pulse"></div>
-      ${Icons.whatsapp(30, '#ffffff')}
-      <div class="whatsapp-btn-text">
-        <span class="whatsapp-btn-title">Falar no WhatsApp</span>
-        <span class="whatsapp-btn-sub">● Suporte Online Luanda</span>
-      </div>
+      ${Icons.whatsapp(32, '#ffffff')}
     </div>
   `;
 

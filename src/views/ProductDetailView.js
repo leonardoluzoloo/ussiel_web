@@ -16,6 +16,24 @@ export function renderProductDetailView(productSlug) {
 
   let product = null; // Carregado dinamicamente via Supabase
   let allProducts = []; // Para produtos relacionados
+  let isLoading = true;
+  let isNotFound = false;
+
+  // Pré-carregamento imediato do cache local para eliminar delay e piscadas
+  try {
+    const cachedRaw = localStorage.getItem('novatech_products_v1');
+    const cachedProds = cachedRaw ? JSON.parse(cachedRaw) : [];
+    const initialCached = (Array.isArray(cachedProds) ? cachedProds : []).find(p => p.slug === productSlug || String(p.id) === String(productSlug));
+    if (initialCached) {
+      const cachedGal = Array.isArray(initialCached.gallery) ? initialCached.gallery.filter(Boolean) : [];
+      if (cachedGal.length === 0 && initialCached.image) cachedGal.push(initialCached.image);
+      product = {
+        ...initialCached,
+        gallery: cachedGal
+      };
+      isLoading = false;
+    }
+  } catch {}
 
   // State
   let selectedColor = product?.variants?.colors?.[0]?.name || '';
@@ -33,14 +51,27 @@ export function renderProductDetailView(productSlug) {
       }
 
       if (realProd) {
+        const rawGal = Array.isArray(realProd.gallery)
+          ? realProd.gallery
+          : (realProd.gallery && typeof realProd.gallery === 'string')
+            ? (JSON.parse(realProd.gallery) || [])
+            : [];
+        const cleanGal = rawGal.filter(Boolean);
+        if (cleanGal.length === 0 && realProd.image) {
+          cleanGal.push(realProd.image);
+        }
+
         product = {
           ...realProd,
           oldPrice: realProd.old_price !== undefined ? realProd.old_price : realProd.oldPrice,
           badges: Array.isArray(realProd.badges) ? realProd.badges : (realProd.badges ? (typeof realProd.badges === 'string' ? JSON.parse(realProd.badges) : realProd.badges) : []),
-          gallery: Array.isArray(realProd.gallery) ? realProd.gallery : (realProd.gallery ? (typeof realProd.gallery === 'string' ? JSON.parse(realProd.gallery) : realProd.gallery) : [realProd.image]),
+          gallery: cleanGal,
           variants: (typeof realProd.variants === 'object' && realProd.variants !== null) ? realProd.variants : (realProd.variants ? JSON.parse(realProd.variants) : {}),
           specs: (typeof realProd.specs === 'object' && realProd.specs !== null) ? realProd.specs : (realProd.specs ? JSON.parse(realProd.specs) : {})
         };
+        isLoading = false;
+        isNotFound = false;
+
         // Carregar avaliações do Supabase (fonte de verdade)
         try {
           product.reviews = await Api.reviews.getByProduct(product.id);
@@ -48,13 +79,14 @@ export function renderProductDetailView(productSlug) {
           product.reviews = [];
         }
         product.reviewCount = product.reviews.length;
+        product.reviewsCount = product.reviews.length;
         // Recalcular rating médio localmente com dados frescos
         if (product.reviews.length > 0) {
           product.rating = product.reviews.reduce((sum, r) => sum + (r.rating || 5), 0) / product.reviews.length;
         }
         if (!selectedColor && product.variants?.colors?.[0]?.name) selectedColor = product.variants.colors[0].name;
         if (!selectedStorage && product.variants?.storage?.[0]) selectedStorage = product.variants.storage[0];
-        if (!currentImage) currentImage = product.gallery?.[0] || product.image;
+        currentImage = product.gallery?.[0] || product.image || '';
         // Carregar todos os produtos para relacionados
         try {
           allProducts = await Api.products.getAll({ all: false });
@@ -62,9 +94,15 @@ export function renderProductDetailView(productSlug) {
           allProducts = [];
         }
         render();
+      } else {
+        isLoading = false;
+        isNotFound = true;
+        render();
       }
     } catch (e) {
-      console.warn('Erro ao carregar detalhes dinâmicos do produto:', e.message);
+      isLoading = false;
+      isNotFound = true;
+      render();
     }
   }
 
@@ -81,7 +119,25 @@ export function renderProductDetailView(productSlug) {
   window.addEventListener('stock-updated', syncProduct);
 
   function render() {
-    if (!product) {
+    if (isLoading) {
+      container.innerHTML = `
+        <div style="padding: 32px 0 64px 0; max-width: 1200px; margin: 0 auto;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 40px; align-items: start;">
+            <div style="background: #f1f5f9; border-radius: var(--radius-lg); height: 460px; animation: pulse 1.5s infinite;"></div>
+            <div style="display: flex; flex-direction: column; gap: 18px;">
+              <div style="height: 24px; width: 35%; background: #e2e8f0; border-radius: 6px;"></div>
+              <div style="height: 40px; width: 90%; background: #e2e8f0; border-radius: 8px;"></div>
+              <div style="height: 32px; width: 45%; background: #e2e8f0; border-radius: 6px;"></div>
+              <div style="height: 90px; width: 100%; background: #f1f5f9; border-radius: 8px;"></div>
+              <div style="height: 52px; width: 100%; background: #e2e8f0; border-radius: 10px;"></div>
+            </div>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    if (!product || isNotFound) {
       container.innerHTML = `
         <div style="max-width: 540px; margin: 64px auto; background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 48px 32px; text-align: center; box-shadow: var(--shadow-sm);">
           <div style="width: 64px; height: 64px; border-radius: 50%; background: #f1f5f9; color: var(--text-muted); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto;">
@@ -170,8 +226,7 @@ export function renderProductDetailView(productSlug) {
         <div class="pdp-details">
           <div class="pdp-brand-sku">
             <span>Marca: <strong>${product.brand || 'NovaTech'}</strong></span>
-            <span>•</span>
-            <span>Código / SKU: <strong>${product.sku || ('NV-' + (product.id || 'PROD'))}</strong></span>
+            <span>ID: <strong>${product.id}</strong></span>
             <span>•</span>
             ${(product.is_active === false || product.ativo === false) ? `
               <span style="color: #ef4444; font-weight: 700;">● INDISPONÍVEL</span>
@@ -263,7 +318,7 @@ export function renderProductDetailView(productSlug) {
 
           <!-- Quantity and Action Buttons -->
           <div class="pdp-cta-row">
-            ${(product.is_active !== false && product.ativo !== false && product.stock > 0) ? `
+            ${(product.is_active !== false && product.ativo !== false && (product.stock > 0 || product.allow_out_of_stock_sales)) ? `
               <div class="pdp-qty-wishlist-row">
                 <div class="pdp-qty-wrap">
                   <button class="pdp-qty-btn" id="pdpQtyDec" aria-label="Diminuir quantidade">-</button>
@@ -341,22 +396,39 @@ export function renderProductDetailView(productSlug) {
               <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin-bottom: 16px;">
                 Especificações Técnicas Detalhadas
               </h3>
-              ${(product.specs && Object.keys(product.specs).length > 0) ? `
-                <table class="tech-specs-table">
-                  <tbody>
-                    ${Object.entries(product.specs).map(([key, val]) => `
-                      <tr>
-                        <td>${key}</td>
-                        <td>${val}</td>
-                      </tr>
-                    `).join('')}
-                  </tbody>
-                </table>
-              ` : `
-                <div style="padding: 24px; background: #f8fafc; border-radius: var(--radius-sm); color: var(--text-muted); text-align: center;">
-                  As especificações detalhadas deste item estão sendo catalogadas. Para cotações empresariais e dúvidas técnicas, fale com nossa equipa no WhatsApp.
-                </div>
-              `}
+              ${(() => {
+                const validSpecs = Object.entries(product.specs || {}).filter(([key, val]) => {
+                  const lower = key.toLowerCase().trim();
+                  return !['subcategory', 'subcategoria', 'subcategory_id', 'subcategoria_id', 'subcategory_name', 'subcategoria_nome', 'id', 'category_id', 'catalog_id'].includes(lower) &&
+                         val !== undefined && val !== null && String(val).trim() !== '';
+                });
+
+                if (validSpecs.length === 0) {
+                  return `
+                    <div style="padding: 24px; background: #f8fafc; border-radius: var(--radius-sm); color: var(--text-muted); text-align: center;">
+                      As especificações detalhadas deste item estão sendo catalogadas. Para cotações empresariais e dúvidas técnicas, fale com nossa equipa no WhatsApp.
+                    </div>
+                  `;
+                }
+
+                return `
+                  <table class="tech-specs-table">
+                    <tbody>
+                      ${validSpecs.map(([key, val]) => {
+                        const formattedLabel = key
+                          .replace(/_/g, ' ')
+                          .replace(/\b\w/g, l => l.toUpperCase());
+                        return `
+                          <tr>
+                            <td style="font-weight: 700; width: 35%; color: var(--text-main);">${formattedLabel}</td>
+                            <td style="color: var(--text-secondary);">${val}</td>
+                          </tr>
+                        `;
+                      }).join('')}
+                    </tbody>
+                  </table>
+                `;
+              })()}
             </div>
           ` : activeTab === 'reviews' ? `
             <div>
@@ -586,27 +658,32 @@ export function renderProductDetailView(productSlug) {
     const addBtn = container.querySelector('#pdpAddToCartBtn');
     if (addBtn) {
       addBtn.onclick = () => {
-        if (product.is_active === false || product.ativo === false) {
-          Toast.show({ title: 'Produto Indisponível', message: 'Este produto foi desativado temporariamente pela loja.', type: 'error' });
-          return;
-        }
-        if (product.stock <= 0) {
-          Toast.show({ title: 'Produto Esgotado', message: 'Este produto está sem unidades em estoque no momento.', type: 'warning' });
-          return;
-        }
+        try {
+          if (product.is_active === false || product.ativo === false) {
+            Toast.show({ title: 'Produto Indisponível', message: 'Este produto foi desativado temporariamente pela loja.', type: 'error' });
+            return;
+          }
+          if (product.stock <= 0 && !product.allow_out_of_stock_sales) {
+            Toast.show({ title: 'Produto Esgotado', message: 'Este produto está sem unidades em estoque no momento.', type: 'warning' });
+            return;
+          }
 
-        const itemProduct = {
-          ...product,
-          price: currentPrice
-        };
-        Storage.addToCart(itemProduct, quantity, { color: selectedColor, storage: selectedStorage });
-        Toast.show({
-          title: 'Produto adicionado ao carrinho ✓',
-          message: `${quantity}x ${product.name} ${selectedStorage ? `(${selectedStorage})` : ''}`,
-          type: 'success',
-          actionLabel: 'Ver Carrinho →',
-          onAction: () => window.dispatchEvent(new CustomEvent('open-mini-cart'))
-        });
+          const itemProduct = {
+            ...product,
+            price: currentPrice
+          };
+          Storage.addToCart(itemProduct, quantity, { color: selectedColor, storage: selectedStorage });
+          Toast.show({
+            title: 'Produto adicionado ao carrinho ✓',
+            message: `${quantity}x ${product.name} ${selectedStorage ? `(${selectedStorage})` : ''}`,
+            type: 'success',
+            actionLabel: 'Ver Carrinho →',
+            onAction: () => window.dispatchEvent(new CustomEvent('open-mini-cart'))
+          });
+          window.dispatchEvent(new CustomEvent('open-mini-cart'));
+        } catch (err) {
+          Toast.show({ title: 'Atenção ao Adicionar', message: err.message || 'Erro ao adicionar item ao carrinho.', type: 'warning' });
+        }
       };
     }
 
@@ -614,36 +691,25 @@ export function renderProductDetailView(productSlug) {
     const buyBtn = container.querySelector('#pdpBuyNowBtn');
     if (buyBtn) {
       buyBtn.onclick = () => {
-        if (product.is_active === false || product.ativo === false) {
-          Toast.show({ title: 'Produto Indisponível', message: 'Este produto foi desativado temporariamente pela loja.', type: 'error' });
-          return;
-        }
-        if (product.stock <= 0) {
-          Toast.show({ title: 'Produto Esgotado', message: 'Este produto está sem unidades em estoque no momento.', type: 'warning' });
-          return;
-        }
+        try {
+          if (product.is_active === false || product.ativo === false) {
+            Toast.show({ title: 'Produto Indisponível', message: 'Este produto foi desativado temporariamente pela loja.', type: 'error' });
+            return;
+          }
+          if (product.stock <= 0 && !product.allow_out_of_stock_sales) {
+            Toast.show({ title: 'Produto Esgotado', message: 'Este produto está sem unidades em estoque no momento.', type: 'warning' });
+            return;
+          }
 
-        const itemProduct = {
-          ...product,
-          price: currentPrice
-        };
-        Storage.addToCart(itemProduct, quantity, { color: selectedColor, storage: selectedStorage });
-        const user = Storage.getUser();
-        if (!user) {
-          Toast.show({
-            title: 'Identificação Necessária',
-            message: 'Inicie sessão ou crie uma conta para finalizar a sua compra.',
-            type: 'info'
-          });
-          window.dispatchEvent(new CustomEvent('open-auth-modal'));
-          const onLogin = () => {
-            window.removeEventListener('user-updated', onLogin);
-            window.location.hash = '/checkout';
+          const itemProduct = {
+            ...product,
+            price: currentPrice
           };
-          window.addEventListener('user-updated', onLogin);
-          return;
+          Storage.addToCart(itemProduct, quantity, { color: selectedColor, storage: selectedStorage });
+          window.location.hash = '#/checkout';
+        } catch (err) {
+          Toast.show({ title: 'Erro ao Comprar', message: err.message || 'Não foi possível avançar para o checkout.', type: 'error' });
         }
-        window.location.hash = '/checkout';
       };
     }
 

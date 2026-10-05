@@ -139,6 +139,19 @@ function mapProdutoFromDb(p) {
   const subId = p.subcategoria_id || rawSpecs.subcategoria_id || rawSpecs.subcategory_id || null;
   const subName = p.subcategoria_nome || rawSpecs.subcategoria_nome || rawSpecs.subcategory_name || rawSpecs.subcategoria || rawSpecs.subcategory || '';
 
+  // Filtra chaves internas para garantir que specs contenha apenas fichas técnicas reais
+  const cleanSpecs = {};
+  if (rawSpecs && typeof rawSpecs === 'object') {
+    Object.entries(rawSpecs).forEach(([k, v]) => {
+      const lower = k.toLowerCase().trim();
+      if (!['subcategoria_id', 'subcategory_id', 'subcategoria_nome', 'subcategory_name', 'subcategoria', 'subcategory', 'category_id', 'id', '_descricao'].includes(lower)) {
+        cleanSpecs[k] = v;
+      }
+    });
+  }
+
+  const prodDesc = p.descricao || (rawSpecs && rawSpecs._descricao) || p.description || '';
+
   return {
     id: p.id,
     sku: p.sku,
@@ -163,9 +176,11 @@ function mapProdutoFromDb(p) {
     is_new: Boolean(p.novo),
     image: p.imagem_principal || '',
     video_url: p.video_url || null,
+    description: prodDesc,
+    descricao: prodDesc,
     gallery: Array.isArray(p.galeria) ? p.galeria : (p.galeria ? (typeof p.galeria === 'string' ? JSON.parse(p.galeria) : p.galeria) : (p.imagem_principal ? [p.imagem_principal] : [])),
     variants: (typeof p.variacoes === 'object' && p.variacoes !== null) ? p.variacoes : (p.variacoes ? JSON.parse(p.variacoes) : {}),
-    specs: rawSpecs,
+    specs: cleanSpecs,
     badges: Array.isArray(p.etiquetas) ? p.etiquetas : (p.etiquetas ? (typeof p.etiquetas === 'string' ? JSON.parse(p.etiquetas) : p.etiquetas) : []),
     rating: Number(p.avaliacao_media || 5.0),
     reviewsCount: Number(p.total_avaliacoes || 0),
@@ -174,22 +189,25 @@ function mapProdutoFromDb(p) {
 }
 
 function mapProdutoToDb(p) {
-  const specs = (typeof p.specs === 'object' && p.specs !== null) ? { ...p.specs } : {};
-  const subId = p.subcategory_id || p.subcategoria_id || specs.subcategoria_id || specs.subcategory_id || null;
-  const subName = (p.subcategory_name || p.subcategory || p.subcategoria_nome || p.subcategoria || specs.subcategoria_nome || specs.subcategory_name || specs.subcategoria || '').trim();
-
-  if (subId) {
-    specs.subcategoria_id = subId;
-    specs.subcategory_id = subId;
-  }
-  if (subName) {
-    specs.subcategoria_nome = subName;
-    specs.subcategory_name = subName;
-    specs.subcategoria = subName;
-    specs.subcategory = subName;
-  }
-
+  const rawSpecs = (typeof p.specs === 'object' && p.specs !== null) ? { ...p.specs } : {};
+  const subId = p.subcategory_id || p.subcategoria_id || rawSpecs.subcategoria_id || rawSpecs.subcategory_id || null;
   const parsedSubId = (!isNaN(Number(subId)) && Number(subId) > 0) ? Number(subId) : null;
+
+  // Garante que o JSON de especificações técnicas do produto receba apenas propriedades legítimas
+  const cleanSpecs = {};
+  Object.entries(rawSpecs).forEach(([k, v]) => {
+    const lower = k.toLowerCase().trim();
+    if (!['subcategoria_id', 'subcategory_id', 'subcategoria_nome', 'subcategory_name', 'subcategoria', 'subcategory', 'category_id', 'id', '_descricao'].includes(lower)) {
+      if (v !== undefined && v !== null && String(v).trim() !== '') {
+        cleanSpecs[k] = String(v).trim();
+      }
+    }
+  });
+
+  const descVal = p.description || p.descricao || '';
+  if (descVal) {
+    cleanSpecs._descricao = descVal;
+  }
 
   return {
     sku: p.sku || `NV-${Date.now().toString(36).toUpperCase()}`,
@@ -208,11 +226,12 @@ function mapProdutoToDb(p) {
     destaque: Boolean(p.is_featured || p.destaque),
     oferta: Boolean(p.is_deal || p.oferta),
     novo: Boolean(p.is_new || p.novo),
+    descricao: descVal,
     imagem_principal: p.image || p.imagem_principal || '',
     video_url: p.video_url || null,
     galeria: Array.isArray(p.gallery) ? p.gallery : (p.image ? [p.image] : []),
     variacoes: (typeof p.variants === 'object' && p.variants !== null) ? p.variants : {},
-    especificacoes: specs,
+    especificacoes: cleanSpecs,
     etiquetas: Array.isArray(p.badges) ? p.badges : []
   };
 }
@@ -451,8 +470,10 @@ export const Api = {
 
       if (isSupabaseConfigured() && supabase) {
         try {
-          // Garante que o link de confirmação do e-mail redireciona para a porta e URL reais da aplicação
-          const redirectTo = window.location.origin + window.location.pathname + '#/';
+          // Garante que o link de confirmacao do e-mail redireciona para a URL base da aplicacao sem fragmento '#'
+          const redirectTo = typeof window !== 'undefined'
+            ? `${window.location.origin}${window.location.pathname}`
+            : undefined;
 
           const { data, error } = await supabase.auth.signUp({
             email: cleanEmail,
@@ -635,7 +656,7 @@ export const Api = {
       // 4. Se já há administradores e o usuário logado É administrador, cria o novo admin
       try {
         const redirectTo = typeof window !== 'undefined'
-          ? (window.location.origin + window.location.pathname + '#/admin/login').replace(/\/+/g, '/').replace(':/', '://')
+          ? `${window.location.origin}${window.location.pathname}`
           : undefined;
 
         const { data, error } = await supabase.auth.signUp({
@@ -705,7 +726,9 @@ export const Api = {
 
       if (isSupabaseConfigured() && supabase) {
         try {
-          const redirectTo = window.location.origin + window.location.pathname + '#/admin/reset-password';
+          const redirectTo = typeof window !== 'undefined'
+            ? `${window.location.origin}${window.location.pathname}`
+            : undefined;
           const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, { redirectTo });
           if (error) {
             console.warn('Aviso do Supabase no reset de senha:', error.message);
@@ -1444,6 +1467,14 @@ export const Api = {
           error = retrySub.error;
         }
 
+        // Se coluna descricao não existir na tabela Supabase ainda, remove e reenvia (especificações já guardam _descricao)
+        if (error && error.message && error.message.includes('descricao')) {
+          delete payload.descricao;
+          const retryDesc = await supabase.from('produtos').insert(payload).select().single();
+          data = retryDesc.data;
+          error = retryDesc.error;
+        }
+
         // Se slug colidir, adiciona sufixo numérico
         if (error && error.message && error.message.includes('slug')) {
           payload.slug = `${payload.slug}-${Date.now().toString().slice(-4)}`;
@@ -1482,20 +1513,30 @@ export const Api = {
     },
 
     async update(id, productData) {
-      if (productData.category_id !== undefined && !productData.category_id && !productData.category) {
+      const existing = await this.getById(id);
+      const merged = existing ? { ...existing, ...productData } : productData;
+
+      if (merged.category_id !== undefined && !merged.category_id && !merged.category) {
         throw new Error('A vinculação a uma categoria é obrigatória.');
       }
-      if ((productData.subcategory_id !== undefined || productData.subcategory !== undefined) &&
-          !productData.subcategory_id && !productData.subcategory && !productData.subcategory_name) {
+      if ((merged.subcategory_id !== undefined || merged.subcategory !== undefined) &&
+          !merged.subcategory_id && !merged.subcategory && !merged.subcategory_name) {
         throw new Error('A vinculação a uma subcategoria é obrigatória.');
       }
-      const payload = mapProdutoToDb(productData);
+      const payload = mapProdutoToDb(merged);
 
       if (isSupabaseConfigured() && supabase) {
         let { data, error } = await supabase.from('produtos').update(payload).eq('id', id).select().single();
 
         if (error && error.message && error.message.includes('subcategoria_id')) {
           delete payload.subcategoria_id;
+          const retry = await supabase.from('produtos').update(payload).eq('id', id).select().single();
+          data = retry.data;
+          error = retry.error;
+        }
+
+        if (error && error.message && error.message.includes('descricao')) {
+          delete payload.descricao;
           const retry = await supabase.from('produtos').update(payload).eq('id', id).select().single();
           data = retry.data;
           error = retry.error;
@@ -2674,7 +2715,7 @@ export const Api = {
       if (isSupabaseConfigured() && supabase) {
         try {
           const redirectTo = typeof window !== 'undefined'
-            ? (window.location.origin + window.location.pathname + '#/admin/login').replace(/\/+/g, '/').replace(':/', '://')
+            ? `${window.location.origin}${window.location.pathname}`
             : undefined;
 
           // 1. Cria o usuário no Supabase Auth
