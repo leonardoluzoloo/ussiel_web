@@ -353,83 +353,81 @@ export function renderAccountView(initialTab = 'orders') {
                 </div>
               </div>
 
-              <!-- Barra de Navegação por Sub-Abas do Perfil -->
-              <div style="display:flex; gap:8px; background:#ffffff; border-radius:10px 10px 0 0; padding:8px 16px 0 16px; border:1px solid #e2e8f0; border-bottom:none;">
-                <button
-                  type="button"
-                  class="acc-profile-subtab-btn ${profileSubTab === 'data' ? 'active' : ''}"
-                  data-acc-subtab="data"
-                  style="display:inline-flex; align-items:center; gap:8px; padding:10px 18px; font-size:0.875rem; font-weight:700; border:none; background:none; cursor:pointer; border-bottom:2px solid ${profileSubTab === 'data' ? '#0f172a' : 'transparent'}; color:${profileSubTab === 'data' ? '#0f172a' : '#64748b'}; transition:all 0.15s ease;"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                  <span>Dados Cadastrais & Endereço</span>
-                </button>
+              <!-- Card Unificado de Perfil do Cliente -->
+              <div class="acc-profile-card">
+                <div class="acc-profile-subnav">
+                  <button
+                    type="button"
+                    class="acc-profile-subtab-btn ${profileSubTab === 'data' ? 'active' : ''}"
+                    data-acc-subtab="data"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    <span>Dados Cadastrais & Endereço</span>
+                  </button>
 
-                <button
-                  type="button"
-                  class="acc-profile-subtab-btn ${profileSubTab === 'security' ? 'active' : ''}"
-                  data-acc-subtab="security"
-                  style="display:inline-flex; align-items:center; gap:8px; padding:10px 18px; font-size:0.875rem; font-weight:700; border:none; background:none; cursor:pointer; border-bottom:2px solid ${profileSubTab === 'security' ? '#0f172a' : 'transparent'}; color:${profileSubTab === 'security' ? '#0f172a' : '#64748b'}; transition:all 0.15s ease;"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                  <span>Segurança de Acesso</span>
-                </button>
-              </div>
-
-              <!-- Conteúdo da Sub-Aba -->
-              ${profileSubTab === 'data' ? `
-                <!-- SUB-ABA 1: DADOS CADASTRAIS & ENDEREÇO -->
-                <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:0 0 12px 12px; padding:24px; box-shadow:0 1px 3px rgba(15,23,42,0.04); margin-top:-18px;">
-                  <div style="margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
-                    <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Informações Pessoais & Endereço de Entrega</h3>
-                    <p style="font-size:0.8125rem; color:#64748b; margin:0;">Estes dados são utilizados para faturamento e agendamento de entregas dos seus pedidos.</p>
-                  </div>
-
-                  <form id="profileForm" onsubmit="event.preventDefault();" style="display:flex; flex-direction:column; gap:16px;">
-                    <div class="form-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-                      <div class="form-group">
-                        <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Nome Completo <span style="color:#ef4444;">*</span></label>
-                        <input type="text" id="profName" class="form-input" value="${user.name || ''}" placeholder="Ex: Leonardo Adriano" required style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" />
-                      </div>
-
-                      <div class="form-group">
-                        <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">E-mail Cadastrado</label>
-                        <input type="email" id="profEmail" class="form-input" value="${user.email || ''}" readonly style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #e2e8f0; background:#f8fafc; color:#64748b; width:100%; box-sizing:border-box; padding:6px 12px; cursor:not-allowed;" />
-                      </div>
-
-                      <div class="form-group">
-                        <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Telefone / Telemóvel <span style="color:#ef4444;">*</span></label>
-                        <input type="tel" id="profPhone" class="form-input" value="${user.phone || ''}" placeholder="Ex: +244 923 000 000" required style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" />
-                      </div>
-
-                      <div class="form-group">
-                        <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">WhatsApp para Notificações</label>
-                        <input type="tel" id="profWA" class="form-input" value="${user.whatsapp || user.phone || ''}" placeholder="Ex: +244 923 000 000" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" />
-                      </div>
-
-                      <div class="form-group" style="grid-column: span 2;">
-                        <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Endereço Completo de Entrega</label>
-                        <input type="text" id="profAddress" class="form-input" value="${user.endereco || ''}" placeholder="Ex: Província de Luanda, Município de Talatona, Bairro Morro Bento, Rua Principal nº 12" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" />
-                      </div>
-
-                      <div class="form-group" style="grid-column: span 2;">
-                        <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Ponto de Referência</label>
-                        <input type="text" id="profReference" class="form-input" value="${user.ponto_referencia || ''}" placeholder="Ex: Próximo à bomba Sonangol, em frente ao supermercado..." style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" />
-                      </div>
-                    </div>
-
-                    <div style="display:flex; justify-content:flex-end; margin-top:8px; padding-top:16px; border-top:1px solid #f1f5f9;">
-                      <button type="submit" id="saveProfileBtn" class="btn btn-primary" style="padding:10px 24px; font-weight:700; font-size:0.875rem; border-radius:6px;">
-                        Salvar Dados Cadastrais
-                      </button>
-                    </div>
-                  </form>
+                  <button
+                    type="button"
+                    class="acc-profile-subtab-btn ${profileSubTab === 'security' ? 'active' : ''}"
+                    data-acc-subtab="security"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    <span>Segurança de Acesso</span>
+                  </button>
                 </div>
-              ` : `
-                <!-- SUB-ABA 2: SEGURANÇA DE ACESSO -->
-                <div style="display:flex; flex-direction:column; gap:16px; margin-top:-18px;">
-                  <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:0 0 12px 12px; padding:24px; box-shadow:0 1px 3px rgba(15,23,42,0.04);">
-                    <div style="margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
+
+                <!-- Conteúdo da Sub-Aba -->
+                ${profileSubTab === 'data' ? `
+                  <!-- SUB-ABA 1: DADOS CADASTRAIS & ENDEREÇO -->
+                  <div class="acc-profile-body">
+                    <div style="margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
+                      <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Informações Pessoais & Endereço de Entrega</h3>
+                      <p style="font-size:0.8125rem; color:#64748b; margin:0;">Estes dados são utilizados para faturamento e agendamento de entregas dos seus pedidos.</p>
+                    </div>
+
+                    <form id="profileForm" onsubmit="event.preventDefault();" style="display:flex; flex-direction:column; gap:16px;">
+                      <div class="form-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                        <div class="form-group">
+                          <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Nome Completo <span style="color:#ef4444;">*</span></label>
+                          <input type="text" id="profName" class="form-input" value="${user.name || ''}" placeholder="Ex: Leonardo Adriano" required style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                        </div>
+
+                        <div class="form-group">
+                          <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">E-mail Cadastrado</label>
+                          <input type="email" id="profEmail" class="form-input" value="${user.email || ''}" readonly style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #e2e8f0; background:#f8fafc; color:#64748b; width:100%; box-sizing:border-box; padding:8px 12px; cursor:not-allowed;" />
+                        </div>
+
+                        <div class="form-group">
+                          <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Telefone / Telemóvel <span style="color:#ef4444;">*</span></label>
+                          <input type="tel" id="profPhone" class="form-input" value="${user.phone || ''}" placeholder="Ex: +244 923 000 000" required style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                        </div>
+
+                        <div class="form-group">
+                          <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">WhatsApp para Notificações</label>
+                          <input type="tel" id="profWA" class="form-input" value="${user.whatsapp || user.phone || ''}" placeholder="Ex: +244 923 000 000" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                        </div>
+
+                        <div class="form-group" style="grid-column: span 2;">
+                          <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Endereço Completo de Entrega</label>
+                          <input type="text" id="profAddress" class="form-input" value="${user.endereco || ''}" placeholder="Ex: Província de Luanda, Município de Talatona, Bairro Morro Bento, Rua Principal nº 12" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                        </div>
+
+                        <div class="form-group" style="grid-column: span 2;">
+                          <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Ponto de Referência</label>
+                          <input type="text" id="profReference" class="form-input" value="${user.ponto_referencia || ''}" placeholder="Ex: Próximo à bomba Sonangol, em frente ao supermercado..." style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                        </div>
+                      </div>
+
+                      <div class="acc-profile-action-row">
+                        <button type="submit" id="saveProfileBtn" class="btn btn-primary" style="padding:11px 24px; font-weight:700; font-size:0.875rem; border-radius:8px;">
+                          Salvar Dados Cadastrais
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                ` : `
+                  <!-- SUB-ABA 2: SEGURANÇA DE ACESSO -->
+                  <div class="acc-profile-body">
+                    <div style="margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
                       <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Atualizar Senha de Acesso</h3>
                       <p style="font-size:0.8125rem; color:#64748b; margin:0;">Cadastre uma senha forte com no mínimo 6 caracteres para proteger sua conta e compras.</p>
                     </div>
@@ -438,24 +436,24 @@ export function renderAccountView(initialTab = 'orders') {
                       <div class="form-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                         <div class="form-group">
                           <label class="form-label" for="profNewPass" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Nova Senha <span style="color:#ef4444;">*</span></label>
-                          <input type="password" id="profNewPass" class="form-input" placeholder="Mínimo 6 caracteres" autocomplete="new-password" required minlength="6" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" />
+                          <input type="password" id="profNewPass" class="form-input" placeholder="Mínimo 6 caracteres" autocomplete="new-password" required minlength="6" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
                         </div>
 
                         <div class="form-group">
                           <label class="form-label" for="profNewPassConfirm" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Confirmar Nova Senha <span style="color:#ef4444;">*</span></label>
-                          <input type="password" id="profNewPassConfirm" class="form-input" placeholder="Repita a nova senha" autocomplete="new-password" required minlength="6" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" />
+                          <input type="password" id="profNewPassConfirm" class="form-input" placeholder="Repita a nova senha" autocomplete="new-password" required minlength="6" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
                         </div>
                       </div>
 
-                      <div style="display:flex; justify-content:flex-end; margin-top:8px; padding-top:16px; border-top:1px solid #f1f5f9;">
-                        <button type="submit" id="saveCustomerPasswordBtn" class="btn btn-primary" style="padding:10px 24px; font-weight:700; font-size:0.875rem; border-radius:6px;">
+                      <div class="acc-profile-action-row">
+                        <button type="submit" id="saveCustomerPasswordBtn" class="btn btn-primary" style="padding:11px 24px; font-weight:700; font-size:0.875rem; border-radius:8px;">
                           Atualizar Senha de Acesso
                         </button>
                       </div>
                     </form>
                   </div>
-                </div>
-              `}
+                `}
+              </div>
             </div>
           ` : `
             <!-- Aba Endereços -->

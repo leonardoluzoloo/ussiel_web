@@ -8063,15 +8063,26 @@ input:-webkit-autofill:active {
 }
 
 /* Sub-Abas de Perfil Corporativo e Configurações da Loja */
-.admin-settings-subnav,
-.admin-profile-subnav {
-  display: flex;
-  gap: 8px;
+.admin-settings-card,
+.admin-profile-card,
+.acc-profile-card {
   background: #ffffff;
-  border-radius: 10px 10px 0 0;
-  padding: 8px 16px 0 16px;
   border: 1px solid #e2e8f0;
-  border-bottom: none;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.admin-settings-subnav,
+.admin-profile-subnav,
+.acc-profile-subnav {
+  display: flex;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 4px 8px 0 8px;
+  gap: 4px;
   overflow-x: auto;
   white-space: nowrap;
   -webkit-overflow-scrolling: touch;
@@ -8080,7 +8091,8 @@ input:-webkit-autofill:active {
 }
 
 .admin-settings-subnav::-webkit-scrollbar,
-.admin-profile-subnav::-webkit-scrollbar {
+.admin-profile-subnav::-webkit-scrollbar,
+.acc-profile-subnav::-webkit-scrollbar {
   display: none;
 }
 
@@ -8088,57 +8100,101 @@ input:-webkit-autofill:active {
 .acc-profile-subtab-btn,
 .admin-settings-subtab-btn {
   user-select: none;
-  border-radius: 6px 6px 0 0;
+  border-radius: 8px 8px 0 0;
   cursor: pointer;
   flex-shrink: 0;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #64748b;
+  border: none;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s ease;
 }
 
 .admin-profile-subtab-btn:hover,
 .acc-profile-subtab-btn:hover,
 .admin-settings-subtab-btn:hover {
-  color: #0f172a !important;
-  background: #f8fafc;
+  color: #0f172a;
+  background: rgba(241, 245, 249, 0.8);
 }
 
 .admin-profile-subtab-btn.active,
 .acc-profile-subtab-btn.active,
 .admin-settings-subtab-btn.active {
-  color: #0f172a !important;
-  border-bottom-color: #0f172a !important;
+  color: #0f172a;
+  font-weight: 700;
+  background: #ffffff;
+  border-bottom-color: #2563eb;
 }
 
-.admin-settings-action-row {
+.admin-settings-body,
+.admin-profile-body,
+.acc-profile-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-sizing: border-box;
+}
+
+.admin-settings-action-row,
+.admin-profile-action-row,
+.acc-profile-action-row {
   display: flex;
   justify-content: flex-end;
   margin-top: 12px;
-  padding-top: 16px;
+  padding-top: 18px;
   border-top: 1px solid #f1f5f9;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
+  .admin-content-area {
+    padding-bottom: 120px !important;
+  }
   .admin-settings-subnav,
-  .admin-profile-subnav {
-    padding: 6px 10px 0 10px;
-    gap: 4px;
+  .admin-profile-subnav,
+  .acc-profile-subnav {
+    padding: 4px 6px 0 6px;
+    gap: 2px;
   }
   .admin-settings-subtab-btn,
-  .admin-profile-subtab-btn {
-    padding: 8px 12px !important;
-    font-size: 0.8125rem !important;
+  .admin-profile-subtab-btn,
+  .acc-profile-subtab-btn {
+    padding: 10px 14px;
+    font-size: 0.8125rem;
+  }
+  .admin-settings-body,
+  .admin-profile-body,
+  .acc-profile-body {
+    padding: 16px;
+    gap: 16px;
   }
   .admin-form-grid-2,
   .admin-form-grid-3 {
     grid-template-columns: 1fr !important;
     gap: 12px !important;
   }
-  .admin-settings-action-row {
+  .admin-settings-action-row,
+  .admin-profile-action-row,
+  .acc-profile-action-row {
     justify-content: stretch !important;
+    padding-top: 14px;
+    margin-top: 8px;
   }
-  .admin-settings-action-row .btn {
+  .admin-settings-action-row .btn,
+  .admin-profile-action-row .btn,
+  .acc-profile-action-row .btn {
     width: 100% !important;
     text-align: center !important;
     justify-content: center !important;
-    padding: 12px 16px !important;
+    padding: 13px 18px !important;
+    font-size: 0.875rem !important;
+    border-radius: 8px !important;
   }
 }

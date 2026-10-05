@@ -2709,16 +2709,16 @@ export function renderAdminView() {
   function renderSettingsTab() {
     const s = storeSettings || {};
     return `
-      <div style="display:flex; flex-direction:column; gap:18px; max-width:1080px; margin:0 auto; width:100%; padding-bottom:60px;">
+      <div class="admin-settings-wrapper" style="display:flex; flex-direction:column; gap:18px; max-width:1080px; margin:0 auto; width:100%; box-sizing:border-box;">
         <!-- 1. Header Institucional da Loja -->
-        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:18px 20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; box-shadow:0 1px 3px rgba(15,23,42,0.04);">
-          <div style="display:flex; align-items:center; gap:14px; min-width:240px; flex:1;">
-            <div style="width:48px; height:48px; border-radius:10px; background:#0f172a; color:#ffffff; font-size:1.15rem; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; border:1px solid #334155;">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; box-shadow:0 1px 3px rgba(15,23,42,0.04);">
+          <div style="display:flex; align-items:center; gap:14px; min-width:200px; flex:1;">
+            <div style="width:44px; height:44px; border-radius:10px; background:#0f172a; color:#ffffff; font-size:1.1rem; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; border:1px solid #334155;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
             </div>
             <div>
               <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <h2 style="font-size:1.15rem; font-weight:800; color:#0f172a; margin:0;">${s.store_name || 'NovaTech Angola'}</h2>
+                <h2 style="font-size:1.1rem; font-weight:800; color:#0f172a; margin:0;">${s.store_name || 'NovaTech Angola'}</h2>
                 <span class="badge" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; font-size:0.6875rem; font-weight:700; padding:2px 8px; border-radius:5px;">
                   ● Operacional
                 </span>
@@ -2736,45 +2736,41 @@ export function renderAdminView() {
           </div>
         </div>
 
-        <!-- 2. Barra de Navegação por Sub-Abas de Configurações -->
-        <div class="admin-settings-subnav">
-          <button
-            type="button"
-            class="admin-settings-subtab-btn ${settingsSubTab === 'general' ? 'active' : ''}"
-            data-settings-subtab="general"
-            style="display:inline-flex; align-items:center; gap:8px; padding:10px 18px; font-size:0.875rem; font-weight:700; border:none; background:none; cursor:pointer; border-bottom:2px solid ${settingsSubTab === 'general' ? '#0f172a' : 'transparent'}; color:${settingsSubTab === 'general' ? '#0f172a' : '#64748b'}; transition:all 0.15s ease;"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
-            <span>Identidade & Contato</span>
-          </button>
+        <!-- 2. Card Unificado com Sub-Abas e Formulário -->
+        <div class="admin-settings-card">
+          <div class="admin-settings-subnav">
+            <button
+              type="button"
+              class="admin-settings-subtab-btn ${settingsSubTab === 'general' ? 'active' : ''}"
+              data-settings-subtab="general"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+              <span>Identidade & Contato</span>
+            </button>
 
-          <button
-            type="button"
-            class="admin-settings-subtab-btn ${settingsSubTab === 'shipping' ? 'active' : ''}"
-            data-settings-subtab="shipping"
-            style="display:inline-flex; align-items:center; gap:8px; padding:10px 18px; font-size:0.875rem; font-weight:700; border:none; background:none; cursor:pointer; border-bottom:2px solid ${settingsSubTab === 'shipping' ? '#0f172a' : 'transparent'}; color:${settingsSubTab === 'shipping' ? '#0f172a' : '#64748b'}; transition:all 0.15s ease;"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 17h4V5H2v12h3"></path><path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h2"></path><circle cx="7.5" cy="17.5" r="2.5"></circle><circle cx="17.5" cy="17.5" r="2.5"></circle></svg>
-            <span>Logística & Envio</span>
-          </button>
+            <button
+              type="button"
+              class="admin-settings-subtab-btn ${settingsSubTab === 'shipping' ? 'active' : ''}"
+              data-settings-subtab="shipping"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 17h4V5H2v12h3"></path><path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h2"></path><circle cx="7.5" cy="17.5" r="2.5"></circle><circle cx="17.5" cy="17.5" r="2.5"></circle></svg>
+              <span>Logística & Envio</span>
+            </button>
 
-          <button
-            type="button"
-            class="admin-settings-subtab-btn ${settingsSubTab === 'payments' ? 'active' : ''}"
-            data-settings-subtab="payments"
-            style="display:inline-flex; align-items:center; gap:8px; padding:10px 18px; font-size:0.875rem; font-weight:700; border:none; background:none; cursor:pointer; border-bottom:2px solid ${settingsSubTab === 'payments' ? '#0f172a' : 'transparent'}; color:${settingsSubTab === 'payments' ? '#0f172a' : '#64748b'}; transition:all 0.15s ease;"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
-            <span>Pagamentos & Bancos</span>
-          </button>
-        </div>
+            <button
+              type="button"
+              class="admin-settings-subtab-btn ${settingsSubTab === 'payments' ? 'active' : ''}"
+              data-settings-subtab="payments"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+              <span>Pagamentos & Bancos</span>
+            </button>
+          </div>
 
-        <!-- 3. Conteúdo da Sub-Aba Ativa -->
-        <form id="storeSettingsForm" style="display:flex; flex-direction:column; margin-top:-18px;">
-          ${settingsSubTab === 'general' ? `
-            <!-- SUB-ABA 1: IDENTIDADE & CONTATO -->
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:0 0 12px 12px; padding:24px; box-shadow:0 1px 3px rgba(15,23,42,0.04); display:flex; flex-direction:column; gap:20px; padding-bottom:32px;">
-              <!-- Bloco A: Identidade da Loja -->
+          <!-- Conteúdo da Sub-Aba Ativa -->
+          <form id="storeSettingsForm" class="admin-settings-body">
+            ${settingsSubTab === 'general' ? `
+              <!-- SUB-ABA 1: IDENTIDADE & CONTATO -->
               <div>
                 <div style="margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #f1f5f9;">
                   <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Identidade Institucional da Loja</h3>
@@ -2859,84 +2855,84 @@ export function renderAdminView() {
                 </div>
               </div>
 
-              <div class="admin-settings-action-row" style="margin-top:8px; padding-top:16px;">
+              <div class="admin-settings-action-row">
                 <button type="submit" class="btn btn-primary" style="padding:12px 28px; font-weight:700; font-size:0.875rem; border-radius:8px;">
                   Salvar Identidade & Endereços
                 </button>
               </div>
-            </div>
-          ` : settingsSubTab === 'shipping' ? `
-            <!-- SUB-ABA 2: LOGÍSTICA & ENVIO -->
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:0 0 12px 12px; padding:24px; box-shadow:0 1px 3px rgba(15,23,42,0.04); display:flex; flex-direction:column; gap:16px; padding-bottom:32px;">
-              <div style="margin-bottom:8px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
-                <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Tarifas de Entrega & Política de Frete</h3>
-                <p style="font-size:0.8125rem; color:#64748b; margin:0;">Valores aplicados automaticamente aos clientes durante o checkout e carrinho.</p>
-              </div>
-
-              <div class="admin-form-grid-3">
-                <div class="form-group">
-                  <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Entrega Padrão / Normal (Kz) *</label>
-                  <input type="number" id="setShippingNormal" class="form-input" value="${s.shipping_price_normal !== undefined ? s.shipping_price_normal : 3500}" min="0" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
-                  <small style="font-size:0.75rem; color:#64748b; margin-top:4px; display:block;">Prazo padrão: 24h a 48h úteis em Luanda.</small>
+            ` : settingsSubTab === 'shipping' ? `
+              <!-- SUB-ABA 2: LOGÍSTICA & ENVIO -->
+              <div>
+                <div style="margin-bottom:8px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
+                  <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Tarifas de Entrega & Política de Frete</h3>
+                  <p style="font-size:0.8125rem; color:#64748b; margin:0;">Valores aplicados automaticamente aos clientes durante o checkout e carrinho.</p>
                 </div>
 
-                <div class="form-group">
-                  <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Entrega Expresso (Kz) *</label>
-                  <input type="number" id="setShippingExpress" class="form-input" value="${s.shipping_price_express !== undefined ? s.shipping_price_express : 6500}" min="0" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
-                  <small style="font-size:0.75rem; color:#64748b; margin-top:4px; display:block;">Prazo expresso: Mesmo dia / até 6h.</small>
+                <div class="admin-form-grid-3">
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Entrega Padrão / Normal (Kz) *</label>
+                    <input type="number" id="setShippingNormal" class="form-input" value="${s.shipping_price_normal !== undefined ? s.shipping_price_normal : 3500}" min="0" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
+                    <small style="font-size:0.75rem; color:#64748b; margin-top:4px; display:block;">Prazo padrão: 24h a 48h úteis em Luanda.</small>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Entrega Expresso (Kz) *</label>
+                    <input type="number" id="setShippingExpress" class="form-input" value="${s.shipping_price_express !== undefined ? s.shipping_price_express : 6500}" min="0" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
+                    <small style="font-size:0.75rem; color:#64748b; margin-top:4px; display:block;">Prazo expresso: Mesmo dia / até 6h.</small>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Frete Grátis Acima de (Kz) *</label>
+                    <input type="number" id="setFreeShipping" class="form-input" value="${s.free_shipping_threshold !== undefined ? s.free_shipping_threshold : 1000000}" min="0" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
+                    <small style="font-size:0.75rem; color:#64748b; margin-top:4px; display:block;">Zero o custo de frete quando o carrinho atingir este valor.</small>
+                  </div>
                 </div>
 
-                <div class="form-group">
-                  <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Frete Grátis Acima de (Kz) *</label>
-                  <input type="number" id="setFreeShipping" class="form-input" value="${s.free_shipping_threshold !== undefined ? s.free_shipping_threshold : 1000000}" min="0" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
-                  <small style="font-size:0.75rem; color:#64748b; margin-top:4px; display:block;">Zero o custo de frete quando o carrinho atingir este valor.</small>
+                <div class="admin-settings-action-row">
+                  <button type="submit" class="btn btn-primary" style="padding:12px 28px; font-weight:700; font-size:0.875rem; border-radius:8px;">
+                    Salvar Regras de Envio
+                  </button>
                 </div>
               </div>
+            ` : `
+              <!-- SUB-ABA 3: PAGAMENTOS & BANCOS -->
+              <div>
+                <div style="margin-bottom:8px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
+                  <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Contas Bancárias & Meios de Recebimento</h3>
+                  <p style="font-size:0.8125rem; color:#64748b; margin:0;">Dados exibidos em tempo real aos clientes ao finalizarem compras por Transferência Bancária ou Multicaixa Express.</p>
+                </div>
 
-              <div class="admin-settings-action-row" style="margin-top:8px; padding-top:16px;">
-                <button type="submit" class="btn btn-primary" style="padding:12px 28px; font-weight:700; font-size:0.875rem; border-radius:8px;">
-                  Salvar Regras de Envio
-                </button>
-              </div>
-            </div>
-          ` : `
-            <!-- SUB-ABA 3: PAGAMENTOS & BANCOS -->
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:0 0 12px 12px; padding:24px; box-shadow:0 1px 3px rgba(15,23,42,0.04); display:flex; flex-direction:column; gap:16px; padding-bottom:32px;">
-              <div style="margin-bottom:8px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
-                <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Contas Bancárias & Meios de Recebimento</h3>
-                <p style="font-size:0.8125rem; color:#64748b; margin:0;">Dados exibidos em tempo real aos clientes ao finalizarem compras por Transferência Bancária ou Multicaixa Express.</p>
-              </div>
+                <div class="admin-form-grid-2">
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Titular da Conta Comercial</label>
+                    <input type="text" id="setBankHolder" class="form-input" value="${s.bank_holder || 'NovaTech Comércio & Serviços, Lda'}" placeholder="Ex: NovaTech Lda" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Banco Principal</label>
+                    <input type="text" id="setBankName" class="form-input" value="${s.bank_name || 'Banco Angolano de Investimentos (BAI)'}" placeholder="Ex: BAI / BFA / Millennium" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                  </div>
+                </div>
 
-              <div class="admin-form-grid-2">
-                <div class="form-group">
-                  <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Titular da Conta Comercial</label>
-                  <input type="text" id="setBankHolder" class="form-input" value="${s.bank_holder || 'NovaTech Comércio & Serviços, Lda'}" placeholder="Ex: NovaTech Lda" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                <div class="admin-form-grid-2" style="margin-top:12px;">
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Número de IBAN Oficial</label>
+                    <input type="text" id="setBankIban" class="form-input" value="${s.bank_iban || 'AO06 0040 0000 1234 5678 9012 3'}" placeholder="AO06 0000..." style="font-family:ui-monospace, monospace; font-weight:700; height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Número Multicaixa Express (MCX)</label>
+                    <input type="tel" id="setMcxPhone" class="form-input" value="${s.mcx_phone || s.phone || '+244 923 179 192'}" placeholder="+244 923 179 192" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Banco Principal</label>
-                  <input type="text" id="setBankName" class="form-input" value="${s.bank_name || 'Banco Angolano de Investimentos (BAI)'}" placeholder="Ex: BAI / BFA / Millennium" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
-                </div>
-              </div>
 
-              <div class="admin-form-grid-2">
-                <div class="form-group">
-                  <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Número de IBAN Oficial</label>
-                  <input type="text" id="setBankIban" class="form-input" value="${s.bank_iban || 'AO06 0040 0000 1234 5678 9012 3'}" placeholder="AO06 0000..." style="font-family:ui-monospace, monospace; font-weight:700; height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
-                </div>
-                <div class="form-group">
-                  <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Número Multicaixa Express (MCX)</label>
-                  <input type="tel" id="setMcxPhone" class="form-input" value="${s.mcx_phone || s.phone || '+244 923 179 192'}" placeholder="+244 923 179 192" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                <div class="admin-settings-action-row">
+                  <button type="submit" class="btn btn-primary" style="padding:12px 28px; font-weight:700; font-size:0.875rem; border-radius:8px;">
+                    Salvar Dados Bancários
+                  </button>
                 </div>
               </div>
-
-              <div class="admin-settings-action-row" style="margin-top:8px; padding-top:16px;">
-                <button type="submit" class="btn btn-primary" style="padding:12px 28px; font-weight:700; font-size:0.875rem; border-radius:8px;">
-                  Salvar Dados Bancários
-                </button>
-              </div>
-            </div>
-          `}
-        </form>
+            `}
+          </form>
+        </div>
       </div>
     `;
   }
@@ -2952,21 +2948,21 @@ export function renderAdminView() {
     const initials = rawName.split(' ').map(n => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'AD';
 
     return `
-      <div style="display:flex; flex-direction:column; gap:18px; max-width:1080px; margin:0 auto; width:100%;">
+      <div class="admin-profile-wrapper" style="display:flex; flex-direction:column; gap:18px; max-width:1080px; margin:0 auto; width:100%; box-sizing:border-box;">
         <!-- 1. Header Corporativo de Identificação do Gestor -->
-        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:20px 24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; box-shadow:0 1px 3px rgba(15,23,42,0.04);">
-          <div style="display:flex; align-items:center; gap:18px;">
-            <div style="width:56px; height:56px; border-radius:10px; background:#0f172a; color:#ffffff; font-size:1.25rem; font-weight:800; display:flex; align-items:center; justify-content:center; letter-spacing:0.05em; flex-shrink:0; border:1px solid #334155;">
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:18px 22px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; box-shadow:0 1px 3px rgba(15,23,42,0.04);">
+          <div style="display:flex; align-items:center; gap:16px;">
+            <div style="width:52px; height:52px; border-radius:10px; background:#0f172a; color:#ffffff; font-size:1.2rem; font-weight:800; display:flex; align-items:center; justify-content:center; letter-spacing:0.05em; flex-shrink:0; border:1px solid #334155;">
               ${initials}
             </div>
             <div>
               <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <h2 style="font-size:1.25rem; font-weight:800; color:#0f172a; margin:0; letter-spacing:-0.01em;">${rawName}</h2>
+                <h2 style="font-size:1.15rem; font-weight:800; color:#0f172a; margin:0; letter-spacing:-0.01em;">${rawName}</h2>
                 <span class="badge" style="background:#f1f5f9; color:#0f172a; font-size:0.6875rem; font-weight:700; border:1px solid #e2e8f0; padding:2px 8px; border-radius:5px; text-transform:uppercase; letter-spacing:0.04em;">
                   Gestor Master
                 </span>
               </div>
-              <div style="font-size:0.875rem; color:#64748b; margin-top:3px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+              <div style="font-size:0.8125rem; color:#64748b; margin-top:3px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                 <span>${user.email || 'admin@novatech.co.ao'}</span>
                 <span style="color:#cbd5e1;">•</span>
                 <span style="display:inline-flex; align-items:center; color:#15803d; font-weight:600; font-size:0.8125rem;">
@@ -2978,101 +2974,102 @@ export function renderAdminView() {
           </div>
         </div>
 
-        <!-- 2. Barra de Navegação por Abas Corporativas -->
-        <div class="admin-profile-subnav">
-          <button
-            type="button"
-            class="admin-profile-subtab-btn ${profileSubTab === 'data' ? 'active' : ''}"
-            data-profile-subtab="data"
-            style="display:inline-flex; align-items:center; gap:8px; padding:10px 18px; font-size:0.875rem; font-weight:700; border:none; background:none; cursor:pointer; border-bottom:2px solid ${profileSubTab === 'data' ? '#0f172a' : 'transparent'}; color:${profileSubTab === 'data' ? '#0f172a' : '#64748b'}; transition:all 0.15s ease;"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-            <span>Dados Cadastrais</span>
-          </button>
+        <!-- 2. Card Unificado de Perfil com Sub-Abas -->
+        <div class="admin-profile-card">
+          <div class="admin-profile-subnav">
+            <button
+              type="button"
+              class="admin-profile-subtab-btn ${profileSubTab === 'data' ? 'active' : ''}"
+              data-profile-subtab="data"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              <span>Dados Cadastrais</span>
+            </button>
 
-          <button
-            type="button"
-            class="admin-profile-subtab-btn ${profileSubTab === 'security' ? 'active' : ''}"
-            data-profile-subtab="security"
-            style="display:inline-flex; align-items:center; gap:8px; padding:10px 18px; font-size:0.875rem; font-weight:700; border:none; background:none; cursor:pointer; border-bottom:2px solid ${profileSubTab === 'security' ? '#0f172a' : 'transparent'}; color:${profileSubTab === 'security' ? '#0f172a' : '#64748b'}; transition:all 0.15s ease;"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-            <span>Segurança de Acesso</span>
-          </button>
-        </div>
-
-        <!-- 3. Conteúdo da Aba Selecionada -->
-        ${profileSubTab === 'data' ? `
-          <!-- ABA 1: DADOS CADASTRAIS -->
-          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:0 0 12px 12px; padding:24px; box-shadow:0 1px 3px rgba(15,23,42,0.04); margin-top:-18px;">
-            <div style="margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
-              <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Informações Pessoais & Contato Profissional</h3>
-              <p style="font-size:0.8125rem; color:#64748b; margin:0;">Mantenha seus dados de identificação e contato atualizados para comunicações corporativas.</p>
-            </div>
-
-            <form id="adminProfileDataForm" style="display:flex; flex-direction:column; gap:16px;">
-              <div class="admin-form-grid-2">
-                <div class="form-group">
-                  <label class="form-label" for="profileName" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
-                    Nome Completo <span style="color:#ef4444;">*</span>
-                  </label>
-                  <input 
-                    type="text" 
-                    id="profileName" 
-                    class="form-input" 
-                    value="${user.name || ''}" 
-                    placeholder="Ex: Leonardo Adriano" 
-                    required 
-                    minlength="2"
-                    autocomplete="name"
-                    style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;"
-                  />
-                </div>
-
-                <div class="form-group">
-                  <label class="form-label" for="profileEmail" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
-                    E-mail Institucional (Login) <span style="color:#ef4444;">*</span>
-                  </label>
-                  <input 
-                    type="email" 
-                    id="profileEmail" 
-                    class="form-input" 
-                    value="${user.email || ''}" 
-                    placeholder="admin@novatech.co.ao" 
-                    required 
-                    autocomplete="email"
-                    style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;"
-                  />
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="profilePhone" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
-                  Telefone / WhatsApp Profissional
-                </label>
-                <input 
-                  type="tel" 
-                  id="profilePhone" 
-                  class="form-input" 
-                  value="${user.phone || ''}" 
-                  placeholder="+244 923 179 192" 
-                  autocomplete="tel"
-                  style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;"
-                />
-              </div>
-
-              <div class="admin-settings-action-row">
-                <button type="submit" id="saveProfileDataBtn" class="btn btn-primary" style="padding:11px 24px; font-weight:700; font-size:0.875rem; border-radius:8px;">
-                  Salvar Alterações Cadastrais
-                </button>
-              </div>
-            </form>
+            <button
+              type="button"
+              class="admin-profile-subtab-btn ${profileSubTab === 'security' ? 'active' : ''}"
+              data-profile-subtab="security"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              <span>Segurança de Acesso</span>
+            </button>
           </div>
-        ` : `
-          <!-- ABA 2: SEGURANÇA DE ACESSO -->
-          <div style="display:flex; flex-direction:column; gap:16px; margin-top:-18px;">
-            <!-- Painel: Troca de Senha -->
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:0 0 12px 12px; padding:24px; box-shadow:0 1px 3px rgba(15,23,42,0.04);">
+
+          <!-- Conteúdo da Aba Selecionada -->
+          ${profileSubTab === 'data' ? `
+            <!-- ABA 1: DADOS CADASTRAIS -->
+            <div class="admin-profile-body">
+              <div style="margin-bottom:8px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
+                <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Informações Pessoais & Contato Profissional</h3>
+                <p style="font-size:0.8125rem; color:#64748b; margin:0;">Mantenha seus dados de identificação e contato atualizados para comunicações corporativas.</p>
+              </div>
+
+              <form id="adminProfileDataForm" style="display:flex; flex-direction:column; gap:16px;">
+                <div class="admin-form-grid-2">
+                  <div class="form-group">
+                    <label class="form-label" for="profileName" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
+                      Nome Completo <span style="color:#ef4444;">*</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      id="profileName" 
+                      class="form-input" 
+                      value="${user.name || ''}" 
+                      placeholder="Ex: Leonardo Adriano" 
+                      required 
+                      minlength="2"
+                      autocomplete="name"
+                      style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;"
+                    />
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="profileEmail" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
+                      E-mail Institucional (Login) <span style="color:#ef4444;">*</span>
+                    </label>
+                    <input 
+                      type="email" 
+                      id="profileEmail" 
+                      class="form-input" 
+                      value="${user.email || ''}" 
+                      placeholder="admin@novatech.co.ao" 
+                      required 
+                      autocomplete="email"
+                      style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;"
+                    />
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="profilePhone" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
+                    Telefone / WhatsApp Profissional
+                  </label>
+                  <input 
+                    type="tel" 
+                    id="profilePhone" 
+                    class="form-input" 
+                    value="${user.phone || ''}" 
+                    placeholder="+244 923 179 192" 
+                    autocomplete="tel"
+                    style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;"
+                  />
+                </div>
+
+                <div class="admin-profile-action-row">
+                  <button type="submit" id="saveProfileDataBtn" class="btn btn-primary" style="padding:11px 24px; font-weight:700; font-size:0.875rem; border-radius:8px;">
+                    Salvar Alterações Cadastrais
+                  </button>
+                </div>
+              </form>
+            </div>
+          ` : `
+            <!-- ABA 2: SEGURANÇA DE ACESSO -->
+            <div class="admin-profile-body">
+              <div style="margin-bottom:8px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
+                <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Atualização de Senha de Acesso</h3>
+                <p style="font-size:0.8125rem; color:#64748b; margin:0;">Para sua proteção, confirme a senha atual antes de cadastrar uma nova chave de acesso.</p>
+              </div>rgba(15,23,42,0.04);">
               <div style="margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
                 <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Atualização de Senha de Acesso</h3>
                 <p style="font-size:0.8125rem; color:#64748b; margin:0;">Para sua proteção, confirme a senha atual antes de cadastrar uma nova chave de acesso.</p>
