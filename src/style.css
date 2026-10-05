@@ -8063,12 +8063,35 @@ input:-webkit-autofill:active {
 }
 
 /* Sub-Abas de Perfil Corporativo e Configurações da Loja */
+.admin-settings-subnav,
+.admin-profile-subnav {
+  display: flex;
+  gap: 8px;
+  background: #ffffff;
+  border-radius: 10px 10px 0 0;
+  padding: 8px 16px 0 16px;
+  border: 1px solid #e2e8f0;
+  border-bottom: none;
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.admin-settings-subnav::-webkit-scrollbar,
+.admin-profile-subnav::-webkit-scrollbar {
+  display: none;
+}
+
 .admin-profile-subtab-btn,
 .acc-profile-subtab-btn,
 .admin-settings-subtab-btn {
   user-select: none;
   border-radius: 6px 6px 0 0;
   cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .admin-profile-subtab-btn:hover,
@@ -8083,4 +8106,39 @@ input:-webkit-autofill:active {
 .admin-settings-subtab-btn.active {
   color: #0f172a !important;
   border-bottom-color: #0f172a !important;
+}
+
+.admin-settings-action-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+}
+
+@media (max-width: 640px) {
+  .admin-settings-subnav,
+  .admin-profile-subnav {
+    padding: 6px 10px 0 10px;
+    gap: 4px;
+  }
+  .admin-settings-subtab-btn,
+  .admin-profile-subtab-btn {
+    padding: 8px 12px !important;
+    font-size: 0.8125rem !important;
+  }
+  .admin-form-grid-2,
+  .admin-form-grid-3 {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  .admin-settings-action-row {
+    justify-content: stretch !important;
+  }
+  .admin-settings-action-row .btn {
+    width: 100% !important;
+    text-align: center !important;
+    justify-content: center !important;
+    padding: 12px 16px !important;
+  }
 }

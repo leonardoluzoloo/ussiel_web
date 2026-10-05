@@ -36,10 +36,39 @@ export function renderCheckoutView() {
     multicaixaPhone: user?.phone || ''
   };
 
-  const SHIPPING_PRICES = {
-    normal: 3500,
-    express: 6500
+  // Store settings state (carregado dinamicamente do banco de dados Supabase)
+  let storeSettings = {
+    store_name: 'NovaTech Angola',
+    phone: '+244 923 179 192',
+    whatsapp: '+244 923 179 192',
+    email: 'contacto@novatech.co.ao',
+    free_shipping_threshold: 1000000,
+    shipping_price_normal: 3500,
+    shipping_price_express: 6500,
+    bank_holder: 'NovaTech Comércio & Serviços, Lda',
+    bank_name: 'Banco Angolano de Investimentos (BAI)',
+    bank_iban: 'AO06 0040 0000 1234 5678 9012 3',
+    mcx_phone: '+244 923 179 192'
   };
+
+  // Carrega configurações reais da loja do banco
+  Api.settings.get('general').then(cfg => {
+    if (cfg && typeof cfg === 'object') {
+      storeSettings = { ...storeSettings, ...cfg };
+      render();
+    }
+  }).catch(() => {});
+
+  function getShippingRates() {
+    return {
+      normal: Number(storeSettings.shipping_price_normal !== undefined ? storeSettings.shipping_price_normal : 3500),
+      express: Number(storeSettings.shipping_price_express !== undefined ? storeSettings.shipping_price_express : 6500)
+    };
+  }
+
+  function getFreeShippingThreshold() {
+    return Number(storeSettings.free_shipping_threshold !== undefined ? storeSettings.free_shipping_threshold : FREE_SHIPPING_THRESHOLD);
+  }
 
   function render() {
     const activeUser = Storage.getUser();
@@ -121,10 +150,12 @@ export function renderCheckoutView() {
       formData.shippingMethod = 'normal';
     }
 
-    const isFreeShipping = subtotal >= FREE_SHIPPING_THRESHOLD || coupon?.type === 'free_shipping';
+    const currentShippingRates = getShippingRates();
+    const freeLimit = getFreeShippingThreshold();
+    const isFreeShipping = subtotal >= freeLimit || coupon?.type === 'free_shipping';
     const shippingCost = isFreeShipping && formData.shippingMethod === 'normal'
       ? 0
-      : (SHIPPING_PRICES[formData.shippingMethod] || SHIPPING_PRICES.normal);
+      : (currentShippingRates[formData.shippingMethod] || currentShippingRates.normal);
 
     const total = Math.max(0, subtotal - discountAmount + shippingCost);
 
@@ -279,10 +310,10 @@ export function renderCheckoutView() {
                     <input type="radio" name="shipOpt" value="normal" ${formData.shippingMethod === 'normal' ? 'checked' : ''} />
                     <div class="radio-card-text">
                       <span class="radio-card-title">Entrega Normal Luanda</span>
-                      <span class="radio-card-desc">Prazo estimado: 24 a 48 horas úteis</span>
+                      <span class="radio-card-desc">Prazo padrão: 24 a 48 horas úteis</span>
                     </div>
                   </div>
-                  <span class="radio-card-price">${isFreeShipping ? 'GRÁTIS' : formatPrice(SHIPPING_PRICES.normal)}</span>
+                  <span class="radio-card-price">${isFreeShipping ? 'GRÁTIS' : formatPrice(currentShippingRates.normal)}</span>
                 </div>
 
                 <div class="radio-card ${formData.shippingMethod === 'express' ? 'active' : ''}" data-ship-opt="express">
@@ -290,10 +321,10 @@ export function renderCheckoutView() {
                     <input type="radio" name="shipOpt" value="express" ${formData.shippingMethod === 'express' ? 'checked' : ''} />
                     <div class="radio-card-text">
                       <span class="radio-card-title">Entrega Expressa Mesmo Dia (Luanda)</span>
-                      <span class="radio-card-desc">Pedidos confirmados até 13h entregues hoje</span>
+                      <span class="radio-card-desc">Prazo expresso: Entrega rápida em até 6 horas</span>
                     </div>
                   </div>
-                  <span class="radio-card-price">${formatPrice(SHIPPING_PRICES.express)}</span>
+                  <span class="radio-card-price">${formatPrice(currentShippingRates.express)}</span>
                 </div>
               </div>
 
@@ -309,7 +340,7 @@ export function renderCheckoutView() {
             ` : ''}
           </div>
 
-          <!-- Step 4: Payment Methods (Angola Focused) -->
+          <!-- Step 4: Payment Methods (Angola Focused & Real Store Data) -->
           <div class="checkout-step-card" style="${currentStep < 4 ? 'opacity: 0.6; pointer-events: none;' : ''}">
             <div class="checkout-step-header">
               <div class="step-number">4</div>
@@ -326,8 +357,8 @@ export function renderCheckoutView() {
                   <div class="radio-card-left">
                     <input type="radio" name="payOpt" value="multicaixa_express" ${formData.paymentMethod === 'multicaixa_express' ? 'checked' : ''} />
                     <div class="radio-card-text">
-                      <span class="radio-card-title">Multicaixa Express</span>
-                      <span class="radio-card-desc">Receba a notificação de pagamento diretamente no aplicativo</span>
+                      <span class="radio-card-title">Multicaixa Express (MCX)</span>
+                      <span class="radio-card-desc">Receba o pedido de autorização diretamente no aplicativo</span>
                     </div>
                   </div>
                   <span class="badge" style="background: #2563eb; color: #fff;">RECOMENDADO</span>
@@ -335,9 +366,11 @@ export function renderCheckoutView() {
 
                 ${formData.paymentMethod === 'multicaixa_express' ? `
                   <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-sm); padding: 16px; margin: -4px 0 8px 0;">
-                    <label class="form-label" style="color: #1e40af;">Número do Telemóvel Multicaixa Express:</label>
-                    <input type="tel" id="mcExpressPhone" class="form-input" value="${formData.multicaixaPhone}" placeholder="+244 923 000 000" style="margin-top: 6px;" />
-                    <span style="font-size: 0.75rem; color: #1e40af; display: block; margin-top: 4px;">Você terá 5 minutos para validar o pagamento no app após finalizar.</span>
+                    <label class="form-label" style="color: #1e40af; font-weight: 700; font-size: 0.8125rem;">Número do seu Telemóvel Multicaixa Express:</label>
+                    <input type="tel" id="mcExpressPhone" class="form-input" value="${formData.multicaixaPhone}" placeholder="+244 923 000 000" style="margin-top: 6px; height: 42px; border-radius: 8px;" />
+                    <div style="font-size: 0.75rem; color: #1e40af; margin-top: 6px; line-height: 1.4;">
+                      A autorização será enviada ao seu app associado ao terminal da loja (<strong>${storeSettings.mcx_phone || storeSettings.phone || '+244 923 179 192'}</strong>). Você terá 5 minutos para validar no MCX.
+                    </div>
                   </div>
                 ` : ''}
 
@@ -346,17 +379,28 @@ export function renderCheckoutView() {
                   <div class="radio-card-left">
                     <input type="radio" name="payOpt" value="transfer" ${formData.paymentMethod === 'transfer' ? 'checked' : ''} />
                     <div class="radio-card-text">
-                      <span class="radio-card-title">Transferência Bancária (IBAN)</span>
-                      <span class="radio-card-desc">Transferência para contas oficiais NovaTech (BAI, BFA, BIC)</span>
+                      <span class="radio-card-title">Transferência Bancária Oficial (IBAN)</span>
+                      <span class="radio-card-desc">Transferência para conta oficial ${storeSettings.store_name || 'NovaTech Angola'} (${storeSettings.bank_name || 'BAI'})</span>
                     </div>
                   </div>
                 </div>
 
                 ${formData.paymentMethod === 'transfer' ? `
                   <div style="background: #f8fafc; border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 16px; margin: -4px 0 8px 0; font-size: 0.8125rem;">
-                    <div style="margin-bottom: 8px;"><strong>Banco BAI:</strong> <span style="word-break: break-all;">AO06 0040.0000.1234.5678.9012.3</span></div>
-                    <div style="margin-bottom: 8px;"><strong>Banco BFA:</strong> <span style="word-break: break-all;">AO06 0006.0000.9876.5432.1098.7</span></div>
-                    <div style="color: var(--text-secondary);">Beneficiário: <strong>NOVATECH ANGOLA LDA</strong>. Envie o comprovativo pelo WhatsApp.</div>
+                    <div style="margin-bottom: 8px;"><strong>Titular da Conta:</strong> <span>${storeSettings.bank_holder || 'NovaTech Comércio & Serviços, Lda'}</span></div>
+                    <div style="margin-bottom: 8px;"><strong>Banco Principal:</strong> <span>${storeSettings.bank_name || 'Banco Angolano de Investimentos (BAI)'}</span></div>
+                    <div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; background: #ffffff; border: 1px dashed #cbd5e1; padding: 10px 14px; border-radius: 8px;">
+                      <div>
+                        <span style="font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; color: #64748b; display: block;">IBAN Oficial de Pagamento:</span>
+                        <strong id="displayIbanCode" style="font-family: ui-monospace, monospace; font-size: 0.9375rem; color: #0f172a; word-break: break-all;">${storeSettings.bank_iban || 'AO06 0040 0000 1234 5678 9012 3'}</strong>
+                      </div>
+                      <button type="button" id="copyIbanBtn" class="btn btn-secondary btn-sm" style="font-size: 0.75rem; padding: 6px 12px; display: inline-flex; align-items: center; gap: 4px;">
+                        Copiar IBAN
+                      </button>
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 0.75rem; line-height: 1.4;">
+                      Após efetuar a transferência bancária, envie o comprovativo oficial para o WhatsApp <strong>${storeSettings.whatsapp || storeSettings.phone || '+244 923 179 192'}</strong> para liberação imediata do seu pedido.
+                    </div>
                   </div>
                 ` : ''}
 
@@ -499,6 +543,28 @@ export function renderCheckoutView() {
       };
     });
 
+    // Botão de Copiar IBAN
+    const copyIbanBtn = container.querySelector('#copyIbanBtn');
+    if (copyIbanBtn) {
+      copyIbanBtn.onclick = () => {
+        const iban = storeSettings.bank_iban || 'AO06 0040 0000 1234 5678 9012 3';
+        navigator.clipboard.writeText(iban.replace(/\s+/g, '')).then(() => {
+          copyIbanBtn.textContent = 'Copiado! ✓';
+          setTimeout(() => { copyIbanBtn.textContent = 'Copiar IBAN'; }, 2000);
+          Toast.show('IBAN copiado com sucesso!', 'success');
+        }).catch(() => {
+          Toast.show('IBAN: ' + iban, 'info');
+        });
+      };
+    }
+
+    const mcPhoneInput = container.querySelector('#mcExpressPhone');
+    if (mcPhoneInput) {
+      mcPhoneInput.oninput = (e) => {
+        formData.multicaixaPhone = e.target.value.trim();
+      };
+    }
+
     // Step navigation buttons
     container.querySelectorAll('[data-goto-step]').forEach(btn => {
       btn.onclick = () => {
@@ -520,9 +586,11 @@ export function renderCheckoutView() {
           if (coupon.type === 'percent') discount = Math.round(subtotal * (coupon.value / 100));
           else if (coupon.type === 'fixed') discount = Math.min(coupon.value, subtotal);
         }
-        const shipping = subtotal >= FREE_SHIPPING_THRESHOLD && formData.shippingMethod === 'normal'
+        const currentRates = getShippingRates();
+        const freeLimit = getFreeShippingThreshold();
+        const shipping = subtotal >= freeLimit && formData.shippingMethod === 'normal'
           ? 0
-          : SHIPPING_PRICES[formData.shippingMethod];
+          : (currentRates[formData.shippingMethod] || currentRates.normal);
 
         const finalTotal = Math.max(0, subtotal - discount + shipping);
         const methodName = formData.paymentMethod === 'multicaixa_express' ? 'Multicaixa Express' :
@@ -547,7 +615,11 @@ export function renderCheckoutView() {
           payment_method: methodName,
           payment_details: {
             method_type: formData.paymentMethod,
-            phone: formData.multicaixaPhone || formData.phone
+            phone: formData.multicaixaPhone || formData.phone,
+            bank_holder: storeSettings.bank_holder,
+            bank_name: storeSettings.bank_name,
+            bank_iban: storeSettings.bank_iban,
+            mcx_receiver: storeSettings.mcx_phone || storeSettings.phone
           },
           subtotal,
           discount,

@@ -2737,7 +2737,7 @@ export function renderAdminView() {
         </div>
 
         <!-- 2. Barra de Navegação por Sub-Abas de Configurações -->
-        <div style="display:flex; gap:8px; background:#ffffff; border-radius:10px 10px 0 0; padding:8px 16px 0 16px; border:1px solid #e2e8f0; border-bottom:none;">
+        <div class="admin-settings-subnav">
           <button
             type="button"
             class="admin-settings-subtab-btn ${settingsSubTab === 'general' ? 'active' : ''}"
@@ -2779,39 +2779,39 @@ export function renderAdminView() {
                 <p style="font-size:0.8125rem; color:#64748b; margin:0;">Informações exibidas no cabeçalho, rodapé e canais de contato da loja.</p>
               </div>
 
-              <div class="admin-form-grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+              <div class="admin-form-grid-2">
                 <div class="form-group">
                   <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Nome da Loja *</label>
-                  <input type="text" id="setStoreName" class="form-input" value="${s.store_name || 'NovaTech Angola'}" placeholder="Ex: NovaTech Angola" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" required />
+                  <input type="text" id="setStoreName" class="form-input" value="${s.store_name || 'NovaTech Angola'}" placeholder="Ex: NovaTech Angola" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
                 </div>
                 <div class="form-group">
                   <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Slogan Comercial</label>
-                  <input type="text" id="setSlogan" class="form-input" value="${s.slogan || 'Loja de Tecnologia e Smartphones'}" placeholder="Ex: A sua loja de tecnologia em Luanda" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" />
+                  <input type="text" id="setSlogan" class="form-input" value="${s.slogan || 'Loja de Tecnologia e Smartphones'}" placeholder="Ex: A sua loja de tecnologia em Luanda" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
                 </div>
               </div>
 
-              <div class="admin-form-grid-3" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+              <div class="admin-form-grid-3">
                 <div class="form-group">
                   <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Telefone Principal *</label>
-                  <input type="tel" id="setPhone" class="form-input" value="${s.phone || '+244 923 179 192'}" placeholder="+244 923 179 192" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" required />
+                  <input type="tel" id="setPhone" class="form-input" value="${s.phone || '+244 923 179 192'}" placeholder="+244 923 179 192" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
                 </div>
                 <div class="form-group">
                   <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">WhatsApp Oficial *</label>
-                  <input type="tel" id="setWhatsapp" class="form-input" value="${s.whatsapp || '+244 923 179 192'}" placeholder="+244 923 179 192" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" required />
+                  <input type="tel" id="setWhatsapp" class="form-input" value="${s.whatsapp || '+244 923 179 192'}" placeholder="+244 923 179 192" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
                 </div>
                 <div class="form-group">
                   <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">E-mail Comercial *</label>
-                  <input type="email" id="setEmail" class="form-input" value="${s.email || 'contacto@novatech.co.ao'}" placeholder="contacto@novatech.co.ao" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" required />
+                  <input type="email" id="setEmail" class="form-input" value="${s.email || 'contacto@novatech.co.ao'}" placeholder="contacto@novatech.co.ao" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
                 </div>
               </div>
 
               <div class="form-group">
                 <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Endereço Físico / Sede Comercial *</label>
-                <input type="text" id="setAddress" class="form-input" value="${s.address || 'Talatona, Luanda - Angola'}" placeholder="Ex: Av. Luanda Sul, Talatona, Luanda - Angola" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" required />
+                <input type="text" id="setAddress" class="form-input" value="${s.address || 'Talatona, Luanda - Angola'}" placeholder="Ex: Av. Luanda Sul, Talatona, Luanda - Angola" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
               </div>
 
-              <div style="display:flex; justify-content:flex-end; margin-top:8px; padding-top:16px; border-top:1px solid #f1f5f9;">
-                <button type="submit" class="btn btn-primary" style="padding:10px 24px; font-weight:700; font-size:0.875rem; border-radius:6px;">
+              <div class="admin-settings-action-row">
+                <button type="submit" class="btn btn-primary" style="padding:11px 24px; font-weight:700; font-size:0.875rem; border-radius:8px;">
                   Salvar Identidade & Contatos
                 </button>
               </div>
@@ -2821,31 +2821,31 @@ export function renderAdminView() {
             <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:0 0 12px 12px; padding:24px; box-shadow:0 1px 3px rgba(15,23,42,0.04); display:flex; flex-direction:column; gap:16px;">
               <div style="margin-bottom:8px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
                 <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Tarifas de Entrega & Política de Frete</h3>
-                <p style="font-size:0.8125rem; color:#64748b; margin:0;">Valores aplicados automaticamente aos clientes durante o checkout.</p>
+                <p style="font-size:0.8125rem; color:#64748b; margin:0;">Valores aplicados automaticamente aos clientes durante o checkout e carrinho.</p>
               </div>
 
-              <div class="admin-form-grid-3" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+              <div class="admin-form-grid-3">
                 <div class="form-group">
                   <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Entrega Padrão / Normal (Kz) *</label>
-                  <input type="number" id="setShippingNormal" class="form-input" value="${s.shipping_price_normal !== undefined ? s.shipping_price_normal : 3500}" min="0" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" required />
+                  <input type="number" id="setShippingNormal" class="form-input" value="${s.shipping_price_normal !== undefined ? s.shipping_price_normal : 3500}" min="0" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
                   <small style="font-size:0.75rem; color:#64748b; margin-top:4px; display:block;">Prazo padrão: 24h a 48h úteis em Luanda.</small>
                 </div>
 
                 <div class="form-group">
                   <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Entrega Expresso (Kz) *</label>
-                  <input type="number" id="setShippingExpress" class="form-input" value="${s.shipping_price_express !== undefined ? s.shipping_price_express : 6500}" min="0" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" required />
+                  <input type="number" id="setShippingExpress" class="form-input" value="${s.shipping_price_express !== undefined ? s.shipping_price_express : 6500}" min="0" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
                   <small style="font-size:0.75rem; color:#64748b; margin-top:4px; display:block;">Prazo expresso: Mesmo dia / até 6h.</small>
                 </div>
 
                 <div class="form-group">
                   <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Frete Grátis Acima de (Kz) *</label>
-                  <input type="number" id="setFreeShipping" class="form-input" value="${s.free_shipping_threshold !== undefined ? s.free_shipping_threshold : 1000000}" min="0" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" required />
+                  <input type="number" id="setFreeShipping" class="form-input" value="${s.free_shipping_threshold !== undefined ? s.free_shipping_threshold : 1000000}" min="0" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
                   <small style="font-size:0.75rem; color:#64748b; margin-top:4px; display:block;">Zero o custo de frete quando o carrinho atingir este valor.</small>
                 </div>
               </div>
 
-              <div style="display:flex; justify-content:flex-end; margin-top:8px; padding-top:16px; border-top:1px solid #f1f5f9;">
-                <button type="submit" class="btn btn-primary" style="padding:10px 24px; font-weight:700; font-size:0.875rem; border-radius:6px;">
+              <div class="admin-settings-action-row">
+                <button type="submit" class="btn btn-primary" style="padding:11px 24px; font-weight:700; font-size:0.875rem; border-radius:8px;">
                   Salvar Regras de Envio
                 </button>
               </div>
@@ -2855,33 +2855,33 @@ export function renderAdminView() {
             <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:0 0 12px 12px; padding:24px; box-shadow:0 1px 3px rgba(15,23,42,0.04); display:flex; flex-direction:column; gap:16px;">
               <div style="margin-bottom:8px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
                 <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Contas Bancárias & Meios de Recebimento</h3>
-                <p style="font-size:0.8125rem; color:#64748b; margin:0;">Dados exibidos aos clientes ao escolherem Transferência Bancária ou Multicaixa Express.</p>
+                <p style="font-size:0.8125rem; color:#64748b; margin:0;">Dados exibidos em tempo real aos clientes ao finalizarem compras por Transferência Bancária ou Multicaixa Express.</p>
               </div>
 
-              <div class="admin-form-grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+              <div class="admin-form-grid-2">
                 <div class="form-group">
                   <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Titular da Conta Comercial</label>
-                  <input type="text" id="setBankHolder" class="form-input" value="${s.bank_holder || 'NovaTech Comércio & Serviços, Lda'}" placeholder="Ex: NovaTech Lda" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" />
+                  <input type="text" id="setBankHolder" class="form-input" value="${s.bank_holder || 'NovaTech Comércio & Serviços, Lda'}" placeholder="Ex: NovaTech Lda" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
                 </div>
                 <div class="form-group">
                   <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Banco Principal</label>
-                  <input type="text" id="setBankName" class="form-input" value="${s.bank_name || 'Banco Angolano de Investimentos (BAI)'}" placeholder="Ex: BAI / BFA / Millennium" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" />
+                  <input type="text" id="setBankName" class="form-input" value="${s.bank_name || 'Banco Angolano de Investimentos (BAI)'}" placeholder="Ex: BAI / BFA / Millennium" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
                 </div>
               </div>
 
-              <div class="admin-form-grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+              <div class="admin-form-grid-2">
                 <div class="form-group">
                   <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Número de IBAN Oficial</label>
-                  <input type="text" id="setBankIban" class="form-input" value="${s.bank_iban || 'AO06 0040 0000 1234 5678 9012 3'}" placeholder="AO06 0000..." style="font-family:ui-monospace, monospace; font-weight:700; height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" />
+                  <input type="text" id="setBankIban" class="form-input" value="${s.bank_iban || 'AO06 0040 0000 1234 5678 9012 3'}" placeholder="AO06 0000..." style="font-family:ui-monospace, monospace; font-weight:700; height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
                 </div>
                 <div class="form-group">
                   <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Número Multicaixa Express (MCX)</label>
-                  <input type="tel" id="setMcxPhone" class="form-input" value="${s.mcx_phone || s.phone || '+244 923 179 192'}" placeholder="+244 923 179 192" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" />
+                  <input type="tel" id="setMcxPhone" class="form-input" value="${s.mcx_phone || s.phone || '+244 923 179 192'}" placeholder="+244 923 179 192" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
                 </div>
               </div>
 
-              <div style="display:flex; justify-content:flex-end; margin-top:8px; padding-top:16px; border-top:1px solid #f1f5f9;">
-                <button type="submit" class="btn btn-primary" style="padding:10px 24px; font-weight:700; font-size:0.875rem; border-radius:6px;">
+              <div class="admin-settings-action-row">
+                <button type="submit" class="btn btn-primary" style="padding:11px 24px; font-weight:700; font-size:0.875rem; border-radius:8px;">
                   Salvar Dados Bancários
                 </button>
               </div>
@@ -2930,7 +2930,7 @@ export function renderAdminView() {
         </div>
 
         <!-- 2. Barra de Navegação por Abas Corporativas -->
-        <div style="display:flex; gap:8px; border-bottom:1px solid #e2e8f0; padding-bottom:0; background:#ffffff; border-radius:10px 10px 0 0; padding:8px 16px 0 16px; border:1px solid #e2e8f0; border-bottom:none;">
+        <div class="admin-profile-subnav">
           <button
             type="button"
             class="admin-profile-subtab-btn ${profileSubTab === 'data' ? 'active' : ''}"
@@ -2962,7 +2962,7 @@ export function renderAdminView() {
             </div>
 
             <form id="adminProfileDataForm" style="display:flex; flex-direction:column; gap:16px;">
-              <div class="admin-form-grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+              <div class="admin-form-grid-2">
                 <div class="form-group">
                   <label class="form-label" for="profileName" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
                     Nome Completo <span style="color:#ef4444;">*</span>
@@ -2976,7 +2976,7 @@ export function renderAdminView() {
                     required 
                     minlength="2"
                     autocomplete="name"
-                    style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;"
+                    style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;"
                   />
                 </div>
 
@@ -2992,7 +2992,7 @@ export function renderAdminView() {
                     placeholder="admin@novatech.co.ao" 
                     required 
                     autocomplete="email"
-                    style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;"
+                    style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;"
                   />
                 </div>
               </div>
@@ -3008,12 +3008,12 @@ export function renderAdminView() {
                   value="${user.phone || ''}" 
                   placeholder="+244 923 179 192" 
                   autocomplete="tel"
-                  style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;"
+                  style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;"
                 />
               </div>
 
-              <div style="display:flex; justify-content:flex-end; margin-top:8px; padding-top:16px; border-top:1px solid #f1f5f9;">
-                <button type="submit" id="saveProfileDataBtn" class="btn btn-primary" style="padding:10px 24px; font-weight:700; font-size:0.875rem; border-radius:6px;">
+              <div class="admin-settings-action-row">
+                <button type="submit" id="saveProfileDataBtn" class="btn btn-primary" style="padding:11px 24px; font-weight:700; font-size:0.875rem; border-radius:8px;">
                   Salvar Alterações Cadastrais
                 </button>
               </div>
