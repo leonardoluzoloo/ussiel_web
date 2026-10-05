@@ -23,6 +23,7 @@ $$ LANGUAGE plpgsql;
 -- ===================================================================
 CREATE TABLE IF NOT EXISTS public.usuarios (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  uid UUID DEFAULT gen_random_uuid() UNIQUE NOT NULL,
   auth_user_id UUID UNIQUE,
   nome VARCHAR(255) NOT NULL,
   email VARCHAR(255) NOT NULL UNIQUE,
@@ -38,6 +39,7 @@ CREATE TABLE IF NOT EXISTS public.usuarios (
   atualizado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_usuarios_uid ON public.usuarios(uid);
 CREATE INDEX IF NOT EXISTS idx_usuarios_email ON public.usuarios(email);
 CREATE INDEX IF NOT EXISTS idx_usuarios_nivel_acesso ON public.usuarios(nivel_acesso);
 CREATE INDEX IF NOT EXISTS idx_usuarios_auth_user_id ON public.usuarios(auth_user_id);
@@ -51,6 +53,7 @@ FOR EACH ROW EXECUTE FUNCTION public.funcao_atualizar_timestamp();
 -- ===================================================================
 CREATE TABLE IF NOT EXISTS public.categorias (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  uid UUID DEFAULT gen_random_uuid() UNIQUE NOT NULL,
   slug VARCHAR(255) NOT NULL UNIQUE,
   nome VARCHAR(255) NOT NULL,
   descricao TEXT,
@@ -64,6 +67,7 @@ CREATE TABLE IF NOT EXISTS public.categorias (
   atualizado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_categorias_uid ON public.categorias(uid);
 CREATE INDEX IF NOT EXISTS idx_categorias_slug ON public.categorias(slug);
 CREATE INDEX IF NOT EXISTS idx_categorias_ativo ON public.categorias(ativo);
 CREATE INDEX IF NOT EXISTS idx_categorias_ordem ON public.categorias(ordem_exibicao);
@@ -77,6 +81,7 @@ FOR EACH ROW EXECUTE FUNCTION public.funcao_atualizar_timestamp();
 -- ===================================================================
 CREATE TABLE IF NOT EXISTS public.subcategorias (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  uid UUID DEFAULT gen_random_uuid() UNIQUE NOT NULL,
   categoria_id BIGINT NOT NULL REFERENCES public.categorias(id) ON DELETE CASCADE,
   slug VARCHAR(255) NOT NULL,
   nome VARCHAR(255) NOT NULL,
@@ -88,6 +93,7 @@ CREATE TABLE IF NOT EXISTS public.subcategorias (
   CONSTRAINT uq_subcategorias_categoria_slug UNIQUE (categoria_id, slug)
 );
 
+CREATE INDEX IF NOT EXISTS idx_subcategorias_uid ON public.subcategorias(uid);
 CREATE INDEX IF NOT EXISTS idx_subcategorias_categoria ON public.subcategorias(categoria_id);
 CREATE INDEX IF NOT EXISTS idx_subcategorias_slug ON public.subcategorias(slug);
 CREATE INDEX IF NOT EXISTS idx_subcategorias_ativo ON public.subcategorias(ativo);
@@ -101,6 +107,7 @@ FOR EACH ROW EXECUTE FUNCTION public.funcao_atualizar_timestamp();
 -- ===================================================================
 CREATE TABLE IF NOT EXISTS public.catalogos (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  uid UUID DEFAULT gen_random_uuid() UNIQUE NOT NULL,
   slug VARCHAR(255) NOT NULL UNIQUE,
   nome VARCHAR(255) NOT NULL,
   descricao TEXT,
@@ -111,6 +118,7 @@ CREATE TABLE IF NOT EXISTS public.catalogos (
   atualizado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_catalogos_uid ON public.catalogos(uid);
 CREATE INDEX IF NOT EXISTS idx_catalogos_slug ON public.catalogos(slug);
 CREATE INDEX IF NOT EXISTS idx_catalogos_ativo ON public.catalogos(ativo);
 
@@ -123,6 +131,7 @@ FOR EACH ROW EXECUTE FUNCTION public.funcao_atualizar_timestamp();
 -- ===================================================================
 CREATE TABLE IF NOT EXISTS public.produtos (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  uid UUID DEFAULT gen_random_uuid() UNIQUE NOT NULL,
   sku VARCHAR(100) NOT NULL UNIQUE,
   slug VARCHAR(255) NOT NULL UNIQUE,
   nome VARCHAR(255) NOT NULL,
@@ -151,6 +160,7 @@ CREATE TABLE IF NOT EXISTS public.produtos (
   atualizado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_produtos_uid ON public.produtos(uid);
 CREATE INDEX IF NOT EXISTS idx_produtos_slug ON public.produtos(slug);
 CREATE INDEX IF NOT EXISTS idx_produtos_sku ON public.produtos(sku);
 CREATE INDEX IF NOT EXISTS idx_produtos_categoria ON public.produtos(categoria_id);
@@ -169,6 +179,7 @@ FOR EACH ROW EXECUTE FUNCTION public.funcao_atualizar_timestamp();
 -- ===================================================================
 CREATE TABLE IF NOT EXISTS public.banners (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  uid UUID DEFAULT gen_random_uuid() UNIQUE NOT NULL,
   titulo VARCHAR(255) NOT NULL,
   destaque VARCHAR(255),
   subtitulo TEXT,
@@ -187,6 +198,7 @@ CREATE TABLE IF NOT EXISTS public.banners (
   atualizado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_banners_uid ON public.banners(uid);
 CREATE INDEX IF NOT EXISTS idx_banners_ativo ON public.banners(ativo);
 CREATE INDEX IF NOT EXISTS idx_banners_ordem ON public.banners(ordem_exibicao);
 
@@ -199,6 +211,7 @@ FOR EACH ROW EXECUTE FUNCTION public.funcao_atualizar_timestamp();
 -- ===================================================================
 CREATE TABLE IF NOT EXISTS public.cupons (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  uid UUID DEFAULT gen_random_uuid() UNIQUE NOT NULL,
   codigo VARCHAR(100) NOT NULL UNIQUE,
   tipo_desconto VARCHAR(50) NOT NULL DEFAULT 'percentage', -- 'percentage', 'fixed' ou 'free_shipping'
   valor_desconto NUMERIC(15, 2) NOT NULL DEFAULT 0.00,
@@ -213,6 +226,7 @@ CREATE TABLE IF NOT EXISTS public.cupons (
   atualizado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_cupons_uid ON public.cupons(uid);
 CREATE INDEX IF NOT EXISTS idx_cupons_codigo ON public.cupons(codigo);
 CREATE INDEX IF NOT EXISTS idx_cupons_ativo ON public.cupons(ativo);
 
@@ -225,6 +239,7 @@ FOR EACH ROW EXECUTE FUNCTION public.funcao_atualizar_timestamp();
 -- ===================================================================
 CREATE TABLE IF NOT EXISTS public.pedidos (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  uid UUID DEFAULT gen_random_uuid() UNIQUE NOT NULL,
   codigo_pedido VARCHAR(100) NOT NULL UNIQUE,
   usuario_id BIGINT REFERENCES public.usuarios(id) ON DELETE SET NULL,
   nome_cliente VARCHAR(255) NOT NULL,
@@ -247,6 +262,7 @@ CREATE TABLE IF NOT EXISTS public.pedidos (
   atualizado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_pedidos_uid ON public.pedidos(uid);
 CREATE INDEX IF NOT EXISTS idx_pedidos_codigo ON public.pedidos(codigo_pedido);
 CREATE INDEX IF NOT EXISTS idx_pedidos_usuario ON public.pedidos(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_pedidos_status ON public.pedidos(status_pedido);
@@ -261,6 +277,7 @@ FOR EACH ROW EXECUTE FUNCTION public.funcao_atualizar_timestamp();
 -- ===================================================================
 CREATE TABLE IF NOT EXISTS public.itens_pedido (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  uid UUID DEFAULT gen_random_uuid() UNIQUE NOT NULL,
   pedido_id BIGINT NOT NULL REFERENCES public.pedidos(id) ON DELETE CASCADE,
   produto_id BIGINT REFERENCES public.produtos(id) ON DELETE SET NULL,
   sku_produto VARCHAR(100),
@@ -273,6 +290,7 @@ CREATE TABLE IF NOT EXISTS public.itens_pedido (
   criado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_itens_pedido_uid ON public.itens_pedido(uid);
 CREATE INDEX IF NOT EXISTS idx_itens_pedido_pedido ON public.itens_pedido(pedido_id);
 CREATE INDEX IF NOT EXISTS idx_itens_pedido_produto ON public.itens_pedido(produto_id);
 
@@ -281,6 +299,7 @@ CREATE INDEX IF NOT EXISTS idx_itens_pedido_produto ON public.itens_pedido(produ
 -- ===================================================================
 CREATE TABLE IF NOT EXISTS public.movimentacoes_estoque (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  uid UUID DEFAULT gen_random_uuid() UNIQUE NOT NULL,
   produto_id BIGINT NOT NULL REFERENCES public.produtos(id) ON DELETE CASCADE,
   tipo_movimentacao VARCHAR(50) NOT NULL, -- 'entrada', 'saida', 'ajuste'
   quantidade INT NOT NULL,
@@ -290,6 +309,7 @@ CREATE TABLE IF NOT EXISTS public.movimentacoes_estoque (
   criado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_movimentacoes_estoque_uid ON public.movimentacoes_estoque(uid);
 CREATE INDEX IF NOT EXISTS idx_movimentacoes_produto ON public.movimentacoes_estoque(produto_id);
 CREATE INDEX IF NOT EXISTS idx_movimentacoes_criado_em ON public.movimentacoes_estoque(criado_em DESC);
 
@@ -298,6 +318,7 @@ CREATE INDEX IF NOT EXISTS idx_movimentacoes_criado_em ON public.movimentacoes_e
 -- ===================================================================
 CREATE TABLE IF NOT EXISTS public.configuracoes_loja (
   id INT PRIMARY KEY DEFAULT 1,
+  uid UUID DEFAULT gen_random_uuid() UNIQUE NOT NULL,
   chave VARCHAR(50) DEFAULT 'general' UNIQUE NOT NULL,
   nome_loja VARCHAR(255) DEFAULT 'NovaTech Angola' NOT NULL,
   slogan VARCHAR(255) DEFAULT 'Loja de Tecnologia, Smartphones e Eletrônicos Premium',
@@ -325,6 +346,8 @@ CREATE TABLE IF NOT EXISTS public.configuracoes_loja (
   politica_termos TEXT,
   atualizado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_configuracoes_loja_uid ON public.configuracoes_loja(uid);
 
 -- ===================================================================
 -- 12. FUNCAO HELPER PARA VERIFICACAO DE ADMIN NO RLS (SECURITY DEFINER)

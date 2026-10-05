@@ -4,8 +4,6 @@
 
 import { Icons } from '../utils/icons.js';
 import { formatPrice } from '../utils/format.js';
-import { CategoriesData } from '../data/categories.js';
-import { ProductsData } from '../data/products.js';
 import { Storage } from '../services/storage.js';
 import { Api } from '../services/api.js';
 
@@ -181,16 +179,21 @@ export function createHeader() {
                       <div class="mega-col">
                         <div class="mega-col-title">
                           <span class="mega-icon">${Icons[cat.iconName] ? Icons[cat.iconName](18) : Icons.package(18)}</span>
-                          <a href="#/categoria/${cat.slug}">${cat.name}</a>
+                          <a href="#/categoria/${cat.uid || cat.slug}">${cat.name}</a>
                         </div>
                         <ul class="mega-sublist">
-                          ${(cat.subcategories || []).map(sub => `
+                          ${(cat.subcategories || []).map(sub => {
+                            const subName = typeof sub === 'string' ? sub : (sub.name || sub.nome || '');
+                            const subSlug = typeof sub === 'string' ? sub : (sub.uid || sub.slug || sub.name || '');
+                            if (!subName) return '';
+                            return `
                             <li>
-                              <a href="#/?cat=${cat.slug}&sub=${encodeURIComponent(sub)}" class="mega-sublink">
-                                <span>${sub}</span>
+                              <a href="#/?cat=${cat.uid || cat.slug}&sub=${encodeURIComponent(subSlug)}" class="mega-sublink">
+                                <span>${subName}</span>
                               </a>
                             </li>
-                          `).join('')}
+                          `;
+                          }).join('')}
                         </ul>
                       </div>
                     `).join('')}

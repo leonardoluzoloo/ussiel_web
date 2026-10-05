@@ -1,10 +1,9 @@
 import { Icons } from '../utils/icons.js';
-import { CategoriesData } from '../data/categories.js';
 import { Storage } from '../services/storage.js';
 import { Api } from '../services/api.js';
 
 export function setupMobileNav() {
-  let categories = [...CategoriesData];
+  let categories = [];
 
   async function syncCategories() {
     try {
@@ -153,12 +152,17 @@ export function setupMobileNav() {
                 </span>
               </div>
               <div class="mobile-cat-sub-menu" id="sub-${cat.slug}">
-                ${subs.map(sub => `
-                  <a href="#/?cat=${cat.slug}&sub=${encodeURIComponent(sub)}" class="mobile-cat-sub-item">
-                    <span>${sub}</span>
+                ${subs.map(sub => {
+                  const subName = typeof sub === 'string' ? sub : (sub.name || sub.nome || '');
+                  const subSlug = typeof sub === 'string' ? sub : (sub.uid || sub.slug || sub.name || '');
+                  if (!subName) return '';
+                  return `
+                  <a href="#/?cat=${cat.uid || cat.slug}&sub=${encodeURIComponent(subSlug)}" class="mobile-cat-sub-item">
+                    <span>${subName}</span>
                   </a>
-                `).join('')}
-                <a href="#/categoria/${cat.slug}" class="mobile-cat-view-all">
+                  `;
+                }).join('')}
+                <a href="#/categoria/${cat.uid || cat.slug}" class="mobile-cat-view-all">
                   <span>Ver todos em ${cat.name}</span>
                   <span>→</span>
                 </a>

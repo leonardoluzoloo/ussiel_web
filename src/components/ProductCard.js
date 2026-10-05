@@ -24,8 +24,8 @@ export function createProductCard(product, viewMode = 'grid') {
     <!-- Card Badges -->
     <div class="card-badges">
       ${discountPct > 0 ? `<span class="badge badge-discount">-${discountPct}%</span>` : ''}
-      ${product.badges && product.badges.includes('NOVO') ? `<span class="badge badge-new">NOVO</span>` : ''}
-      ${product.badges && product.badges.includes('OFERTA') ? `<span class="badge badge-offer">OFERTA</span>` : ''}
+      ${(product.is_new || product.novo || (product.badges && product.badges.includes('NOVO'))) ? `<span class="badge badge-new">NOVO</span>` : ''}
+      ${(product.is_deal || product.oferta || (product.badges && product.badges.includes('OFERTA'))) ? `<span class="badge badge-offer">OFERTA</span>` : ''}
     </div>
 
     <!-- Wishlist Button -->
@@ -34,7 +34,7 @@ export function createProductCard(product, viewMode = 'grid') {
     </button>
 
     <!-- Product Image -->
-    <div class="card-img-wrap" data-link="/produto/${product.slug || product.id}">
+    <div class="card-img-wrap" data-link="/produto/${product.uid || product.slug || product.id}">
       ${product.image ? `
         <img src="${product.image}" alt="${product.name}" class="card-img" loading="lazy" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';" />
         <div style="display: none; width: 100%; height: 100%; min-height: 180px; background: #f8fafc; align-items: center; justify-content: center; color: var(--text-muted);">
@@ -54,7 +54,7 @@ export function createProductCard(product, viewMode = 'grid') {
     </div>
 
     <!-- Title -->
-    <h3 class="card-title" data-link="/produto/${product.slug || product.id}" title="${product.name}">
+    <h3 class="card-title" data-link="/produto/${product.uid || product.slug || product.id}" title="${product.name}">
       ${product.name}
     </h3>
 
@@ -165,7 +165,7 @@ export function createProductListCard(product) {
 
   card.innerHTML = `
     <!-- Thumbnail -->
-    <div class="list-img-wrap" data-link="/produto/${product.slug || product.id}">
+    <div class="list-img-wrap" data-link="/produto/${product.uid || product.slug || product.id}">
       ${product.image ? `
         <img src="${product.image}" alt="${product.name}" loading="lazy" />
       ` : `
@@ -178,21 +178,22 @@ export function createProductListCard(product) {
     <!-- Info Column -->
     <div class="list-info-col">
       <div class="list-brand-stock">
-        <span style="font-size:0.75rem; font-weight:700; color:#2563eb; text-transform:uppercase; letter-spacing:0.04em;">
+        <span class="list-brand-tag">
           ${product.brand || 'NovaTech'}
         </span>
-        <span style="font-size:0.75rem; color:${product.stock > 0 ? '#16a34a' : '#ef4444'}; font-weight:600; display:inline-flex; align-items:center; gap:4px;">
+        <span class="list-stock-tag" style="color:${product.stock > 0 ? '#16a34a' : '#ef4444'};">
           <span style="width:6px; height:6px; border-radius:50%; background:${product.stock > 0 ? '#16a34a' : '#ef4444'};"></span>
           ${product.stock > 0 ? 'Em Stock' : 'Esgotado'}
         </span>
-        ${discountPct > 0 ? `<span class="badge badge-discount" style="font-size:0.7rem; padding:1px 6px;">-${discountPct}%</span>` : ''}
+        ${(product.is_new || product.novo || (product.badges && product.badges.includes('NOVO'))) ? `<span class="badge badge-new" style="font-size:0.6875rem; padding:1px 6px;">NOVO</span>` : ''}
+        ${discountPct > 0 ? `<span class="badge badge-discount">-${discountPct}%</span>` : ''}
       </div>
 
-      <h3 class="list-title" data-link="/produto/${product.slug || product.id}" title="${product.name}">
+      <h3 class="list-title" data-link="/produto/${product.uid || product.slug || product.id}" title="${product.name}">
         ${product.name}
       </h3>
 
-      <div style="display:flex; align-items:center; gap:8px;">
+      <div class="list-meta-row">
         ${reviewsCount > 0 ? `
           <div class="stars" style="display:inline-flex; gap:2px;">${renderStars(Number(product.rating) || 5)}</div>
           <span style="font-size:0.75rem; color:#64748b;">(${reviewsCount})</span>
@@ -200,14 +201,22 @@ export function createProductListCard(product) {
           <span style="font-size:0.75rem; color:#94a3b8;">Sem avaliações</span>
         `}
         ${product.variants?.storage && product.variants.storage.length > 1 ? `
-          <span style="font-size:0.7rem; color:#64748b; background:#f1f5f9; padding:1px 6px; border-radius:4px;">
+          <span class="list-variants-badge">
             ${product.variants.storage.length} opções
           </span>
         ` : ''}
       </div>
+
+      <!-- Price for Mobile Screen (Hidden on Desktop) -->
+      <div class="list-price-mobile">
+        <div class="list-cur-price">${formatPrice(curPrice)}</div>
+        ${(product.oldPrice && Number(product.oldPrice) > Number(product.price)) ? `
+          <div class="list-old-price">${formatPrice(product.oldPrice)}</div>
+        ` : ''}
+      </div>
     </div>
 
-    <!-- Price Column -->
+    <!-- Price Column (Desktop) -->
     <div class="list-price-col">
       ${(product.oldPrice && Number(product.oldPrice) > Number(product.price)) ? `
         <div class="list-old-price">${formatPrice(product.oldPrice)}</div>
@@ -217,10 +226,10 @@ export function createProductListCard(product) {
 
     <!-- Actions Column -->
     <div class="list-action-col">
-      <button class="btn-wishlist ${isWishlisted ? 'active' : ''}" title="Adicionar aos Favoritos" data-wishlist-id="${product.id}" style="width:34px; height:34px; border-radius:8px; border:1px solid #e2e8f0; background:#ffffff; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+      <button class="btn-wishlist ${isWishlisted ? 'active' : ''}" title="Adicionar aos Favoritos" data-wishlist-id="${product.id}" aria-label="Favoritar">
         ${Icons.heart(16, isWishlisted ? '#ef4444' : 'currentColor', isWishlisted ? '#ef4444' : 'none')}
       </button>
-      <button class="btn btn-primary btn-sm btn-card-add" data-add-id="${product.id}" style="font-weight:600; padding:8px 14px; font-size:0.8125rem; display:inline-flex; align-items:center; gap:6px;">
+      <button class="btn btn-primary btn-sm btn-card-add" data-add-id="${product.id}">
         ${Icons.cart(16, '#ffffff')}
         <span>Adicionar</span>
       </button>

@@ -23,17 +23,26 @@ export function renderAccountView(initialTab = 'orders') {
 
   let currentTab = initialTab; // 'orders' | 'profile' | 'wishlist' | 'addresses'
   let profileSubTab = 'data'; // 'data' | 'security'
-  // IMPORTANTE: Inicia com lista vazia. Nunca usa Storage.getOrders() diretamente
-  // pois aquele cache é compartilhado e pode conter pedidos de outros usuários.
-  // A fonte de verdade é sempre o Supabase via Api.orders.getMyOrders().
+  
+  // Pré-carregamento imediato dos pedidos do usuário logado para eliminar qualquer delay
   let ordersList = [];
+  const initialUser = Storage.getUser();
+  if (initialUser) {
+    const allLocal = Storage.getOrders();
+    const uEmail = (initialUser.email || '').toLowerCase().trim();
+    ordersList = (Array.isArray(allLocal) ? allLocal : []).filter(o => {
+      const oEmail = (o.customer_email || o.email_cliente || o.customer?.email || '').toLowerCase().trim();
+      const oId = o.user_id || o.usuario_id || o.customer?.id;
+      return (uEmail && oEmail === uEmail) || (initialUser.id && String(oId) === String(initialUser.id));
+    });
+  }
+
   let availableProducts = [];
   let isSyncing = false;
 
   async function syncRealData() {
     const user = Storage.getUser();
     if (!user) {
-      // Sem usuário logado: lista vazia (nunca mostrar pedidos do cache compartilhado)
       ordersList = [];
       render();
       return;
@@ -42,7 +51,6 @@ export function renderAccountView(initialTab = 'orders') {
     isSyncing = true;
     try {
       const [fetchedOrders, fetchedProducts] = await Promise.all([
-        // Supabase = fonte de verdade. Fallback = lista vazia (nunca cache compartilhado)
         Api.orders.getMyOrders({ userId: user.id, userEmail: user.email }).catch(e => {
           console.warn('Erro ao buscar pedidos do usuário:', e.message);
           return [];
@@ -50,7 +58,7 @@ export function renderAccountView(initialTab = 'orders') {
         Api.products.getAll({ all: true }).catch(() => [])
       ]);
 
-      if (Array.isArray(fetchedOrders)) {
+      if (Array.isArray(fetchedOrders) && fetchedOrders.length > 0) {
         ordersList = fetchedOrders;
       }
       if (Array.isArray(fetchedProducts)) {

@@ -39,9 +39,9 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
   let activeBanners = cachedBanners;
   let isDatabaseLoaded = false;
 
-  let currentCategory = null;
-  let currentSubcategory = null; // subcategoria ativa
-  let expandedCategoryIds = new Set(); // controle de categorias expandidas
+  let selectedCategories = categorySlug ? [categorySlug] : [];
+  let selectedSubcategories = subcategorySlug ? [subcategorySlug] : [];
+  let expandedCategoryIds = new Set(); // Controle de categorias expandidas/recolhidas
   let selectedBrands = [];
   let maxPrice = 6000000;
   let onlyInStock = false;
@@ -49,13 +49,6 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
   let minRating = 0;
   let sortBy = 'relevant';
   let viewMode = 'grid'; // 'grid' | 'list'
-  let allBrands = [...new Set(activeProducts.map(p => p.brand).filter(Boolean))];
-
-  // Pré-resolve categoria pelo slug imediatamente se já estiver em cache
-  if (categorySlug && activeCategories.length > 0) {
-    currentCategory = activeCategories.find(c => c.slug === categorySlug) || null;
-    if (currentCategory) expandedCategoryIds.add(currentCategory.id);
-  }
 
   async function syncFromDatabase() {
     try {
@@ -72,25 +65,11 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
       isDatabaseLoaded = true;
       activeCategories = realCats || [];
 
-      // Resolve categoria ativa pelo slug
-      if (categorySlug && activeCategories.length > 0) {
-        currentCategory = activeCategories.find(c => c.slug === categorySlug) || null;
-        if (currentCategory) expandedCategoryIds.add(currentCategory.id);
+      if (categorySlug && !selectedCategories.includes(categorySlug)) {
+        selectedCategories.push(categorySlug);
       }
-
-      // Resolve subcategoria ativa pelo slug (vem de #/subcategoria/:slug ou filtro)
-      if (subcategorySlug && activeCategories.length > 0) {
-        for (const cat of activeCategories) {
-          const subs = Array.isArray(cat.subcategories) ? cat.subcategories : [];
-          const found = subs.find(s => s.slug === subcategorySlug);
-          if (found) {
-            currentSubcategory = found;
-            // Se veio por rota de subcategoria, ativa também a categoria pai
-            if (!currentCategory) currentCategory = cat;
-            if (cat) expandedCategoryIds.add(cat.id);
-            break;
-          }
-        }
+      if (subcategorySlug && !selectedSubcategories.includes(subcategorySlug)) {
+        selectedSubcategories.push(subcategorySlug);
       }
 
       activeBanners = (realBanners && realBanners.length > 0) ? realBanners : activeBanners;
@@ -104,10 +83,8 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
           variants: (typeof p.variants === 'object' && p.variants !== null) ? p.variants : (p.variants ? JSON.parse(p.variants) : {}),
           specs: (typeof p.specs === 'object' && p.specs !== null) ? p.specs : (p.specs ? JSON.parse(p.specs) : {})
         }));
-        allBrands = [...new Set(activeProducts.map(p => p.brand).filter(Boolean))];
       } else if (isDatabaseLoaded && (!realProds || realProds.length === 0)) {
         activeProducts = [];
-        allBrands = [];
       }
       render();
     } catch (e) {
@@ -134,24 +111,45 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
         return false;
       }
 
-      // Category filter (compara por ID numérico — mais confiável)
-      if (currentCategory) {
-        const prodCatId = product.category_id || product.categoria_id;
-        const catMatches =
-          String(prodCatId) === String(currentCategory.id) ||
-          product.category === currentCategory.slug ||
-          product.category === currentCategory.name;
-        if (!catMatches) return false;
-      }
+      // Category & Subcategory Filter via Checkboxes
+      const prodCatId = String(product.category_id || product.categoria_id || '');
+      const prodCatSlug = String(product.category || product.category_slug || '');
+      const prodSubId = String(product.subcategory_id || product.subcategoria_id || product.specs?.subcategory_id || '');
+      const prodSubSlug = String(product.subcategory || product.subcategory_slug || product.specs?.subcategory || '');
 
-      // Subcategory filter
-      if (currentSubcategory) {
-        const prodSubId = product.subcategory_id || product.subcategoria_id;
-        const subMatches =
-          String(prodSubId) === String(currentSubcategory.id) ||
-          product.subcategory === currentSubcategory.slug ||
-          product.subcategory_name === currentSubcategory.name;
-        if (!subMatches) return false;
+      const hasCategoryFilter = selectedCategories.length > 0;
+      const hasSubcategoryFilter = selectedSubcategories.length > 0;
+
+      if (hasCategoryFilter || hasSubcategoryFilter) {
+        let matchesCat = false;
+        let matchesSub = false;
+
+        if (hasCategoryFilter) {
+          matchesCat = selectedCategories.some(catVal => {
+            const cleanVal = String(catVal).toLowerCase();
+            return cleanVal === prodCatSlug.toLowerCase() ||
+                   cleanVal === prodCatId ||
+                   cleanVal === String(product.category_uid || '').toLowerCase() ||
+                   activeCategories.find(c => String(c.id) === cleanVal || (c.uid && c.uid.toLowerCase() === cleanVal) || (c.slug && c.slug.toLowerCase() === cleanVal))?.name?.toLowerCase() === (product.category || '').toLowerCase();
+          });
+        }
+
+        if (hasSubcategoryFilter) {
+          matchesSub = selectedSubcategories.some(subVal => {
+            const cleanSub = String(subVal).toLowerCase();
+            return cleanSub === prodSubSlug.toLowerCase() ||
+                   cleanSub === prodSubId ||
+                   cleanSub === String(product.subcategory_uid || '').toLowerCase();
+          });
+        }
+
+        if (hasCategoryFilter && hasSubcategoryFilter) {
+          if (!matchesCat && !matchesSub) return false;
+        } else if (hasCategoryFilter) {
+          if (!matchesCat) return false;
+        } else if (hasSubcategoryFilter) {
+          if (!matchesSub) return false;
+        }
       }
 
       // Search query
@@ -168,13 +166,16 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
       if (onlyDeals && (!product.oldPrice || product.oldPrice <= product.price)) {
         return false;
       }
-      // New filter
-      if (isNew && (!product.badges || !product.badges.includes('NOVO'))) {
+      // New filter (Novidades)
+      const isProductNew = Boolean(product.is_new || product.novo || (product.badges && product.badges.includes('NOVO')));
+      if (isNew && !isProductNew) {
         return false;
       }
-      // Brand filter
-      if (selectedBrands.length > 0 && !selectedBrands.includes(product.brand)) {
-        return false;
+      // Brand filter (100% Real Brands from Database)
+      if (selectedBrands.length > 0) {
+        const prodBrand = (product.brand || '').trim().toLowerCase();
+        const matchBrand = selectedBrands.some(b => b.trim().toLowerCase() === prodBrand);
+        if (!matchBrand) return false;
       }
       // Price filter
       if (product.price > maxPrice) {
@@ -191,10 +192,12 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
 
       return true;
     }).sort((a, b) => {
+      const aIsNew = Boolean(a.is_new || a.novo || (a.badges && a.badges.includes('NOVO')));
+      const bIsNew = Boolean(b.is_new || b.novo || (b.badges && b.badges.includes('NOVO')));
       if (sortBy === 'price_asc') return a.price - b.price;
       if (sortBy === 'price_desc') return b.price - a.price;
       if (sortBy === 'rating') return b.rating - a.rating;
-      if (sortBy === 'newest') return (b.badges?.includes('NOVO') ? 1 : 0) - (a.badges?.includes('NOVO') ? 1 : 0);
+      if (sortBy === 'newest') return (bIsNew ? 1 : 0) - (aIsNew ? 1 : 0);
       return 0; // relevant
     });
   }
@@ -205,16 +208,17 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
     {
       id: 'banner-institutional',
       tag: 'LOJA OFICIAL',
-      badge_text: 'LOJA OFICIAL',
-      title: 'NovaTech Angola',
-      highlight: '• TECNOLOGIA & ELETRÔNICOS EM LUANDA',
-      desc: 'Smartphones, computadores e eletrônicos de alto desempenho com garantia oficial, assistência técnica especializada e entregas expressas para todo o território nacional.',
+      badge_text: 'TECNOLOGIA & INOVAÇÃO',
+      title: 'NovaTech Angola • Smartphones & Eletrônicos',
+      highlight: 'Tecnologia de Alta Performance com Garantia Oficial',
+      desc: 'Smartphones, computadores e eletrônicos de alto desempenho com garantia oficial, assistência técnica autorizada e pronta entrega em Luanda.',
       button_text: 'Explorar Catálogo',
       button_link: '#/catalogo',
       tag_badge: 'Garantia NovaTech',
       specs_badge: 'Entregas Rápidas',
-      accent_color: '#2563eb',
-      image: ''
+      accent_color: '#0071e3',
+      image_url: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=1600&auto=format&fit=crop',
+      image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=1600&auto=format&fit=crop'
     }
   ];
 
@@ -289,24 +293,34 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
 
   function render() {
     const filtered = getFilteredProducts();
-    const isHomePage = !currentCategory && !searchQuery && !isDeals && !isNew;
+    const isHomePage = selectedCategories.length === 0 && selectedSubcategories.length === 0 && !searchQuery && !isDeals && !isNew;
     const hasActiveBanners = activeBanners && activeBanners.length > 0;
-    const currentBannerList = hasActiveBanners ? activeBanners : (isDatabaseLoaded ? defaultInstitutionalBanner : []);
+    const currentBannerList = hasActiveBanners ? activeBanners : defaultInstitutionalBanner;
     const f = currentBannerList.length > 0 ? currentBannerList[activeFlagshipIndex % currentBannerList.length] : null;
 
     const bannerTitle = f?.title || 'NovaTech Angola';
-    const bannerImg = f ? (f.image_url || f.image) : '';
+    const bannerImg = f ? (f.image_url || f.imagem_url || f.image) : '';
     const bannerLink = f ? (f.button_link || (f.slug ? `#/produto/${f.slug}` : '#/catalogo')) : '#/catalogo';
+
+    const existingBrands = Array.from(new Set(
+      activeProducts
+        .map(p => (p.brand || '').trim())
+        .filter(Boolean)
+    )).sort((a, b) => a.localeCompare(b, 'pt', { sensitivity: 'base' }));
+
+    const selectedCatNames = selectedCategories.map(catVal => {
+      const c = activeCategories.find(item => item.slug === catVal || String(item.id) === String(catVal));
+      return c ? c.name : catVal;
+    });
 
     const titleText = isDeals ? 'Ofertas & Promoções da Semana' :
       isNew ? 'Lançamentos & Novidades Tecnológicas' :
         searchQuery ? `Resultados da busca por "${searchQuery}"` :
-          currentCategory ? currentCategory.name : 'Catálogo Completo';
+          selectedCatNames.length > 0 ? selectedCatNames.join(', ') : 'Catálogo Completo';
 
-    const descText = currentCategory ? currentCategory.bannerDesc :
-      isDeals ? 'Aproveite descontos especiais em smartphones, gaming e áudio por tempo limitado.' :
-        searchQuery ? `Mostrando produtos que correspondem aos seus termos de pesquisa.` :
-          'Explore os mais avançados aparelhos eletrônicos, computadores e gadgets disponíveis com pronta entrega em Luanda.';
+    const descText = isDeals ? 'Aproveite descontos especiais em smartphones, gaming e áudio por tempo limitado.' :
+      searchQuery ? `Mostrando produtos que correspondem aos seus termos de pesquisa.` :
+        'Explore os mais avançados aparelhos eletrônicos, computadores e gadgets disponíveis com pronta entrega em Luanda.';
 
     container.innerHTML = `
       ${isHomePage ? `
@@ -319,10 +333,10 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
                   <img src="${bannerImg}" alt="${bannerTitle}" class="hero-clean-banner-img" id="heroProductImage" />
                 ` : `
                   <div class="hero-clean-fallback-banner">
-                    <div class="hero-fallback-brand-badge">NOVATECH ANGOLA</div>
+                    <div class="hero-fallback-brand-badge">TECNOLOGIA & INOVAÇÃO</div>
                     <h2 class="hero-fallback-title">${bannerTitle}</h2>
-                    <p class="hero-fallback-sub">Tecnologia de Ponta, Smartphones e Acessórios com Entrega em Luanda</p>
-                    <span class="btn btn-primary" style="margin-top: 12px; padding: 10px 24px; font-weight: 700;">Conferir Novidades →</span>
+                    <p class="hero-fallback-sub">Equipamentos e eletrônicos de alto desempenho com garantia oficial e entrega rápida.</p>
+                    <span class="btn btn-primary" style="margin-top: 14px; padding: 10px 24px; font-weight: 700; border-radius: 8px;">Explorar Catálogo →</span>
                   </div>
                 `}
               </a>
@@ -346,24 +360,21 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
             ` : ''}
           </div>
         </section>
+
       ` : `
         <!-- Filter Header Banner -->
-        <div style="margin-top: 20px; margin-bottom: 24px; background: linear-gradient(135deg, #090d16 0%, #1e293b 100%); color: #ffffff; padding: 28px 32px; border-radius: var(--radius-lg); position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
-          <div style="position: absolute; right: -20px; bottom: -20px; opacity: 0.08; color: #ffffff; pointer-events: none;">
-            ${Icons.package(180)}
-          </div>
+        <div style="margin-top: 16px; margin-bottom: 20px; background: linear-gradient(135deg, #090d16 0%, #1e293b 100%); color: #ffffff; padding: 22px 28px; border-radius: 12px; position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 4px 16px rgba(0,0,0,0.12);">
           <div style="position: relative; z-index: 2; max-width: 700px;">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
-              <span style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: #38bdf8; letter-spacing: 0.1em; background: rgba(56, 189, 248, 0.15); padding: 4px 10px; border-radius: 9999px;">
-                ${currentCategory ? 'Departamento Oficial' : isDeals ? 'Ofertas Especiais' : isNew ? 'Lançamentos' : 'Catálogo'}
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+              <span style="font-size: 0.6875rem; font-weight: 800; text-transform: uppercase; color: #38bdf8; letter-spacing: 0.08em; background: rgba(56, 189, 248, 0.15); padding: 3px 8px; border-radius: 4px;">
+                ${selectedCategories.length > 0 ? 'Filtro Ativo' : isDeals ? 'Ofertas' : isNew ? 'Lançamentos' : 'Catálogo'}
               </span>
-              ${currentSubcategory ? `<span style="color: #94a3b8; font-size: 0.8125rem;">/ ${currentSubcategory.name || currentSubcategory.nome}</span>` : ''}
             </div>
-            <h1 style="font-family: var(--font-display); font-size: 2.25rem; font-weight: 900; margin-bottom: 8px; letter-spacing: -0.02em;">
+            <h1 style="font-family: var(--font-display); font-size: 1.75rem; font-weight: 900; margin: 0 0 4px 0; letter-spacing: -0.02em;">
               ${titleText}
             </h1>
-            <p style="color: #cbd5e1; font-size: 0.9375rem; line-height: 1.5; margin: 0;">
-              ${descText || `Explore todos os produtos originais de alta tecnologia da linha ${titleText} com pronta entrega em Luanda.`}
+            <p style="color: #cbd5e1; font-size: 0.875rem; line-height: 1.4; margin: 0;">
+              ${descText || `Produtos oficiais com garantia e assistência técnica especializada.`}
             </p>
           </div>
         </div>
@@ -379,83 +390,85 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
 
       <!-- Catalog Main Layout -->
       <div class="catalog-layout">
-        <!-- Sidebar Filters -->
+        <!-- Sidebar Filters (Design Minimalista Apple / World-Class E-Commerce) -->
         <aside class="catalog-sidebar" id="catalogSidebar">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-            <span style="font-family: var(--font-display); font-size: 1.125rem; font-weight: 800; color: var(--text-main);">
-              Filtros
-            </span>
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <button id="clearFiltersBtn" style="font-size: 0.75rem; color: var(--primary-600); font-weight: 700; cursor: pointer;">
-                Limpar Tudo
+          <div class="catalog-sidebar-header">
+            <span class="catalog-sidebar-title">Filtros</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button type="button" id="clearFiltersBtn" class="catalog-clear-btn" title="Limpar todos os filtros">
+                Limpar tudo
               </button>
-              <button id="closeMobileFiltersBtn" class="mobile-sidebar-close" aria-label="Fechar Filtros">
-                ${Icons.close(20)}
+              <button type="button" id="closeMobileFiltersBtn" class="mobile-sidebar-close" aria-label="Fechar Filtros">
+                ${Icons.close(18)}
               </button>
             </div>
           </div>
 
-          <!-- Category Selector (Com suporte a expandir/recolher subcategorias e scroll limitado) -->
-          <div class="filter-section">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-              <h4 class="filter-title" style="margin: 0;">Categorias</h4>
-              <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">${activeCategories.length} disponíveis</span>
+          <!-- Category and Subcategory Selector (Checkboxes with Expand/Collapse) -->
+          <div class="filter-group">
+            <div class="filter-group-header">
+              <span>Categorias</span>
             </div>
-            <div class="filter-options-list" style="max-height: 380px; overflow-y: auto; padding-right: 4px;">
-              <label class="filter-label" style="cursor: pointer;">
-                <span class="filter-left-inline">
-                  <input type="radio" name="catRadio" value="all" ${!currentCategory ? 'checked' : ''} />
-                  <span style="font-weight: ${!currentCategory ? '700' : '500'};">Todas as Categorias</span>
-                </span>
-                <span class="filter-count">(${activeProducts.length})</span>
-              </label>
-
-              ${activeCategories.length === 0 ? `
-                <div style="font-size: 0.75rem; color: var(--text-muted); padding: 4px 0;">
-                  Nenhuma categoria cadastrada ainda.
-                </div>
-              ` : activeCategories.map(c => {
-                const subs = Array.isArray(c.subcategories) ? c.subcategories : [];
-                const isSelected = currentCategory?.slug === c.slug || String(currentCategory?.id) === String(c.id);
-                const isExpanded = expandedCategoryIds.has(c.id) || isSelected;
-                const catProdCount = activeProducts.filter(p => String(p.category_id) === String(c.id) || p.category === c.slug).length;
+            <div class="filter-group-content" style="max-height: 340px; overflow-y: auto; padding-right: 2px;">
+              ${activeCategories.map(c => {
+                const isChecked = selectedCategories.includes(c.slug) || selectedCategories.includes(String(c.id));
+                const catProdCount = activeProducts.filter(p => String(p.category_id || p.categoria_id) === String(c.id) || p.category === c.slug).length;
+                const subs = (Array.isArray(c.subcategories) ? c.subcategories : (Array.isArray(c.subcategorias) ? c.subcategorias : [])).filter(s => s.is_active !== false);
+                const isExpanded = expandedCategoryIds.has(String(c.id));
 
                 return `
-                  <div class="cat-accordion-item" style="margin-bottom: 4px;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; border-radius: 6px; padding: 2px 0;">
-                      <label class="filter-label" style="flex: 1; margin: 0; cursor: pointer;">
-                        <span class="filter-left-inline">
-                          <input type="radio" name="catRadio" value="${c.slug}" ${isSelected ? 'checked' : ''} />
-                          <span style="font-weight: ${isSelected ? '700' : '500'}; color: ${isSelected ? 'var(--primary-700)' : 'var(--text-main)'};">${c.name}</span>
-                        </span>
-                        <span class="filter-count">(${catProdCount})</span>
-                      </label>
+                  <div class="filter-cat-tree-node" style="margin-bottom: 6px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 6px; padding: 2px 0;">
+                      <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
+                        <input 
+                          type="checkbox" 
+                          class="apple-checkbox category-check" 
+                          value="${c.slug || c.id}" 
+                          data-cat-id="${c.id}"
+                          ${isChecked ? 'checked' : ''} 
+                        />
+                        <div class="cat-expand-trigger" data-cat-id="${c.id}" style="display: flex; align-items: center; justify-content: space-between; flex: 1; cursor: pointer; user-select: none;">
+                          <span class="filter-checkbox-label" style="font-weight: ${isChecked ? '700' : '500'};">${c.name}</span>
+                          <span class="filter-checkbox-count">(${catProdCount})</span>
+                        </div>
+                      </div>
+
                       ${subs.length > 0 ? `
-                        <button type="button" class="btn-toggle-subcat" data-cat-id="${c.id}" aria-label="Expandir ou recolher subcategorias" title="${isExpanded ? 'Recolher' : 'Expandir'} subcategorias" style="background: none; border: none; padding: 4px 6px; cursor: pointer; color: #64748b; font-size: 0.75rem; display: flex; align-items: center;">
-                          ${isExpanded ? '▲' : '▼'}
+                        <button 
+                          type="button" 
+                          class="btn-toggle-subcat" 
+                          data-cat-id="${c.id}" 
+                          aria-label="Expandir ou recolher subcategorias" 
+                          title="${isExpanded ? 'Recolher subcategorias' : 'Expandir subcategorias'}"
+                          style="background: none; border: none; padding: 6px; cursor: pointer; color: #86868b; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s ease;"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="transform: rotate(${isExpanded ? '180deg' : '0deg'}); transition: transform 0.25s ease;">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                          </svg>
                         </button>
                       ` : ''}
                     </div>
 
-                    <!-- Subcategorias Aninhadas Expansíveis -->
                     ${(subs.length > 0 && isExpanded) ? `
-                      <div class="nested-subcats" style="margin-left: 20px; padding-left: 8px; border-left: 2px solid var(--primary-100, #e2e8f0); margin-top: 4px; margin-bottom: 6px; display: flex; flex-direction: column; gap: 4px;">
-                        <label class="filter-label" style="font-size: 0.8125rem; margin: 0; cursor: pointer;">
-                          <span class="filter-left-inline">
-                            <input type="radio" name="subcatRadio" value="all_${c.id}" data-parent-cat="${c.slug}" ${isSelected && !currentSubcategory ? 'checked' : ''} />
-                            <span style="color: #64748b;">Todas de ${c.name}</span>
-                          </span>
-                        </label>
+                      <div class="filter-subcat-list" style="margin-left: 20px; padding-left: 10px; border-left: 1.5px solid #e5e5e7; margin-top: 4px; display: flex; flex-direction: column; gap: 4px;">
                         ${subs.map(s => {
-                          const isSubSelected = currentSubcategory?.slug === s.slug || String(currentSubcategory?.id) === String(s.id);
-                          const subProdCount = activeProducts.filter(p => String(p.subcategory_id) === String(s.id) || p.subcategory === s.slug).length;
+                          const isSubChecked = selectedSubcategories.includes(s.slug) || selectedSubcategories.includes(String(s.id));
+                          const subProdCount = activeProducts.filter(p => 
+                            String(p.subcategory_id || p.subcategoria_id || p.specs?.subcategory_id) === String(s.id) || 
+                            p.subcategory === s.slug
+                          ).length;
+
                           return `
-                            <label class="filter-label" style="font-size: 0.8125rem; margin: 0; cursor: pointer;">
-                              <span class="filter-left-inline">
-                                <input type="radio" name="subcatRadio" value="${s.slug || s.id}" data-parent-cat="${c.slug}" ${isSubSelected ? 'checked' : ''} />
-                                <span style="font-weight: ${isSubSelected ? '700' : '400'}; color: ${isSubSelected ? 'var(--primary-600)' : 'var(--text-secondary)'};">${s.name || s.nome}</span>
-                              </span>
-                              <span class="filter-count" style="font-size: 0.7rem;">(${subProdCount})</span>
+                            <label class="filter-checkbox-row" style="font-size: 0.8125rem;">
+                              <input 
+                                type="checkbox" 
+                                class="apple-checkbox subcategory-check" 
+                                value="${s.slug || s.id}" 
+                                data-parent-cat="${c.slug || c.id}"
+                                ${isSubChecked ? 'checked' : ''} 
+                              />
+                              <span class="filter-checkbox-label" style="color: #424245;">${s.name || s.nome}</span>
+                              <span class="filter-checkbox-count">(${subProdCount})</span>
                             </label>
                           `;
                         }).join('')}
@@ -467,90 +480,80 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
             </div>
           </div>
 
-          <!-- Price Filter -->
-          <div class="filter-section">
-            <h4 class="filter-title">Preço Máximo</h4>
-            <div style="font-family: var(--font-display); font-size: 1.125rem; font-weight: 800; color: var(--primary-700); margin-bottom: 10px;" id="priceDisplay">
-              ${formatPrice(maxPrice)}
-            </div>
-            <input 
-              type="range" 
-              id="priceRangeSlider" 
-              min="100000" 
-              max="6000000" 
-              step="50000" 
-              value="${maxPrice}" 
-              style="width: 100%; accent-color: var(--primary-600); cursor: pointer;" 
-            />
-            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
-              <span>Kz 100.000</span>
-              <span>Kz 6.000.000</span>
-            </div>
-          </div>
+          <!-- Brand Checkbox Filter (100% Real Brands Read From Database) -->
+          ${existingBrands.length > 0 ? `
+            <div class="filter-group">
+              <div class="filter-group-header">
+                <span>Marcas</span>
+              </div>
+              <div class="filter-group-content" style="max-height: 220px; overflow-y: auto; padding-right: 2px;">
+                ${existingBrands.map(b => {
+                  const count = activeProducts.filter(p => (p.brand || '').trim().toLowerCase() === b.toLowerCase()).length;
+                  const isChecked = selectedBrands.map(x => x.toLowerCase()).includes(b.toLowerCase());
 
-          <!-- Brand Filter -->
-          <div class="filter-section">
-            <h4 class="filter-title">Marcas</h4>
-            <div class="filter-options-list">
-              ${allBrands.length === 0 ? `
-                <div style="font-size: 0.75rem; color: var(--text-muted); padding: 4px 0;">
-                  Nenhuma marca cadastrada ainda.
-                </div>
-              ` : allBrands.map(b => {
-                const count = activeProducts.filter(p => p.brand === b).length;
-                const checked = selectedBrands.includes(b);
-                return `
-                  <label class="filter-label">
-                    <span class="filter-left-inline">
-                      <input type="checkbox" class="brand-check" value="${b}" ${checked ? 'checked' : ''} />
-                      <span>${b}</span>
-                    </span>
-                    <span class="filter-count">(${count})</span>
-                  </label>
-                `;
-              }).join('')}
+                  return `
+                    <label class="filter-checkbox-row">
+                      <input 
+                        type="checkbox" 
+                        class="apple-checkbox brand-check" 
+                        value="${b}" 
+                        ${isChecked ? 'checked' : ''} 
+                      />
+                      <span class="filter-checkbox-label">${b}</span>
+                      <span class="filter-checkbox-count">(${count})</span>
+                    </label>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- Price Filter -->
+          <div class="filter-group">
+            <div class="filter-group-header">
+              <span>Faixa de Preço</span>
+            </div>
+            <div class="filter-group-content">
+              <div class="filter-price-summary">
+                <span class="price-val-label">Até</span>
+                <span class="price-val-amount" id="priceDisplay">${formatPrice(maxPrice)}</span>
+              </div>
+              <input 
+                type="range" 
+                id="priceRangeSlider" 
+                class="apple-range-slider"
+                min="100000" 
+                max="6000000" 
+                step="50000" 
+                value="${maxPrice}" 
+              />
+              <div class="price-range-limits">
+                <span>Kz 100.000</span>
+                <span>Kz 6.000.000</span>
+              </div>
             </div>
           </div>
 
           <!-- Availability & Deals -->
-          <div class="filter-section">
-            <h4 class="filter-title">Condição & Ofertas</h4>
-            <div class="filter-options-list">
-              <label class="filter-label">
-                <span class="filter-left-inline">
-                  <input type="checkbox" id="checkInStock" ${onlyInStock ? 'checked' : ''} />
-                  <span>Apenas em Stock</span>
-                </span>
+          <div class="filter-group">
+            <div class="filter-group-header">
+              <span>Disponibilidade</span>
+            </div>
+            <div class="filter-group-content">
+              <label class="filter-checkbox-row">
+                <input type="checkbox" class="apple-checkbox" id="checkInStock" ${onlyInStock ? 'checked' : ''} />
+                <span class="filter-checkbox-label">Apenas em estoque</span>
+                <span class="filter-checkbox-count">(${activeProducts.filter(p => p.stock > 0).length})</span>
               </label>
-              <label class="filter-label">
-                <span class="filter-left-inline">
-                  <input type="checkbox" id="checkDeals" ${onlyDeals ? 'checked' : ''} />
-                  <span>Apenas com Desconto</span>
-                </span>
+              <label class="filter-checkbox-row">
+                <input type="checkbox" class="apple-checkbox" id="checkDeals" ${onlyDeals ? 'checked' : ''} />
+                <span class="filter-checkbox-label">Apenas com desconto</span>
+                <span class="filter-checkbox-count">(${activeProducts.filter(p => p.oldPrice && p.oldPrice > p.price).length})</span>
               </label>
             </div>
           </div>
 
-          <!-- Avaliação -->
-          <div class="filter-section">
-            <h4 class="filter-title">Avaliação</h4>
-            <div class="filter-options-list">
-              <label class="filter-label">
-                <span class="filter-left-inline">
-                  <input type="radio" name="ratingRadio" value="0" ${minRating === 0 ? 'checked' : ''} />
-                  <span>Todas as avaliações</span>
-                </span>
-              </label>
-              <label class="filter-label">
-                <span class="filter-left-inline">
-                  <input type="radio" name="ratingRadio" value="4" ${minRating === 4 ? 'checked' : ''} />
-                  <span>4 estrelas ou mais</span>
-                </span>
-              </label>
-            </div>
-          </div>
-
-          <div class="mobile-sidebar-footer mobile-only" style="display: none;">
+          <div class="mobile-sidebar-footer">
             <button id="applyMobileFiltersBtn" class="btn btn-primary btn-full">
               Aplicar Filtros (${filtered.length})
             </button>
@@ -682,57 +685,71 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
       };
     }
 
-    // Toggle Category Expansion
+    // Toggle Expand/Collapse Subcategories (Chevron + Category Text Click)
+    const toggleCatExpand = (catId) => {
+      const idStr = String(catId);
+      if (expandedCategoryIds.has(idStr)) {
+        expandedCategoryIds.delete(idStr);
+      } else {
+        expandedCategoryIds.add(idStr);
+      }
+      render();
+    };
+
     container.querySelectorAll('.btn-toggle-subcat').forEach(btn => {
       btn.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        const catId = Number(btn.dataset.catId);
-        if (expandedCategoryIds.has(catId)) {
-          expandedCategoryIds.delete(catId);
-        } else {
-          expandedCategoryIds.add(catId);
-        }
-        render();
+        toggleCatExpand(btn.dataset.catId);
       };
     });
 
-    // Category Radio
-    container.querySelectorAll('input[name="catRadio"]').forEach(radio => {
-      radio.onchange = () => {
-        currentSubcategory = null; // Reseta subcategoria ao mudar de categoria
-        if (radio.value === 'all') {
-          currentCategory = null;
+    container.querySelectorAll('.cat-expand-trigger').forEach(trigger => {
+      trigger.onclick = (e) => {
+        const catId = trigger.dataset.catId;
+        const cat = activeCategories.find(c => String(c.id) === String(catId));
+        const subs = cat ? (Array.isArray(cat.subcategories) ? cat.subcategories : (Array.isArray(cat.subcategorias) ? cat.subcategorias : [])).filter(s => s.is_active !== false) : [];
+        if (subs.length > 0) {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleCatExpand(catId);
         } else {
-          currentCategory = activeCategories.find(c => c.slug === radio.value) || null;
-          if (currentCategory) {
-            expandedCategoryIds.add(currentCategory.id);
+          const cb = trigger.closest('.filter-cat-tree-node')?.querySelector('.category-check');
+          if (cb) {
+            cb.checked = !cb.checked;
+            cb.dispatchEvent(new Event('change'));
           }
         }
-        render();
       };
     });
 
-    // Subcategory Radio
-    container.querySelectorAll('input[name="subcatRadio"]').forEach(radio => {
-      radio.onchange = () => {
-        const parentSlug = radio.dataset.parentCat;
-        if (parentSlug && (!currentCategory || currentCategory.slug !== parentSlug)) {
-          currentCategory = activeCategories.find(c => c.slug === parentSlug) || currentCategory;
-          if (currentCategory) expandedCategoryIds.add(currentCategory.id);
-        }
-
-        if (radio.value.startsWith('all_')) {
-          currentSubcategory = null;
+    // Category Checkboxes
+    container.querySelectorAll('.category-check').forEach(cb => {
+      cb.onchange = () => {
+        const val = cb.value;
+        if (cb.checked) {
+          if (!selectedCategories.includes(val)) selectedCategories.push(val);
         } else {
-          const subs = currentCategory && Array.isArray(currentCategory.subcategories) ? currentCategory.subcategories : [];
-          currentSubcategory = subs.find(s => s.slug === radio.value || String(s.id) === String(radio.value)) || null;
+          selectedCategories = selectedCategories.filter(c => c !== val);
         }
         render();
       };
     });
 
-    // Price Slider
+    // Subcategory Checkboxes
+    container.querySelectorAll('.subcategory-check').forEach(cb => {
+      cb.onchange = () => {
+        const val = cb.value;
+        if (cb.checked) {
+          if (!selectedSubcategories.includes(val)) selectedSubcategories.push(val);
+        } else {
+          selectedSubcategories = selectedSubcategories.filter(s => s !== val);
+        }
+        render();
+      };
+    });
+
+    // Price Slider (Apple Range Slider)
     const priceSlider = container.querySelector('#priceRangeSlider');
     if (priceSlider) {
       priceSlider.oninput = () => {
@@ -743,19 +760,20 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
       priceSlider.onchange = () => render();
     }
 
-    // Brand Checkboxes
+    // Brand Checkboxes (100% Real Brands)
     container.querySelectorAll('.brand-check').forEach(cb => {
       cb.onchange = () => {
+        const val = cb.value;
         if (cb.checked) {
-          selectedBrands.push(cb.value);
+          if (!selectedBrands.includes(val)) selectedBrands.push(val);
         } else {
-          selectedBrands = selectedBrands.filter(b => b !== cb.value);
+          selectedBrands = selectedBrands.filter(b => b.toLowerCase() !== val.toLowerCase());
         }
         render();
       };
     });
 
-    // In Stock & Deals
+    // In Stock & Deals Checkboxes
     const stockCb = container.querySelector('#checkInStock');
     if (stockCb) {
       stockCb.onchange = () => {
@@ -772,25 +790,17 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
       };
     }
 
-    // Rating Radio
-    container.querySelectorAll('input[name="ratingRadio"]').forEach(r => {
-      r.onchange = () => {
-        minRating = Number(r.value);
-        render();
-      };
-    });
-
     // Clear Filters
     const clearBtn = container.querySelector('#clearFiltersBtn');
     if (clearBtn) {
       clearBtn.onclick = () => {
+        selectedCategories = [];
+        selectedSubcategories = [];
         selectedBrands = [];
         maxPrice = 6000000;
         onlyInStock = false;
         onlyDeals = false;
         minRating = 0;
-        currentCategory = null;
-        currentSubcategory = null;
         render();
       };
     }
@@ -798,13 +808,13 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
     const emptyClearBtn = container.querySelector('#emptyClearFiltersBtn');
     if (emptyClearBtn) {
       emptyClearBtn.onclick = () => {
+        selectedCategories = [];
+        selectedSubcategories = [];
         selectedBrands = [];
         maxPrice = 6000000;
         onlyInStock = false;
         onlyDeals = false;
         minRating = 0;
-        currentCategory = null;
-        currentSubcategory = null;
         render();
       };
     }
@@ -834,7 +844,7 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
     }
 
     // Hero Banner navigation & Interações do Carrossel Automático
-    const isHomePageNow = !currentCategory && !searchQuery && !isDeals && !isNew;
+    const isHomePageNow = selectedCategories.length === 0 && selectedSubcategories.length === 0 && !searchQuery && !isDeals && !isNew;
     const heroBox = container.querySelector('#heroCommercialBox');
     if (heroBox && isHomePageNow) {
       // Pausa durante o hover do mouse e retoma ao sair

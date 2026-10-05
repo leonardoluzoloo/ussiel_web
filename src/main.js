@@ -315,5 +315,9 @@ function initApp() {
   netlifyObserver.observe(document.documentElement, { childList: true, subtree: true });
 }
 
-// Start app when DOM is ready
-document.addEventListener('DOMContentLoaded', initApp);
+// Start app safely regardless of when script is loaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}

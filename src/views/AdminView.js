@@ -4173,6 +4173,10 @@ export function renderAdminView() {
                   <span style="color: #64748b;">Método:</span>
                   <span style="font-weight: 600; color: #0f172a;">${(order.payment_method || order.metodo_pagamento || 'MULTICAIXA').toUpperCase()}</span>
                 </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: #64748b;">Condição:</span>
+                  <span style="font-weight: 700; color: #15803d; background: #f0fdf4; padding: 2px 7px; border-radius: 4px; border: 1px solid #bbf7d0; font-size: 0.6875rem;">PRONTO PAGAMENTO (À VISTA)</span>
+                </div>
                 <div style="display: flex; justify-content: space-between;">
                   <span style="color: #64748b;">Subtotal:</span>
                   <span>${formatPrice(order.subtotal || order.total)}</span>
@@ -4236,10 +4240,10 @@ export function renderAdminView() {
                         `}
                         <div style="min-width: 0;">
                           <div style="font-size: 0.8125rem; font-weight: 600; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px;" title="${name}">${name}</div>
-                          <div style="display: flex; gap: 6px; align-items: center; font-size: 0.6875rem; color: #64748b;">
+                          <div style="display: flex; gap: 8px; align-items: center; font-size: 0.75rem; color: #64748b;">
                             ${it.product_sku ? `<span>SKU: ${it.product_sku}</span>` : ''}
                             ${variantStr ? `<span style="color: #2563eb;">${variantStr}</span>` : ''}
-                            <span>${qty}x ${formatPrice(price)}</span>
+                            <span style="font-weight: 600; color: #334155;">Qtd: ${qty} un. (${formatPrice(price)} / un.)</span>
                           </div>
                         </div>
                       </div>

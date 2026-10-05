@@ -19,6 +19,7 @@ class LoginRequest(BaseModel):
 
 class UserResponse(UserBase):
     id: int
+    uid: Optional[str] = None
     role: str
     is_active: bool
     created_at: datetime
@@ -58,6 +59,7 @@ class AddressCreate(AddressBase):
 
 class AddressResponse(AddressBase):
     id: int
+    uid: Optional[str] = None
     user_id: Optional[int] = None
     class Config:
         from_attributes = True
@@ -67,6 +69,7 @@ class AddressResponse(AddressBase):
 # ===================================================================
 class CategoryResponse(BaseModel):
     id: int
+    uid: Optional[str] = None
     slug: str
     name: str
     description: Optional[str] = None
@@ -115,6 +118,7 @@ class ProductUpdate(BaseModel):
 
 class ProductResponse(ProductBase):
     id: int
+    uid: Optional[str] = None
     sku: str
     slug: str
     category_id: int
@@ -139,6 +143,7 @@ class OrderItemCreate(BaseModel):
 
 class OrderItemResponse(BaseModel):
     id: int
+    uid: Optional[str] = None
     product_id: Optional[int] = None
     product_sku: Optional[str] = None
     product_name: str
@@ -170,6 +175,7 @@ class OrderStatusUpdate(BaseModel):
 
 class OrderResponse(BaseModel):
     id: int
+    uid: Optional[str] = None
     order_code: str
     user_id: Optional[int] = None
     customer_name: str
@@ -195,6 +201,7 @@ class OrderResponse(BaseModel):
 # COUPON SCHEMAS
 # ===================================================================
 class CouponResponse(BaseModel):
+    uid: Optional[str] = None
     code: str
     discount_type: str
     discount_value: float
@@ -212,3 +219,4 @@ class AdminStatsResponse(BaseModel):
     total_products: int
     total_categories: int
     recent_orders: List[OrderResponse]
+

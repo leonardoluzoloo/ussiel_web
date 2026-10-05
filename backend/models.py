@@ -1,11 +1,16 @@
+import uuid
 from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, Text, DateTime, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .database import Base
 
+def generate_uuid_str():
+    return str(uuid.uuid4())
+
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
+    uid = Column(String(36), default=generate_uuid_str, unique=True, index=True, nullable=False)
     name = Column(String(100), nullable=False)
     email = Column(String(150), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
@@ -21,6 +26,7 @@ class User(Base):
 class Address(Base):
     __tablename__ = "addresses"
     id = Column(Integer, primary_key=True, index=True)
+    uid = Column(String(36), default=generate_uuid_str, unique=True, index=True, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     province = Column(String(50), default="Luanda")
     city = Column(String(50), nullable=False)
@@ -35,6 +41,7 @@ class Address(Base):
 class Category(Base):
     __tablename__ = "categories"
     id = Column(Integer, primary_key=True, index=True)
+    uid = Column(String(36), default=generate_uuid_str, unique=True, index=True, nullable=False)
     slug = Column(String(60), unique=True, index=True, nullable=False)
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
@@ -45,6 +52,7 @@ class Category(Base):
 class Product(Base):
     __tablename__ = "products"
     id = Column(Integer, primary_key=True, index=True)
+    uid = Column(String(36), default=generate_uuid_str, unique=True, index=True, nullable=False)
     sku = Column(String(50), unique=True, index=True, nullable=False)
     slug = Column(String(150), unique=True, index=True, nullable=False)
     name = Column(String(200), nullable=False)
@@ -73,6 +81,7 @@ class Product(Base):
 class Order(Base):
     __tablename__ = "orders"
     id = Column(Integer, primary_key=True, index=True)
+    uid = Column(String(36), default=generate_uuid_str, unique=True, index=True, nullable=False)
     order_code = Column(String(50), unique=True, index=True, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     customer_name = Column(String(100), nullable=False)
@@ -97,6 +106,7 @@ class Order(Base):
 class OrderItem(Base):
     __tablename__ = "order_items"
     id = Column(Integer, primary_key=True, index=True)
+    uid = Column(String(36), default=generate_uuid_str, unique=True, index=True, nullable=False)
     order_id = Column(Integer, ForeignKey("orders.id"))
     product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
     product_sku = Column(String(50), nullable=True)
@@ -112,6 +122,7 @@ class OrderItem(Base):
 class Coupon(Base):
     __tablename__ = "coupons"
     id = Column(Integer, primary_key=True, index=True)
+    uid = Column(String(36), default=generate_uuid_str, unique=True, index=True, nullable=False)
     code = Column(String(40), unique=True, index=True, nullable=False)
     discount_type = Column(String(20), default="percent") # percent, fixed, free_shipping
     discount_value = Column(Float, default=10.0)
@@ -122,6 +133,7 @@ class Coupon(Base):
 class Review(Base):
     __tablename__ = "reviews"
     id = Column(Integer, primary_key=True, index=True)
+    uid = Column(String(36), default=generate_uuid_str, unique=True, index=True, nullable=False)
     product_id = Column(Integer, ForeignKey("products.id"))
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     author_name = Column(String(100), nullable=False)
@@ -135,5 +147,7 @@ class Review(Base):
 class NewsletterSubscriber(Base):
     __tablename__ = "newsletter_subscribers"
     id = Column(Integer, primary_key=True, index=True)
+    uid = Column(String(36), default=generate_uuid_str, unique=True, index=True, nullable=False)
     email = Column(String(150), unique=True, index=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+

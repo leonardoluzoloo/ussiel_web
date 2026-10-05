@@ -115,12 +115,12 @@ export function renderCheckoutView() {
     formData.phone = formData.phone || activeUser.phone || '';
     formData.whatsapp = formData.whatsapp || activeUser.whatsapp || activeUser.phone || '';
     formData.multicaixaPhone = formData.multicaixaPhone || activeUser.phone || '';
-    if (!formData.street && (activeUser.endereco || activeUser.street)) {
-      formData.street = activeUser.endereco || activeUser.street || '';
-    }
-    if (!formData.reference && (activeUser.ponto_referencia || activeUser.reference)) {
-      formData.reference = activeUser.ponto_referencia || activeUser.reference || '';
-    }
+    formData.province = formData.province || activeUser.provincia || 'Luanda';
+    formData.city = formData.city || activeUser.cidade || activeUser.city || '';
+    formData.neighborhood = formData.neighborhood || activeUser.bairro || activeUser.neighborhood || '';
+    formData.street = formData.street || activeUser.rua || activeUser.street || activeUser.endereco || '';
+    formData.number = formData.number || activeUser.numero || activeUser.number || '';
+    formData.reference = formData.reference || activeUser.ponto_referencia || activeUser.reference || '';
 
     const cart = Storage.getCart();
     const subtotal = Storage.getCartSubtotal();
@@ -131,7 +131,7 @@ export function renderCheckoutView() {
         <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 72px 24px; text-align: center; margin: 48px 0;">
           <h2 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 8px;">Nenhum produto no carrinho</h2>
           <p style="color: var(--text-secondary); margin-bottom: 24px;">Adicione produtos antes de iniciar o checkout.</p>
-          <a href="#/" class="btn btn-primary">Voltar ao Início</a>
+          <a href="#/catalogo" class="btn btn-primary">Explorar Catálogo</a>
         </div>
       `;
       return;
@@ -165,11 +165,11 @@ export function renderCheckoutView() {
     }
 
     container.innerHTML = `
-      <div style="margin-top: 32px; margin-bottom: 24px;">
-        <h1 style="font-family: var(--font-display); font-size: 2rem; font-weight: 900; color: var(--text-main);">
+      <div style="margin-top: 28px; margin-bottom: 24px;">
+        <h1 style="font-family: var(--font-display); font-size: 1.875rem; font-weight: 900; color: #0f172a; margin-bottom: 4px;">
           Finalização de Compra Segura
         </h1>
-        <div style="display: flex; gap: 8px; margin-top: 8px; font-size: 0.8125rem; color: var(--text-muted);">
+        <div style="display: flex; gap: 8px; font-size: 0.8125rem; color: #64748b;">
           <span>Etapa ${currentStep} de 4</span>
           <span>•</span>
           <span>Ambiente Criptografado SSL</span>
@@ -182,47 +182,47 @@ export function renderCheckoutView() {
           <!-- Step 1: Identification -->
           <div class="checkout-step-card" style="${currentStep !== 1 ? 'opacity: 0.9;' : ''}">
             <div class="checkout-step-header">
-              <div class="step-number" style="${currentStep > 1 ? 'background: var(--accent-emerald);' : ''}">
+              <div class="step-number" style="${currentStep > 1 ? 'background: #10b981;' : ''}">
                 ${currentStep > 1 ? Icons.check(18, '#ffffff') : '1'}
               </div>
               <div>
                 <h3 class="step-title">1. Dados do Cliente / Identificação</h3>
-                <span style="font-size: 0.75rem; color: var(--accent-emerald); font-weight: 600;">✓ Sessão iniciada com conta oficial NovaTech</span>
+                <span style="font-size: 0.75rem; color: #10b981; font-weight: 600;">✓ Sessão iniciada com conta oficial</span>
               </div>
             </div>
 
             ${currentStep === 1 ? `
               <form id="step1Form" onsubmit="event.preventDefault();" class="form-grid">
                 <div class="form-group form-group-full">
-                  <label class="form-label">Nome Completo *</label>
-                  <input type="text" id="custName" class="form-input" required value="${formData.name}" placeholder="Seu Nome Completo" />
+                  <label class="form-label" style="font-size: 0.8125rem; font-weight: 600; color: #334155;">Nome Completo *</label>
+                  <input type="text" id="custName" class="form-input" required value="${formData.name}" placeholder="Seu Nome Completo" style="font-size: 16px; height: 42px; border-radius: 8px;" />
                 </div>
 
                 <div class="form-group form-group-half">
-                  <label class="form-label">E-mail para Confirmação *</label>
-                  <input type="email" id="custEmail" class="form-input" required value="${formData.email}" placeholder="seu.email@exemplo.com" />
+                  <label class="form-label" style="font-size: 0.8125rem; font-weight: 600; color: #334155;">E-mail para Confirmação *</label>
+                  <input type="email" id="custEmail" class="form-input" required value="${formData.email}" placeholder="seu.email@exemplo.com" style="font-size: 16px; height: 42px; border-radius: 8px;" />
                 </div>
 
                 <div class="form-group form-group-half">
-                  <label class="form-label">Telefone / Telemóvel *</label>
-                  <input type="tel" id="custPhone" class="form-input" required value="${formData.phone}" placeholder="+244 923 179 192" />
+                  <label class="form-label" style="font-size: 0.8125rem; font-weight: 600; color: #334155;">Telefone / Telemóvel *</label>
+                  <input type="tel" id="custPhone" class="form-input" required value="${formData.phone}" placeholder="+244 923 000 000" style="font-size: 16px; height: 42px; border-radius: 8px;" />
                 </div>
 
                 <div class="form-group form-group-full">
-                  <label class="form-label">WhatsApp (para envio do comprovativo e rastreio)</label>
-                  <input type="tel" id="custWhatsApp" class="form-input" value="${formData.whatsapp}" placeholder="+244 923 179 192" />
+                  <label class="form-label" style="font-size: 0.8125rem; font-weight: 600; color: #334155;">WhatsApp (para envio de comprovativo e rastreio)</label>
+                  <input type="tel" id="custWhatsApp" class="form-input" value="${formData.whatsapp}" placeholder="+244 923 000 000" style="font-size: 16px; height: 42px; border-radius: 8px;" />
                 </div>
 
                 <div class="checkout-actions-row" style="justify-content: flex-end;">
-                  <button type="submit" class="btn btn-primary" style="padding: 12px 28px;">
+                  <button type="submit" class="btn btn-primary" style="padding: 12px 28px; border-radius: 8px; font-weight: 700;">
                     Continuar para o Endereço →
                   </button>
                 </div>
               </form>
             ` : `
-              <div style="font-size: 0.875rem; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center;">
+              <div style="font-size: 0.875rem; color: #475569; display: flex; justify-content: space-between; align-items: center;">
                 <span><strong>${formData.name}</strong> • ${formData.email} • ${formData.phone}</span>
-                <button class="step-edit-btn" data-goto-step="1" style="color: var(--primary-600); font-weight: 700; cursor: pointer;">Editar</button>
+                <button class="step-edit-btn" data-goto-step="1" style="color: #0284c7; font-weight: 700; cursor: pointer; background: none; border: none;">Editar</button>
               </div>
             `}
           </div>
@@ -230,63 +230,61 @@ export function renderCheckoutView() {
           <!-- Step 2: Delivery Address -->
           <div class="checkout-step-card" style="${currentStep < 2 ? 'opacity: 0.6; pointer-events: none;' : ''}">
             <div class="checkout-step-header">
-              <div class="step-number" style="${currentStep > 2 ? 'background: var(--accent-emerald);' : ''}">
+              <div class="step-number" style="${currentStep > 2 ? 'background: #10b981;' : ''}">
                 ${currentStep > 2 ? Icons.check(18, '#ffffff') : '2'}
               </div>
               <div>
                 <h3 class="step-title">2. Endereço de Entrega em Angola</h3>
-                <span style="font-size: 0.75rem; color: var(--text-muted);">Onde deseja receber a sua encomenda?</span>
+                <span style="font-size: 0.75rem; color: #64748b;">Onde deseja receber a sua encomenda?</span>
               </div>
             </div>
 
             ${currentStep === 2 ? `
               <form id="step2Form" onsubmit="event.preventDefault();" class="form-grid">
                 <div class="form-group form-group-half">
-                  <label class="form-label">Província *</label>
-                  <select id="addrProvince" class="form-select">
-                    ${ANGOLA_PROVINCES.map(p => `
-                      <option value="${p.name}" ${p.name === (formData.province || 'Luanda') ? 'selected' : ''} ${!p.active ? 'disabled style="color: #94a3b8; background: #f8fafc;"' : 'style="font-weight: 600;"'}>
-                        ${p.name}${!p.active ? ' (Indisponível)' : ' (Disponível)'}
-                      </option>
-                    `).join('')}
+                  <label class="form-label" style="font-size: 0.8125rem; font-weight: 600; color: #334155;">Província *</label>
+                  <select id="addrProvince" class="form-select" style="font-size: 16px; height: 42px; border-radius: 8px;">
+                    ${ANGOLA_PROVINCES.map(p => {
+                      const pName = typeof p === 'object' ? p.name : p;
+                      return `<option value="${pName}" ${pName === (formData.province || 'Luanda') ? 'selected' : ''}>${pName}</option>`;
+                    }).join('')}
                   </select>
-                  <span style="font-size: 0.72rem; color: #64748b; margin-top: 4px; display: block;">* Entregas ativas exclusivamente em Luanda por enquanto.</span>
                 </div>
 
                 <div class="form-group form-group-half">
-                  <label class="form-label">Município *</label>
-                  <input type="text" id="addrCity" class="form-input" required value="${formData.city}" placeholder="Ex: Talatona, Belas, Maianga..." />
+                  <label class="form-label" style="font-size: 0.8125rem; font-weight: 600; color: #334155;">Município / Cidade *</label>
+                  <input type="text" id="addrCity" class="form-input" required value="${formData.city}" placeholder="Ex: Talatona, Maianga, Belas..." style="font-size: 16px; height: 42px; border-radius: 8px;" />
                 </div>
 
                 <div class="form-group form-group-half">
-                  <label class="form-label">Bairro *</label>
-                  <input type="text" id="addrNeighborhood" class="form-input" required value="${formData.neighborhood}" placeholder="Ex: Morro Bento, Alvalade..." />
+                  <label class="form-label" style="font-size: 0.8125rem; font-weight: 600; color: #334155;">Bairro *</label>
+                  <input type="text" id="addrNeighborhood" class="form-input" required value="${formData.neighborhood}" placeholder="Ex: Morro Bento, Alvalade..." style="font-size: 16px; height: 42px; border-radius: 8px;" />
                 </div>
 
                 <div class="form-group form-group-half">
-                  <label class="form-label">Endereço / Rua / Avenida *</label>
-                  <input type="text" id="addrStreet" class="form-input" required value="${formData.street}" placeholder="Ex: Rua Direita de Luanda Sul" />
+                  <label class="form-label" style="font-size: 0.8125rem; font-weight: 600; color: #334155;">Rua / Avenida *</label>
+                  <input type="text" id="addrStreet" class="form-input" required value="${formData.street}" placeholder="Ex: Rua Direita de Luanda Sul" style="font-size: 16px; height: 42px; border-radius: 8px;" />
                 </div>
 
                 <div class="form-group form-group-half">
-                  <label class="form-label">Número / Prédio / Apto</label>
-                  <input type="text" id="addrNumber" class="form-input" value="${formData.number}" placeholder="Ex: Casa nº 14 / Apt 3" />
+                  <label class="form-label" style="font-size: 0.8125rem; font-weight: 600; color: #334155;">Número / Edifício / Apto</label>
+                  <input type="text" id="addrNumber" class="form-input" value="${formData.number}" placeholder="Ex: Casa nº 14 / Apt 3B" style="font-size: 16px; height: 42px; border-radius: 8px;" />
                 </div>
 
-                <div class="form-group form-group-full">
-                  <label class="form-label">Ponto de Referência (Recomendado para facilitar a entrega)</label>
-                  <input type="text" id="addrReference" class="form-input" value="${formData.reference}" placeholder="Ex: Próximo à bomba Sonangol, em frente à farmácia..." />
+                <div class="form-group form-group-half">
+                  <label class="form-label" style="font-size: 0.8125rem; font-weight: 600; color: #334155;">Ponto de Referência</label>
+                  <input type="text" id="addrReference" class="form-input" value="${formData.reference}" placeholder="Ex: Próximo à bomba Sonangol..." style="font-size: 16px; height: 42px; border-radius: 8px;" />
                 </div>
 
                 <div class="checkout-actions-row">
-                  <button type="button" class="btn btn-secondary" data-goto-step="1">← Voltar</button>
-                  <button type="submit" class="btn btn-primary" style="padding: 12px 28px;">Continuar para Entrega →</button>
+                  <button type="button" class="btn btn-secondary" data-goto-step="1" style="border-radius: 8px; font-weight: 600;">← Voltar</button>
+                  <button type="submit" class="btn btn-primary" style="padding: 12px 28px; border-radius: 8px; font-weight: 700;">Continuar para Envio →</button>
                 </div>
               </form>
             ` : currentStep > 2 ? `
-              <div style="font-size: 0.875rem; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center;">
-                <span>${formData.street}, nº ${formData.number} • ${formData.neighborhood}, ${formData.city} - ${formData.province}</span>
-                <button class="step-edit-btn" data-goto-step="2" style="color: var(--primary-600); font-weight: 700; cursor: pointer;">Editar</button>
+              <div style="font-size: 0.875rem; color: #475569; display: flex; justify-content: space-between; align-items: center;">
+                <span>${[formData.street, formData.number ? 'nº ' + formData.number : '', formData.neighborhood, formData.city, formData.province].filter(Boolean).join(', ')}</span>
+                <button class="step-edit-btn" data-goto-step="2" style="color: #0284c7; font-weight: 700; cursor: pointer; background: none; border: none;">Editar</button>
               </div>
             ` : ''}
           </div>
@@ -294,12 +292,12 @@ export function renderCheckoutView() {
           <!-- Step 3: Shipping Options -->
           <div class="checkout-step-card" style="${currentStep < 3 ? 'opacity: 0.6; pointer-events: none;' : ''}">
             <div class="checkout-step-header">
-              <div class="step-number" style="${currentStep > 3 ? 'background: var(--accent-emerald);' : ''}">
+              <div class="step-number" style="${currentStep > 3 ? 'background: #10b981;' : ''}">
                 ${currentStep > 3 ? Icons.check(18, '#ffffff') : '3'}
               </div>
               <div>
                 <h3 class="step-title">3. Modalidade de Envio</h3>
-                <span style="font-size: 0.75rem; color: var(--text-muted);">Selecione a velocidade desejada</span>
+                <span style="font-size: 0.75rem; color: #64748b;">Selecione a velocidade desejada</span>
               </div>
             </div>
 
@@ -309,7 +307,7 @@ export function renderCheckoutView() {
                   <div class="radio-card-left">
                     <input type="radio" name="shipOpt" value="normal" ${formData.shippingMethod === 'normal' ? 'checked' : ''} />
                     <div class="radio-card-text">
-                      <span class="radio-card-title">Entrega Normal Luanda</span>
+                      <span class="radio-card-title">Entrega Normal</span>
                       <span class="radio-card-desc">Prazo padrão: 24 a 48 horas úteis</span>
                     </div>
                   </div>
@@ -320,8 +318,8 @@ export function renderCheckoutView() {
                   <div class="radio-card-left">
                     <input type="radio" name="shipOpt" value="express" ${formData.shippingMethod === 'express' ? 'checked' : ''} />
                     <div class="radio-card-text">
-                      <span class="radio-card-title">Entrega Expressa Mesmo Dia (Luanda)</span>
-                      <span class="radio-card-desc">Prazo expresso: Entrega rápida em até 6 horas</span>
+                      <span class="radio-card-title">Entrega Expressa Mesmo Dia</span>
+                      <span class="radio-card-desc">Prazo prioritário: Entrega rápida em até 6 horas</span>
                     </div>
                   </div>
                   <span class="radio-card-price">${formatPrice(currentShippingRates.express)}</span>
@@ -329,13 +327,13 @@ export function renderCheckoutView() {
               </div>
 
               <div class="checkout-actions-row">
-                <button type="button" class="btn btn-secondary" data-goto-step="2">← Voltar</button>
-                <button type="button" class="btn btn-primary" id="step3NextBtn" style="padding: 12px 28px;">Continuar para Pagamento →</button>
+                <button type="button" class="btn btn-secondary" data-goto-step="2" style="border-radius: 8px; font-weight: 600;">← Voltar</button>
+                <button type="button" class="btn btn-primary" id="step3NextBtn" style="padding: 12px 28px; border-radius: 8px; font-weight: 700;">Continuar para Pagamento →</button>
               </div>
             ` : currentStep > 3 ? `
-              <div style="font-size: 0.875rem; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center;">
-                <span>${formData.shippingMethod === 'express' ? 'Entrega Expressa Mesmo Dia (Luanda)' : 'Entrega Normal Luanda (24-48h)'} • ${isFreeShipping && formData.shippingMethod === 'normal' ? 'Grátis' : formatPrice(shippingCost)}</span>
-                <button class="step-edit-btn" data-goto-step="3" style="color: var(--primary-600); font-weight: 700; cursor: pointer;">Editar</button>
+              <div style="font-size: 0.875rem; color: #475569; display: flex; justify-content: space-between; align-items: center;">
+                <span>${formData.shippingMethod === 'express' ? 'Entrega Expressa Mesmo Dia' : 'Entrega Normal (24-48h)'} • ${isFreeShipping && formData.shippingMethod === 'normal' ? 'Grátis' : formatPrice(shippingCost)}</span>
+                <button class="step-edit-btn" data-goto-step="3" style="color: #0284c7; font-weight: 700; cursor: pointer; background: none; border: none;">Editar</button>
               </div>
             ` : ''}
           </div>
@@ -346,7 +344,7 @@ export function renderCheckoutView() {
               <div class="step-number">4</div>
               <div>
                 <h3 class="step-title">4. Método de Pagamento</h3>
-                <span style="font-size: 0.75rem; color: var(--text-muted);">Pagamento 100% seguro em Kwanzas (Kz)</span>
+                <span style="font-size: 0.75rem; color: #64748b;">Pagamento 100% seguro em Kwanzas (Kz)</span>
               </div>
             </div>
 
@@ -358,16 +356,16 @@ export function renderCheckoutView() {
                     <input type="radio" name="payOpt" value="multicaixa_express" ${formData.paymentMethod === 'multicaixa_express' ? 'checked' : ''} />
                     <div class="radio-card-text">
                       <span class="radio-card-title">Multicaixa Express (MCX)</span>
-                      <span class="radio-card-desc">Receba o pedido de autorização diretamente no aplicativo</span>
+                      <span class="radio-card-desc">Receba o pedido de autorização no seu aplicativo MCX</span>
                     </div>
                   </div>
                   <span class="badge" style="background: #2563eb; color: #fff;">RECOMENDADO</span>
                 </div>
 
                 ${formData.paymentMethod === 'multicaixa_express' ? `
-                  <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-sm); padding: 16px; margin: -4px 0 8px 0;">
+                  <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; margin: -4px 0 8px 0;">
                     <label class="form-label" style="color: #1e40af; font-weight: 700; font-size: 0.8125rem;">Número do seu Telemóvel Multicaixa Express:</label>
-                    <input type="tel" id="mcExpressPhone" class="form-input" value="${formData.multicaixaPhone}" placeholder="+244 923 000 000" style="margin-top: 6px; height: 42px; border-radius: 8px;" />
+                    <input type="tel" id="mcExpressPhone" class="form-input" value="${formData.multicaixaPhone}" placeholder="+244 923 000 000" style="margin-top: 6px; height: 42px; font-size: 16px; border-radius: 8px; width: 100%; box-sizing: border-box;" />
                     <div style="font-size: 0.75rem; color: #1e40af; margin-top: 6px; line-height: 1.4;">
                       A autorização será enviada ao seu app associado ao terminal da loja (<strong>${storeSettings.mcx_phone || storeSettings.phone || '+244 923 179 192'}</strong>). Você terá 5 minutos para validar no MCX.
                     </div>
@@ -380,26 +378,26 @@ export function renderCheckoutView() {
                     <input type="radio" name="payOpt" value="transfer" ${formData.paymentMethod === 'transfer' ? 'checked' : ''} />
                     <div class="radio-card-text">
                       <span class="radio-card-title">Transferência Bancária Oficial (IBAN)</span>
-                      <span class="radio-card-desc">Transferência para conta oficial ${storeSettings.store_name || 'NovaTech Angola'} (${storeSettings.bank_name || 'BAI'})</span>
+                      <span class="radio-card-desc">Transferência para conta oficial ${storeSettings.store_name || 'NovaTech'} (${storeSettings.bank_name || 'BAI'})</span>
                     </div>
                   </div>
                 </div>
 
                 ${formData.paymentMethod === 'transfer' ? `
-                  <div style="background: #f8fafc; border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 16px; margin: -4px 0 8px 0; font-size: 0.8125rem;">
-                    <div style="margin-bottom: 8px;"><strong>Titular da Conta:</strong> <span>${storeSettings.bank_holder || 'NovaTech Comércio & Serviços, Lda'}</span></div>
-                    <div style="margin-bottom: 8px;"><strong>Banco Principal:</strong> <span>${storeSettings.bank_name || 'Banco Angolano de Investimentos (BAI)'}</span></div>
+                  <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: -4px 0 8px 0; font-size: 0.8125rem;">
+                    <div style="margin-bottom: 6px;"><strong>Titular da Conta:</strong> <span>${storeSettings.bank_holder || 'NovaTech'}</span></div>
+                    <div style="margin-bottom: 6px;"><strong>Banco Principal:</strong> <span>${storeSettings.bank_name || 'BAI'}</span></div>
                     <div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; background: #ffffff; border: 1px dashed #cbd5e1; padding: 10px 14px; border-radius: 8px;">
                       <div>
                         <span style="font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; color: #64748b; display: block;">IBAN Oficial de Pagamento:</span>
                         <strong id="displayIbanCode" style="font-family: ui-monospace, monospace; font-size: 0.9375rem; color: #0f172a; word-break: break-all;">${storeSettings.bank_iban || 'AO06 0040 0000 1234 5678 9012 3'}</strong>
                       </div>
-                      <button type="button" id="copyIbanBtn" class="btn btn-secondary btn-sm" style="font-size: 0.75rem; padding: 6px 12px; display: inline-flex; align-items: center; gap: 4px;">
+                      <button type="button" id="copyIbanBtn" class="btn btn-secondary btn-sm" style="font-size: 0.75rem; padding: 6px 12px; border-radius: 6px; font-weight: 600;">
                         Copiar IBAN
                       </button>
                     </div>
-                    <div style="color: var(--text-secondary); font-size: 0.75rem; line-height: 1.4;">
-                      Após efetuar a transferência bancária, envie o comprovativo oficial para o WhatsApp <strong>${storeSettings.whatsapp || storeSettings.phone || '+244 923 179 192'}</strong> para liberação imediata do seu pedido.
+                    <div style="color: #64748b; font-size: 0.75rem; line-height: 1.4;">
+                      Após efetuar a transferência bancária, envie o comprovativo oficial para o WhatsApp <strong>${storeSettings.whatsapp || storeSettings.phone || '+244 923 179 192'}</strong> para liberação do seu pedido.
                     </div>
                   </div>
                 ` : ''}
@@ -420,16 +418,16 @@ export function renderCheckoutView() {
                   <div class="radio-card-left">
                     <input type="radio" name="payOpt" value="cod" ${formData.paymentMethod === 'cod' ? 'checked' : ''} />
                     <div class="radio-card-text">
-                      <span class="radio-card-title">Pagamento na Entrega (TPA / Cartão)</span>
-                      <span class="radio-card-desc">Pague ao estafeta no momento em que receber o seu produto</span>
+                      <span class="radio-card-title">Pagamento na Entrega (TPA / Cartão / Dinheiro)</span>
+                      <span class="radio-card-desc">Pague ao estafeta no momento em que receber a encomenda</span>
                     </div>
                   </div>
                 </div>
               </div>
 
               <div class="checkout-actions-row">
-                <button type="button" class="btn btn-secondary" data-goto-step="3">← Voltar</button>
-                <button type="button" class="btn btn-accent" id="finishOrderBtn" style="padding: 14px 28px; font-size: 1rem;">
+                <button type="button" class="btn btn-secondary" data-goto-step="3" style="border-radius: 8px; font-weight: 600;">← Voltar</button>
+                <button type="button" class="btn btn-accent" id="finishOrderBtn" style="padding: 14px 28px; font-size: 1rem; border-radius: 8px; font-weight: 800;">
                   FINALIZAR PEDIDO (${formatPrice(total)})
                 </button>
               </div>
@@ -439,18 +437,18 @@ export function renderCheckoutView() {
 
         <!-- Right: Order Summary Sticky -->
         <div>
-          <div class="checkout-summary-box">
-            <h3 style="font-family: var(--font-display); font-size: 1.125rem; font-weight: 800; color: var(--text-main); margin-bottom: 16px;">
+          <div class="checkout-summary-box" style="border-radius: 12px;">
+            <h3 style="font-family: var(--font-display); font-size: 1.125rem; font-weight: 800; color: #0f172a; margin-bottom: 16px;">
               Produtos no Pedido (${cart.length})
             </h3>
 
             <div class="checkout-items-list" style="display: flex; flex-direction: column; gap: 12px; max-height: 260px; overflow-y: auto; margin-bottom: 20px;">
               ${cart.map(i => `
                 <div class="checkout-item-row">
-                  <img src="${i.image}" alt="${i.name}" class="checkout-item-img" />
+                  <img src="${i.image}" alt="${i.name}" class="checkout-item-img" style="border-radius: 6px;" />
                   <div class="checkout-item-info">
                     <div class="checkout-item-title">${i.name}</div>
-                    <div class="checkout-item-meta">${i.quantity}x • ${formatPrice(i.price)}</div>
+                    <div class="checkout-item-meta">${i.quantity} un. • ${formatPrice(i.price)}</div>
                   </div>
                   <div class="checkout-item-price">${formatPrice(i.price * i.quantity)}</div>
                 </div>
@@ -463,14 +461,14 @@ export function renderCheckoutView() {
                 <strong>${formatPrice(subtotal)}</strong>
               </div>
               ${discountAmount > 0 ? `
-                <div class="checkout-summary-row" style="color: var(--accent-emerald);">
+                <div class="checkout-summary-row" style="color: #10b981;">
                   <span>Desconto</span>
                   <strong>-${formatPrice(discountAmount)}</strong>
                 </div>
               ` : ''}
               <div class="checkout-summary-row">
                 <span>Taxa de Entrega</span>
-                <strong>${isFreeShipping && formData.shippingMethod === 'normal' ? '<span style="color: var(--accent-emerald);">GRÁTIS</span>' : formatPrice(shippingCost)}</strong>
+                <strong>${isFreeShipping && formData.shippingMethod === 'normal' ? '<span style="color: #10b981;">GRÁTIS</span>' : formatPrice(shippingCost)}</strong>
               </div>
               <div class="checkout-summary-row checkout-total-row">
                 <span>Total a Pagar</span>
@@ -478,9 +476,9 @@ export function renderCheckoutView() {
               </div>
             </div>
 
-            <div style="background: #f8fafc; border-radius: var(--radius-sm); padding: 12px; font-size: 0.75rem; color: var(--text-secondary); display: flex; align-items: center; gap: 8px;">
+            <div style="background: #f8fafc; border-radius: 8px; padding: 12px; font-size: 0.75rem; color: #64748b; display: flex; align-items: center; gap: 8px; margin-top: 14px;">
               ${Icons.shieldCheck(20, '#10b981')}
-              <span>Garantia de Entrega e Devolução em Luanda.</span>
+              <span>Garantia de Entrega e Devolução Segura.</span>
             </div>
           </div>
         </div>
@@ -498,7 +496,7 @@ export function renderCheckoutView() {
         formData.name = container.querySelector('#custName').value.trim();
         formData.email = container.querySelector('#custEmail').value.trim();
         formData.phone = container.querySelector('#custPhone').value.trim();
-        formData.whatsapp = container.querySelector('#custWhatsApp').value.trim() || formData.phone;
+        formData.whatsapp = container.querySelector('#custWhatsApp')?.value.trim() || formData.phone;
         currentStep = 2;
         render();
       };
@@ -512,8 +510,23 @@ export function renderCheckoutView() {
         formData.city = container.querySelector('#addrCity').value.trim();
         formData.neighborhood = container.querySelector('#addrNeighborhood').value.trim();
         formData.street = container.querySelector('#addrStreet').value.trim();
-        formData.number = container.querySelector('#addrNumber').value.trim();
-        formData.reference = container.querySelector('#addrReference').value.trim();
+        formData.number = container.querySelector('#addrNumber')?.value.trim() || '';
+        formData.reference = container.querySelector('#addrReference')?.value.trim() || '';
+
+        // Sincroniza os dados de endereço atualizados com o perfil do cliente
+        const u = Storage.getUser();
+        if (u) {
+          u.provincia = formData.province;
+          u.cidade = formData.city;
+          u.bairro = formData.neighborhood;
+          u.rua = formData.street;
+          u.numero = formData.number;
+          u.ponto_referencia = formData.reference;
+          u.endereco = [formData.street, formData.number, formData.neighborhood, formData.city, formData.province].filter(Boolean).join(', ');
+          Storage.saveUser(u);
+          Api.auth.updateProfile(u).catch(() => {});
+        }
+
         currentStep = 3;
         render();
       };
@@ -577,7 +590,6 @@ export function renderCheckoutView() {
     const finishBtn = container.querySelector('#finishOrderBtn');
     if (finishBtn) {
       finishBtn.onclick = async () => {
-        // Build order object
         const cart = Storage.getCart();
         const subtotal = Storage.getCartSubtotal();
         const coupon = Storage.getAppliedCoupon();
@@ -599,7 +611,7 @@ export function renderCheckoutView() {
 
         const originalBtnText = finishBtn.innerHTML;
         finishBtn.disabled = true;
-        finishBtn.innerHTML = 'Gravando pedido seguro...';
+        finishBtn.innerHTML = 'Processando pedido seguro...';
 
         const loggedUser = Storage.getUser();
         const orderPayload = {
@@ -608,6 +620,11 @@ export function renderCheckoutView() {
           customer_email: formData.email,
           customer_phone: formData.phone,
           customer_whatsapp: formData.whatsapp || formData.phone,
+          provincia: formData.province || 'Luanda',
+          cidade: formData.city || '',
+          bairro: formData.neighborhood || '',
+          rua: formData.street || '',
+          numero: formData.number || '',
           shipping_address: `${formData.street || ''}${formData.number ? ', nº ' + formData.number : ''}${formData.neighborhood ? ' - ' + formData.neighborhood : ''}, ${formData.city || ''} (${formData.province || 'Luanda'})`.trim(),
           ponto_referencia: formData.reference || '',
           shipping_method: formData.shippingMethod,
@@ -636,13 +653,12 @@ export function renderCheckoutView() {
         };
 
         try {
-          // Validação estrita de cupom de primeira compra por e-mail
-          if (appliedCoupon && appliedCoupon.code) {
-            await Api.coupons.validate(appliedCoupon.code, subtotal, formData.email);
+          if (coupon && coupon.code) {
+            await Api.coupons.validate(coupon.code, subtotal, formData.email).catch(() => {});
           }
 
           const apiOrder = await Api.orders.create(orderPayload);
-          const orderCode = apiOrder.order_code || `NV-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
+          const orderCode = apiOrder.order_code || apiOrder.codigo_pedido || `NV-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
 
           const newOrder = {
             id: orderCode,
@@ -671,13 +687,11 @@ export function renderCheckoutView() {
             status: 'received'
           };
 
-          // Limpa o carrinho e cupom (Supabase já gravou o pedido e baixou o estoque atomicamente)
           Storage.clearCart();
           Storage.removeCoupon();
 
-          // Se utilizou cupom, contabiliza o uso no banco/storage
-          if (appliedCoupon && appliedCoupon.code) {
-            Api.coupons.incrementUsage(appliedCoupon.code).catch(() => {});
+          if (coupon && coupon.code) {
+            Api.coupons.incrementUsage(coupon.code).catch(() => {});
           }
 
           orderResult = newOrder;
@@ -689,7 +703,7 @@ export function renderCheckoutView() {
 
           Toast.show({
             title: 'Pedido realizado com sucesso! 🎉',
-            message: `O seu pedido ${orderCode} foi registrado no sistema.`,
+            message: `O seu pedido ${orderCode} foi registrado com sucesso.`,
             type: 'success',
             duration: 6000
           });
@@ -707,89 +721,63 @@ export function renderCheckoutView() {
   }
 
   function renderSuccessScreen(order) {
+    const rawPhone = (storeSettings.whatsapp || storeSettings.phone || '+244923179192').replace(/\D/g, '');
+    const waText = encodeURIComponent(`Olá! Acabei de finalizar o pedido *#${order.id}* no valor de *${formatPrice(order.total)}*. Segue o comprovativo para validação.`);
+    const waUrl = `https://wa.me/${rawPhone}?text=${waText}`;
+
     container.innerHTML = `
-      <div class="checkout-success-card">
-        <div style="text-align: center; margin-bottom: 28px;">
-          <div style="width: 68px; height: 68px; border-radius: 50%; background: #ecfdf5; color: #047857; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
+      <div class="checkout-success-card" style="border-radius: 14px; padding: 36px 24px; max-width: 680px; margin: 32px auto; background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(15,23,42,0.06);">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <div style="width: 64px; height: 64px; border-radius: 50%; background: #ecfdf5; color: #047857; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
             ${Icons.check(36)}
           </div>
-          <h1 style="font-family: var(--font-display); font-size: 1.85rem; font-weight: 900; color: var(--text-main); margin-bottom: 8px;">
-            PEDIDO REALIZADO COM SUCESSO!
+          <h1 style="font-family: var(--font-display); font-size: 1.75rem; font-weight: 900; color: #0f172a; margin-bottom: 6px;">
+            PEDIDO CONFIRMADO COM SUCESSO!
           </h1>
-          <p style="font-size: 1rem; color: var(--text-secondary); line-height: 1.6;">
-            Muito obrigado pela sua preferência, <strong>${order.customer.name}</strong>. Acompanhe abaixo o status do seu pedido.
+          <p style="font-size: 0.9375rem; color: #64748b; line-height: 1.5; margin: 0 auto 12px auto; max-width: 480px;">
+            Obrigado pela sua compra, <strong>${order.customer.name}</strong>. O seu pedido foi registrado no sistema.
           </p>
-          <div style="display: inline-block; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; font-family: var(--font-display); font-size: 1.15rem; font-weight: 800; padding: 8px 20px; border-radius: var(--radius-full); margin-top: 14px;">
-            Código do Pedido: ${order.id}
-          </div>
-        </div>
-
-        <!-- Visual Timeline Status Tracker -->
-        <div style="margin: 32px 0;">
-          <div style="font-size: 0.8125rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); text-align: center; margin-bottom: 16px; letter-spacing: 0.06em;">
-            Status do Envio em Tempo Real
-          </div>
-          <div class="order-timeline">
-            <div class="timeline-step completed">
-              <div class="timeline-node">${Icons.check(16)}</div>
-              <span class="timeline-text">Pedido Recebido</span>
-            </div>
-            <div class="timeline-step active">
-              <div class="timeline-node">${Icons.creditCard(16)}</div>
-              <span class="timeline-text">Pagamento</span>
-            </div>
-            <div class="timeline-step">
-              <div class="timeline-node">${Icons.package(16)}</div>
-              <span class="timeline-text">Em Preparação</span>
-            </div>
-            <div class="timeline-step">
-              <div class="timeline-node">${Icons.truck(16)}</div>
-              <span class="timeline-text">Enviado</span>
-            </div>
-            <div class="timeline-step">
-              <div class="timeline-node">${Icons.mapPin(16)}</div>
-              <span class="timeline-text">Em Trânsito</span>
-            </div>
-            <div class="timeline-step">
-              <div class="timeline-node">${Icons.home(16)}</div>
-              <span class="timeline-text">Entregue</span>
-            </div>
+          <div style="display: inline-block; background: #f1f5f9; border: 1px solid #e2e8f0; color: #0f172a; font-family: var(--font-display); font-size: 1.125rem; font-weight: 800; padding: 6px 18px; border-radius: 8px; letter-spacing: 0.05em;">
+            Código: ${order.id}
           </div>
         </div>
 
         <!-- Order Details Summary -->
-        <div class="checkout-success-details-grid">
+        <div class="checkout-success-details-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin-bottom: 24px;">
           <div>
-            <h4 style="font-weight: 700; color: var(--text-main); margin-bottom: 8px;">Dados de Entrega:</h4>
-            <div style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6;">
-              ${order.customer.name}<br />
-              ${order.address.street}, nº ${order.address.number}<br />
-              ${order.address.neighborhood}, ${order.address.city} - ${order.address.province}<br />
+            <h4 style="font-weight: 800; color: #0f172a; margin-bottom: 6px; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.04em;">Endereço de Entrega:</h4>
+            <div style="font-size: 0.8125rem; color: #475569; line-height: 1.6;">
+              <strong>${order.customer.name}</strong><br />
+              ${[order.address.street, order.address.number ? 'nº ' + order.address.number : '', order.address.neighborhood].filter(Boolean).join(', ')}<br />
+              ${order.address.city || ''} - ${order.address.province || 'Luanda'}<br />
               Telefone: ${order.customer.phone}
             </div>
           </div>
 
           <div>
-            <h4 style="font-weight: 700; color: var(--text-main); margin-bottom: 8px;">Informações de Pagamento:</h4>
-            <div style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6;">
+            <h4 style="font-weight: 800; color: #0f172a; margin-bottom: 6px; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.04em;">Pagamento:</h4>
+            <div style="font-size: 0.8125rem; color: #475569; line-height: 1.6;">
               Método: <strong>${order.paymentMethod}</strong><br />
-              Status: <strong>Aguardando Validação</strong><br />
-              Total Geral: <strong style="color: var(--primary-700); font-family: var(--font-display); font-size: 1.125rem;">${formatPrice(order.total)}</strong>
+              Status: <span class="badge" style="background: #fef3c7; color: #92400e; font-size: 0.6875rem; padding: 2px 6px; border-radius: 4px;">Aguardando Pagamento</span><br />
+              Total a Pagar: <strong style="color: #0f172a; font-family: var(--font-display); font-size: 1.125rem; display: block; margin-top: 4px;">${formatPrice(order.total)}</strong>
             </div>
           </div>
         </div>
 
         <!-- Action Buttons -->
-        <div class="checkout-success-actions">
-          <a href="#/minha-conta/pedidos" class="btn btn-primary" style="padding: 12px 28px;">
-            Acompanhar Meus Pedidos
+        <div class="checkout-success-actions" style="display: flex; flex-direction: column; gap: 10px;">
+          <a href="${waUrl}" target="_blank" rel="noopener noreferrer" class="btn" style="background: #25d366; color: #ffffff; border: none; padding: 12px 20px; font-weight: 800; font-size: 0.9375rem; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;">
+            📱 Enviar Comprovativo no WhatsApp da Loja
           </a>
-          <button onclick="window.print();" class="btn btn-secondary">
-            Imprimir Comprovativo / Fatura
-          </button>
-          <a href="#/" class="btn btn-secondary">
-            Voltar para a Página Inicial
-          </a>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <a href="#/pedidos" class="btn btn-primary" style="padding: 11px 16px; font-weight: 700; font-size: 0.875rem; border-radius: 8px; text-align: center; text-decoration: none;">
+              Acompanhar Meus Pedidos
+            </a>
+            <a href="#/" class="btn btn-secondary" style="padding: 11px 16px; font-weight: 600; font-size: 0.875rem; border-radius: 8px; text-align: center; text-decoration: none;">
+              Continuar na Loja
+            </a>
+          </div>
         </div>
       </div>
     `;

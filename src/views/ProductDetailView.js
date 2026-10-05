@@ -1,14 +1,9 @@
-// ===================================================================
-// PRODUCT DETAIL VIEW (PDP: Gallery Zoom, Variants, Tabs, Related)
-// ===================================================================
-
 import { Icons } from '../utils/icons.js';
 import { formatPrice, calcDiscountPercent, renderStars, formatDate } from '../utils/format.js';
-// ProductsData removido: produtos são carregados dinamicamente do Supabase
 import { Storage } from '../services/storage.js';
 import { Toast } from '../components/Toast.js';
 import { createProductCard } from '../components/ProductCard.js';
-import { Api } from '../services/api.js';
+import { Api, findIdByStableUid } from '../services/api.js';
 
 export function renderProductDetailView(productSlug) {
   const container = document.createElement('div');
@@ -16,14 +11,28 @@ export function renderProductDetailView(productSlug) {
 
   let product = null; // Carregado dinamicamente via Supabase
   let allProducts = []; // Para produtos relacionados
+  let allCategories = []; // Para resolução de nomes e links limpos
   let isLoading = true;
   let isNotFound = false;
+  let currentPrice = 0;
+  let currentOldPrice = null;
+  let discountPct = 0;
 
   // Pré-carregamento imediato do cache local para eliminar delay e piscadas
   try {
-    const cachedRaw = localStorage.getItem('novatech_products_v1');
+    const cachedCatsRaw = localStorage.getItem('novatech_admin_categorias_v4_clean') || localStorage.getItem('novatech_categories_v1');
+    allCategories = cachedCatsRaw ? JSON.parse(cachedCatsRaw) : [];
+    if (!Array.isArray(allCategories)) allCategories = [];
+
+    const mappedId = findIdByStableUid('produtos', productSlug);
+    const cachedRaw = localStorage.getItem('novatech_admin_produtos_v4_clean') || localStorage.getItem('novatech_products_v1');
     const cachedProds = cachedRaw ? JSON.parse(cachedRaw) : [];
-    const initialCached = (Array.isArray(cachedProds) ? cachedProds : []).find(p => p.slug === productSlug || String(p.id) === String(productSlug));
+    const initialCached = (Array.isArray(cachedProds) ? cachedProds : []).find(p => 
+      p.uid === productSlug || 
+      p.slug === productSlug || 
+      String(p.id) === String(productSlug) ||
+      (mappedId && String(p.id) === String(mappedId))
+    );
     if (initialCached) {
       const cachedGal = Array.isArray(initialCached.gallery) ? initialCached.gallery.filter(Boolean) : [];
       if (cachedGal.length === 0 && initialCached.image) cachedGal.push(initialCached.image);
@@ -87,6 +96,12 @@ export function renderProductDetailView(productSlug) {
         if (!selectedColor && product.variants?.colors?.[0]?.name) selectedColor = product.variants.colors[0].name;
         if (!selectedStorage && product.variants?.storage?.[0]) selectedStorage = product.variants.storage[0];
         currentImage = product.gallery?.[0] || product.image || '';
+        // Carregar categorias para breadcrumbs e links
+        try {
+          const freshCats = await Api.categories.getAll();
+          if (freshCats && freshCats.length > 0) allCategories = freshCats;
+        } catch {}
+
         // Carregar todos os produtos para relacionados
         try {
           allProducts = await Api.products.getAll({ all: false });
@@ -159,39 +174,53 @@ export function renderProductDetailView(productSlug) {
 
     const isWishlisted = Storage.isInWishlist(product.id);
     const basePrice = Number(product.price || product.preco || 0);
-    const currentPrice = (selectedStorage && product.variants?.storagePrices?.[selectedStorage])
+    currentPrice = (selectedStorage && product.variants?.storagePrices?.[selectedStorage])
       ? Number(product.variants.storagePrices[selectedStorage])
       : basePrice;
 
-    const currentOldPrice = (product.oldPrice && basePrice > 0)
+    currentOldPrice = (product.oldPrice && basePrice > 0)
       ? Math.round(currentPrice * (Number(product.oldPrice) / basePrice))
       : null;
 
-    const discountPct = (currentOldPrice && currentOldPrice > currentPrice) ? calcDiscountPercent(currentOldPrice, currentPrice) : 0;
-    const catSlug = (product.category && product.category !== 'null' && product.category !== 'undefined') 
-      ? product.category 
-      : (product.category_id ? `cat-${product.category_id}` : 'produtos');
-    const catDisplayName = (product.category_name && product.category_name !== 'null')
-      ? product.category_name
-      : ((product.category && product.category !== 'null') ? product.category : 'Catálogo');
-    const productDesc = (product.description && product.description !== 'undefined' && product.description !== 'null')
+    discountPct = (currentOldPrice && currentOldPrice > currentPrice) ? calcDiscountPercent(currentOldPrice, currentPrice) : 0;
+
+    // Resolução precisa da categoria para Breadcrumbs e Links
+    const prodCatIdentifier = String(product.category_id || product.category || '').toLowerCase();
+    const resolvedCat = (allCategories || []).find(c =>
+      String(c.id).toLowerCase() === prodCatIdentifier ||
+      String(c.uid || '').toLowerCase() === prodCatIdentifier ||
+      String(c.slug || '').toLowerCase() === prodCatIdentifier ||
+      String(c.name || '').toLowerCase() === prodCatIdentifier
+    );
+
+    let catDisplayName = resolvedCat?.name || product.category_name || '';
+    if (!catDisplayName || !isNaN(catDisplayName)) {
+      catDisplayName = (product.brand ? product.brand : 'Produtos');
+    }
+    const catSlug = resolvedCat?.uid || resolvedCat?.slug || (resolvedCat?.id ? String(resolvedCat.id) : '');
+
+    const productDesc = (product.description && product.description !== 'undefined' && product.description !== 'null' && product.description.trim() !== '')
       ? product.description
-      : ((product.descricao && product.descricao !== 'undefined' && product.descricao !== 'null')
+      : ((product.descricao && product.descricao !== 'undefined' && product.descricao !== 'null' && product.descricao.trim() !== '')
         ? product.descricao
-        : ((product.detalhes && product.detalhes !== 'undefined')
+        : ((product.detalhes && product.detalhes !== 'undefined' && product.detalhes.trim() !== '')
           ? product.detalhes
-          : 'Equipamento de alta tecnologia e performance com garantia oficial NovaTech Angola. Produto 100% original, homologado e com suporte técnico especializado em Luanda.'));
+          : ''));
 
     container.innerHTML = `
       <!-- Breadcrumbs -->
-      <nav style="display: flex; align-items: center; gap: 8px; font-size: 0.8125rem; color: var(--text-muted); margin-top: 20px; flex-wrap: wrap;">
-        <a href="#/" style="color: var(--text-secondary);">Início</a>
+      <nav style="display: flex; align-items: center; gap: 8px; font-size: 0.8125rem; color: var(--text-muted); margin-top: 18px; margin-bottom: 6px; flex-wrap: wrap;">
+        <a href="#/" style="color: var(--text-secondary); text-decoration: none;">Início</a>
+        ${catDisplayName ? `
+          <span>/</span>
+          <a href="${catSlug ? `#/categoria/${catSlug}` : '#/catalogo'}" style="color: var(--text-secondary); text-decoration: none;">${catDisplayName}</a>
+        ` : ''}
+        ${product.brand && product.brand.toLowerCase() !== catDisplayName.toLowerCase() ? `
+          <span>/</span>
+          <span style="color: var(--text-secondary);">${product.brand}</span>
+        ` : ''}
         <span>/</span>
-        <a href="#/categoria/${catSlug}" style="color: var(--text-secondary); text-transform: capitalize;">${catDisplayName}</a>
-        <span>/</span>
-        <span style="color: var(--text-main); font-weight: 600;">${product.brand || 'NovaTech'}</span>
-        <span>/</span>
-        <span style="color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${product.name || 'Produto'}</span>
+        <span style="color: var(--text-main); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px;">${product.name || 'Produto'}</span>
       </nav>
 
       <!-- Main PDP Grid -->
@@ -224,16 +253,20 @@ export function renderProductDetailView(productSlug) {
 
         <!-- Details (Right) -->
         <div class="pdp-details">
-          <div class="pdp-brand-sku">
-            <span>Marca: <strong>${product.brand || 'NovaTech'}</strong></span>
-            <span>ID: <strong>${product.id}</strong></span>
-            <span>•</span>
+          <div class="pdp-brand-sku" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            ${product.brand ? `
+              <span style="font-weight: 700; color: var(--text-main); font-size: 0.8125rem;">${product.brand}</span>
+            ` : ''}
+            ${product.sku ? `
+              <span style="font-size: 0.8125rem; color: var(--text-muted);">Ref: <strong style="font-weight: 600; color: var(--text-secondary);">${product.sku}</strong></span>
+            ` : ''}
+            <span style="color: var(--border-light); font-size: 0.8125rem;">•</span>
             ${(product.is_active === false || product.ativo === false) ? `
-              <span style="color: #ef4444; font-weight: 700;">● INDISPONÍVEL</span>
+              <span style="color: #ef4444; font-weight: 700; font-size: 0.8125rem;">● Indisponível</span>
             ` : (product.stock > 0) ? `
-              <span style="color: var(--accent-emerald); font-weight: 700;">● EM STOCK (${product.stock} un.)</span>
+              <span style="color: var(--accent-emerald, #10b981); font-weight: 700; font-size: 0.8125rem;">● Em estoque (${product.stock} un.)</span>
             ` : `
-              <span style="color: #ef4444; font-weight: 700;">● ESGOTADO</span>
+              <span style="color: #ef4444; font-weight: 700; font-size: 0.8125rem;">● Esgotado</span>
             `}
           </div>
 
@@ -377,19 +410,16 @@ export function renderProductDetailView(productSlug) {
 
         <div class="pdp-tab-content">
           ${activeTab === 'desc' ? `
-            <div style="max-width: 840px;">
-              <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin-bottom: 12px;">
-                Visão Geral: ${product.name || 'Detalhes do Equipamento'}
-              </h3>
-              <p style="margin-bottom: 16px; font-size: 1rem; line-height: 1.8; color: var(--text-secondary); white-space: pre-line;">
-                ${productDesc}
-              </p>
-              <div style="background: #f8fafc; border-left: 4px solid var(--primary-600); padding: 16px 20px; border-radius: 4px; margin-top: 20px;">
-                <h4 style="font-weight: 700; color: var(--text-main); margin-bottom: 6px;">Por que comprar na NovaTech Angola?</h4>
-                <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0;">
-                  Somos importadores diretos dos maiores fabricantes globais. Todos os equipamentos acompanham fatura fiscal pro-forma, selo de autenticidade e suporte técnico qualificado em Luanda.
-                </p>
-              </div>
+            <div style="max-width: 860px;">
+              ${productDesc ? `
+                <div style="font-size: 0.9375rem; line-height: 1.8; color: var(--text-secondary); white-space: pre-line;">
+                  ${productDesc}
+                </div>
+              ` : `
+                <div style="font-size: 0.9375rem; line-height: 1.8; color: var(--text-secondary);">
+                  ${product.name} — Produto original com garantia oficial e suporte técnico dedicado.
+                </div>
+              `}
             </div>
           ` : activeTab === 'specs' ? `
             <div>

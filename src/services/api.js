@@ -64,13 +64,70 @@ function setLocalData(key, data) {
 }
 
 // ===================================================================
-// MAPEADORES BIDIRECIONAIS: SUPABASE (PORTUGUES) <-> FRONTEND
+// MAPEADORES BIDIRECIONAIS: SUPABASE (PORTUGUES) <-> FRONTEND COM UID UNIVERSAL
 // ===================================================================
+
+export function generateUid() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+export function getStableUid(table, id, existingUid) {
+  if (existingUid && String(existingUid).trim().length > 10) return existingUid;
+  if (!id) return generateUid();
+  const regKey = `novatech_stable_uid_${table}`;
+  try {
+    const raw = localStorage.getItem(regKey);
+    const map = raw ? JSON.parse(raw) : {};
+    if (map[id]) return map[id];
+    const newUid = generateUid();
+    map[id] = newUid;
+    localStorage.setItem(regKey, JSON.stringify(map));
+    return newUid;
+  } catch {
+    return generateUid();
+  }
+}
+
+export function findIdByStableUid(table, uid) {
+  if (!uid) return null;
+  const regKey = `novatech_stable_uid_${table}`;
+  try {
+    const raw = localStorage.getItem(regKey);
+    const map = raw ? JSON.parse(raw) : {};
+    for (const [id, u] of Object.entries(map)) {
+      if (u === uid) return id;
+    }
+  } catch {}
+  return null;
+}
 
 function mapCategoriaFromDb(c) {
   if (!c) return null;
+  const rawSubs = Array.isArray(c.subcategorias)
+    ? c.subcategorias
+    : (c.subcategorias ? (typeof c.subcategorias === 'string' ? JSON.parse(c.subcategorias) : c.subcategorias) : []);
+
+  const cleanSubs = rawSubs.map(s => ({
+    id: s.id,
+    uid: s.uid || s.uuid || getStableUid('subcategorias', s.id, s.uid),
+    category_id: s.category_id || s.categoria_id || c.id,
+    slug: s.slug,
+    name: s.name || s.nome,
+    nome: s.nome || s.name,
+    description: s.description || s.descricao || '',
+    display_order: s.display_order || s.ordem_exibicao || 1,
+    is_active: s.is_active !== false && s.ativo !== false
+  }));
+
   return {
     id: c.id,
+    uid: c.uid || c.uuid || getStableUid('categorias', c.id, c.uid),
     slug: c.slug,
     name: c.nome,
     description: c.descricao || '',
@@ -79,7 +136,7 @@ function mapCategoriaFromDb(c) {
     image: c.imagem_url || '',
     image_url: c.imagem_url || '',
     banner_url: c.banner_url || '',
-    subcategories: Array.isArray(c.subcategorias) ? c.subcategorias : (c.subcategorias ? (typeof c.subcategorias === 'string' ? JSON.parse(c.subcategorias) : c.subcategorias) : []),
+    subcategories: cleanSubs,
     display_order: c.ordem_exibicao || 1,
     is_active: c.ativo !== false
   };
@@ -95,6 +152,7 @@ function mapCategoriaToDb(c) {
     .replace(/(^-|-$)+/g, '') || `cat-${Date.now()}`;
 
   return {
+    uid: c.uid || generateUid(),
     slug: baseSlug,
     nome: cleanName,
     descricao: (c.description !== undefined ? c.description : (c.descricao || '')).trim(),
@@ -110,6 +168,7 @@ function mapCatalogoFromDb(c) {
   if (!c) return null;
   return {
     id: c.id,
+    uid: c.uid || c.uuid || generateUid(),
     slug: c.slug,
     name: c.nome,
     description: c.descricao || '',
@@ -121,6 +180,7 @@ function mapCatalogoFromDb(c) {
 
 function mapCatalogoToDb(c) {
   return {
+    uid: c.uid || generateUid(),
     slug: c.slug || (c.name ? c.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : `cat-${Date.now()}`),
     nome: c.name || c.nome || '',
     descricao: c.description || c.descricao || '',
@@ -154,6 +214,7 @@ function mapProdutoFromDb(p) {
 
   return {
     id: p.id,
+    uid: p.uid || p.uuid || getStableUid('produtos', p.id, p.uid),
     sku: p.sku,
     slug: p.slug,
     name: p.nome,
@@ -210,6 +271,7 @@ function mapProdutoToDb(p) {
   }
 
   return {
+    uid: p.uid || generateUid(),
     sku: p.sku || `NV-${Date.now().toString(36).toUpperCase()}`,
     slug: p.slug || (p.name ? p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : `prod-${Date.now()}`),
     nome: p.name || p.nome || '',
@@ -240,6 +302,7 @@ function mapBannerFromDb(b) {
   if (!b) return null;
   return {
     id: b.id,
+    uid: b.uid || b.uuid || generateUid(),
     title: b.titulo,
     highlight: b.destaque || '',
     subtitle: b.subtitulo || '',
@@ -260,6 +323,7 @@ function mapBannerFromDb(b) {
 
 function mapBannerToDb(b) {
   return {
+    uid: b.uid || generateUid(),
     titulo: b.title || b.titulo,
     destaque: b.highlight || b.destaque || '',
     subtitulo: b.subtitle || b.subtitulo || '',
@@ -289,6 +353,7 @@ function mapCupomFromDb(c) {
 
   return {
     id: c.id,
+    uid: c.uid || c.uuid || generateUid(),
     code: c.codigo,
     type: type,
     value: Number(c.valor_desconto || 0),
@@ -312,6 +377,7 @@ function mapCupomToDb(c) {
   }
 
   return {
+    uid: c.uid || generateUid(),
     codigo: (c.code || c.codigo || '').toUpperCase().trim(),
     tipo_desconto: discountType,
     valor_desconto: discountType === 'free_shipping' ? 0 : Number(c.discount_value !== undefined ? c.discount_value : (c.value || c.valor_desconto || 0)),
@@ -329,6 +395,7 @@ function mapPedidoFromDb(o) {
   if (!o) return null;
   const items = (o.itens_pedido || []).map(i => ({
     id: i.id,
+    uid: i.uid || i.uuid || generateUid(),
     product_id: i.produto_id,
     product_sku: i.sku_produto,
     product_name: i.nome_produto,
@@ -343,6 +410,7 @@ function mapPedidoFromDb(o) {
 
   return {
     id: o.id,
+    uid: o.uid || o.uuid || generateUid(),
     order_code: o.codigo_pedido,
     user_id: o.usuario_id,
     customer_name: o.nome_cliente,
@@ -372,6 +440,7 @@ function mapUsuarioFromDb(u) {
   if (!u) return null;
   return {
     id: u.id,
+    uid: u.uid || u.uuid || generateUid(),
     auth_user_id: u.auth_user_id,
     name: u.nome,
     email: u.email,
@@ -1051,6 +1120,31 @@ export const Api = {
       return getLocalData(LOCAL_STORAGE_KEYS.CATEGORIES, []);
     },
 
+    async getBySlug(identifier) {
+      if (!identifier) return null;
+      if (isSupabaseConfigured() && supabase) {
+        try {
+          let { data } = await supabase.from('categorias').select('*').eq('uid', identifier).maybeSingle();
+          if (!data) {
+            const res = await supabase.from('categorias').select('*').eq('slug', identifier).maybeSingle();
+            data = res.data;
+          }
+          if (!data && !isNaN(Number(identifier))) {
+            const res = await supabase.from('categorias').select('*').eq('id', Number(identifier)).maybeSingle();
+            data = res.data;
+          }
+          if (data) return mapCategoriaFromDb(data);
+        } catch (e) {}
+      }
+
+      const all = await this.getAll();
+      return all.find(c => c.uid === identifier || c.slug === identifier || String(c.id) === String(identifier)) || null;
+    },
+
+    async getByUid(uid) {
+      return this.getBySlug(uid);
+    },
+
     async create(categoryData) {
       if (!categoryData.name && !categoryData.nome) {
         throw new Error('O nome da categoria é obrigatório.');
@@ -1474,8 +1568,23 @@ export const Api = {
             query = query.eq('ativo', true);
           }
           if (params.category) {
-            const { data: cat } = await supabase.from('categorias').select('id').eq('slug', params.category).single();
-            if (cat) query = query.eq('categoria_id', cat.id);
+            try {
+              let catId = null;
+              const { data: catByUid } = await supabase.from('categorias').select('id').eq('uid', params.category).maybeSingle();
+              if (catByUid) {
+                catId = catByUid.id;
+              } else {
+                const { data: catBySlug } = await supabase.from('categorias').select('id').eq('slug', params.category).maybeSingle();
+                if (catBySlug) {
+                  catId = catBySlug.id;
+                } else if (!isNaN(Number(params.category))) {
+                  catId = Number(params.category);
+                }
+              }
+              if (catId) {
+                query = query.eq('categoria_id', catId);
+              }
+            } catch {}
           }
           if (params.brand) query = query.ilike('marca', `%${params.brand}%`);
           if (params.search) query = query.ilike('nome', `%${params.search}%`);
@@ -1520,28 +1629,40 @@ export const Api = {
       return localList;
     },
 
-    async getBySlug(slug) {
+    async getBySlug(identifier) {
+      if (!identifier) return null;
       if (isSupabaseConfigured() && supabase) {
         try {
-          const { data, error } = await supabase.from('produtos').select('*').eq('slug', slug).single();
-          if (!error && data) return mapProdutoFromDb(data);
+          let { data } = await supabase.from('produtos').select('*').eq('uid', identifier).maybeSingle();
+          if (!data) {
+            const res = await supabase.from('produtos').select('*').eq('slug', identifier).maybeSingle();
+            data = res.data;
+          }
+          if (!data) {
+            const mappedId = findIdByStableUid('produtos', identifier);
+            if (mappedId) {
+              const res = await supabase.from('produtos').select('*').eq('id', Number(mappedId)).maybeSingle();
+              data = res.data;
+            }
+          }
+          if (!data && !isNaN(Number(identifier))) {
+            const res = await supabase.from('produtos').select('*').eq('id', Number(identifier)).maybeSingle();
+            data = res.data;
+          }
+          if (data) return mapProdutoFromDb(data);
         } catch (e) {}
       }
 
       const all = await this.getAll({ all: true });
-      return all.find(p => p.slug === slug || String(p.id) === String(slug)) || null;
+      return all.find(p => p.uid === identifier || p.slug === identifier || String(p.id) === String(identifier)) || null;
+    },
+
+    async getByUid(uid) {
+      return this.getBySlug(uid);
     },
 
     async getById(id) {
-      if (isSupabaseConfigured() && supabase) {
-        try {
-          const { data, error } = await supabase.from('produtos').select('*').eq('id', id).single();
-          if (!error && data) return mapProdutoFromDb(data);
-        } catch (e) {}
-      }
-
-      const all = await this.getAll({ all: true });
-      return all.find(p => String(p.id) === String(id) || p.slug === id) || null;
+      return this.getBySlug(id);
     },
 
     async create(productData) {
@@ -2166,8 +2287,8 @@ export const Api = {
       let userEmail = '';
       let userId = null;
       if (typeof userParam === 'object' && userParam !== null) {
-        userEmail = (userParam.email || userParam.customer_email || '').toLowerCase().trim();
-        userId = userParam.id || userParam.user_id || null;
+        userEmail = (userParam.userEmail || userParam.email || userParam.customer_email || '').toLowerCase().trim();
+        userId = userParam.userId || userParam.id || userParam.user_id || null;
       } else if (typeof userParam === 'string') {
         userEmail = userParam.toLowerCase().trim();
       }
@@ -2198,8 +2319,8 @@ export const Api = {
       const all = getLocalData(LOCAL_STORAGE_KEYS.ORDERS, []);
       if (!userEmail && !userId) return [];
       return all.filter(o => {
-        const mEmail = (o.customer_email || o.email_cliente || '').toLowerCase().trim();
-        const mId = o.user_id || o.usuario_id;
+        const mEmail = (o.customer_email || o.email_cliente || o.customer?.email || '').toLowerCase().trim();
+        const mId = o.user_id || o.usuario_id || o.customer?.id;
         return (userEmail && mEmail === userEmail) || (userId && String(mId) === String(userId));
       });
     },
@@ -2209,30 +2330,49 @@ export const Api = {
 
       if (isSupabaseConfigured() && supabase) {
         try {
-          const { data, error } = await supabase
+          // Tenta buscar por uid, codigo_pedido ou id
+          let { data } = await supabase
             .from('pedidos')
             .select('*, itens_pedido(*)')
-            .eq('id', orderId)
-            .single();
+            .eq('uid', orderId)
+            .maybeSingle();
 
-          if (error || !data) return null;
-
-          // Validação de ownership: cliente só pode ver o próprio pedido
-          if (currentUser && currentUser.role !== 'admin') {
-            const userEmail = (currentUser.email || '').toLowerCase().trim();
-            const orderEmail = (data.email_cliente || '').toLowerCase().trim();
-            const userDbId = currentUser.db_id || currentUser.id;
-
-            const isOwner =
-              (userEmail && userEmail === orderEmail) ||
-              (userDbId && String(data.usuario_id) === String(userDbId));
-
-            if (!isOwner) {
-              throw new Error('Acesso negado: este pedido não pertence à sua conta.');
-            }
+          if (!data) {
+            const res = await supabase
+              .from('pedidos')
+              .select('*, itens_pedido(*)')
+              .eq('codigo_pedido', orderId)
+              .maybeSingle();
+            data = res.data;
           }
 
-          return mapPedidoFromDb(data);
+          if (!data && !isNaN(Number(orderId))) {
+            const res = await supabase
+              .from('pedidos')
+              .select('*, itens_pedido(*)')
+              .eq('id', Number(orderId))
+              .maybeSingle();
+            data = res.data;
+          }
+
+          if (data) {
+            // Validação de ownership: cliente só pode ver o próprio pedido
+            if (currentUser && currentUser.role !== 'admin') {
+              const userEmail = (currentUser.email || '').toLowerCase().trim();
+              const orderEmail = (data.email_cliente || '').toLowerCase().trim();
+              const userDbId = currentUser.db_id || currentUser.id;
+
+              const isOwner =
+                (userEmail && userEmail === orderEmail) ||
+                (userDbId && String(data.usuario_id) === String(userDbId));
+
+              if (!isOwner) {
+                throw new Error('Acesso negado: este pedido não pertence à sua conta.');
+              }
+            }
+
+            return mapPedidoFromDb(data);
+          }
         } catch (e) {
           if (e.message && e.message.includes('Acesso negado')) throw e;
           console.warn('[orders.getById] Erro:', e.message);
@@ -2241,7 +2381,7 @@ export const Api = {
 
       // Fallback local
       const all = getLocalData(LOCAL_STORAGE_KEYS.ORDERS, []);
-      return all.find(o => String(o.id) === String(orderId)) || null;
+      return all.find(o => o.uid === orderId || o.order_code === orderId || String(o.id) === String(orderId)) || null;
     },
 
 
