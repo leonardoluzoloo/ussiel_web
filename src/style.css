@@ -2348,39 +2348,38 @@ img {
 
 .hero-clean-banner-section {
   margin-top: 16px;
-  margin-bottom: 32px;
+  margin-bottom: 28px;
   width: 100%;
 }
 
 .hero-clean-banner-box {
   position: relative;
   width: 100%;
-  min-height: 320px;
-  border-radius: 18px;
+  border-radius: 16px;
   overflow: hidden;
-  background: #000000;
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.15);
-  display: flex;
-  align-items: center;
+  background: transparent;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  display: block;
 }
 
 .hero-clean-banner-link {
   display: block;
   width: 100%;
-  height: 100%;
+  height: auto;
   text-decoration: none;
 }
 
 .hero-clean-banner-img {
   width: 100%;
-  height: 360px;
-  object-fit: cover;
+  height: auto;
   display: block;
+  border-radius: 16px;
+  object-fit: cover;
   transition: transform 0.4s ease;
 }
 
 .hero-clean-banner-link:hover .hero-clean-banner-img {
-  transform: scale(1.015);
+  transform: scale(1.008);
 }
 
 .hero-clean-fallback-banner {
@@ -2493,14 +2492,14 @@ img {
 
 @media (max-width: 768px) {
   .hero-clean-banner-box {
-    min-height: 240px;
     border-radius: 12px;
   }
   .hero-clean-banner-img {
-    height: 240px;
+    height: auto;
+    border-radius: 12px;
   }
   .hero-clean-fallback-banner {
-    min-height: 240px;
+    min-height: 220px;
     padding: 24px 20px;
   }
   .hero-fallback-title {
@@ -7596,39 +7595,9 @@ body.admin-backoffice-mode #mainContentArea {
   flex: 1;
 }
 
-/* 4. Estilos do Banner Limpo na Vitrine da Loja */
-.hero-clean-banner-section {
-  width: 100%;
-}
-
-.hero-clean-banner-box {
-  position: relative;
-  width: 100%;
-  border-radius: 16px;
-  overflow: hidden;
-  background: #0b0f19;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);
-  transition: opacity 0.2s ease;
-}
-
+/* 4. Estilos de Transição do Banner */
 .hero-clean-banner-box.slide-transitioning {
   opacity: 0.6;
-}
-
-.hero-clean-banner-link {
-  display: block;
-  width: 100%;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.hero-clean-banner-img {
-  width: 100%;
-  height: auto;
-  max-height: 480px;
-  min-height: 220px;
-  object-fit: cover;
-  display: block;
 }
 
 .hero-clean-fallback-banner {
