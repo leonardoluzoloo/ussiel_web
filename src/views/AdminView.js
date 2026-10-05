@@ -2539,7 +2539,7 @@ export function renderAdminView() {
                 type="text"
                 id="stockSearchInput"
                 class="form-input"
-                placeholder="Buscar por ID, produto ou SKU..."
+                placeholder="Buscar por ID ou nome do produto..."
                 value="${stockSearchQuery}"
                 style="padding:7px 12px; font-size:0.875rem;"
               />
@@ -2560,13 +2560,12 @@ export function renderAdminView() {
           ` : `
             <!-- Desktop: Tabela de Estoque -->
             <div class="admin-table-wrapper admin-desktop-only" style="border:1px solid #e2e8f0; border-radius:8px; overflow-x:auto; -webkit-overflow-scrolling:touch; min-height:300px; flex:1; background:#ffffff;">
-              <table class="admin-table" style="min-width:780px; width:100%;">
+              <table class="admin-table" style="min-width:720px; width:100%;">
                 <thead>
                   <tr>
                     <th style="width:55px;">ID</th>
                     <th style="width:48px;">Foto</th>
                     <th>Produto</th>
-                    <th>SKU</th>
                     <th>Estoque Atual</th>
                     <th>Estoque Mínimo</th>
                     <th>Status</th>
@@ -2600,11 +2599,6 @@ export function renderAdminView() {
                         </td>
                         <td>
                           <div style="font-weight:600; color:#0f172a; font-size:0.875rem;">${p.name}</div>
-                        </td>
-                        <td>
-                          <span style="font-family:ui-monospace, monospace; font-size:0.8125rem; color:#475569;">
-                            ${p.sku || '—'}
-                          </span>
                         </td>
                         <td>
                           <span style="font-weight:700; font-size:0.9375rem; color:#0f172a;">${stock}</span>
@@ -2668,7 +2662,6 @@ export function renderAdminView() {
                         <div style="min-width:0;">
                           <strong style="color:#0f172a; font-size:0.9375rem; display:block; word-break:break-word;">${p.name}</strong>
                           <span style="font-family:ui-monospace, monospace; font-size:0.75rem; color:#64748b; background:#f1f5f9; padding:1px 6px; border-radius:4px; border:1px solid #e2e8f0;">ID ${p.id}</span>
-                          ${p.sku ? `<span style="font-family:ui-monospace, monospace; font-size:0.75rem; color:#64748b; margin-left:4px;">${p.sku}</span>` : ''}
                         </div>
                       </div>
                       <div style="flex-shrink:0;">
@@ -5480,57 +5473,72 @@ export function renderAdminView() {
     });
   }
 
-  // 8. Modal de Movimentação de Estoque
+  // 8. Modal de Movimentação de Estoque (100% Centralizado em Mobile e Desktop)
   function openStockMovementModal(preset = {}) {
     const modal = document.createElement('div');
     modal.className = 'admin-modal-overlay';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.padding = '16px';
+
     modal.innerHTML = `
-      <div class="admin-modal-dialog admin-modal-product-dialog" style="max-width:520px;">
-        <div class="admin-modal-product-header">
-          <h3 class="admin-modal-title" style="font-size:1.125rem; font-weight:700; color:#0f172a;">
+      <div class="admin-modal-dialog" style="max-width:480px; width:100%; margin:auto; border-radius:14px; box-shadow:0 20px 45px rgba(0,0,0,0.22); overflow:hidden;">
+        <div class="admin-modal-header" style="padding:14px 18px; display:flex; justify-content:space-between; align-items:center; background:#ffffff; border-bottom:1px solid #e2e8f0;">
+          <h3 class="admin-modal-title" style="font-size:1.125rem; font-weight:700; color:#0f172a; margin:0;">
             Movimentação de Estoque
           </h3>
-          <button type="button" class="btn-clean close-modal-btn" title="Fechar" style="background:none; border:none; font-size:1.25rem; cursor:pointer; color:#64748b;">✕</button>
+          <button type="button" class="admin-modal-close-icon close-modal-btn" title="Fechar">✕</button>
         </div>
 
-        <form id="stockMovementForm" class="admin-modal-product-body" style="padding:16px 20px !important; background:#ffffff !important; display:flex; flex-direction:column; gap:12px;">
-          <div class="admin-card-panel" style="border:1px solid #e2e8f0; border-radius:8px; padding:14px 16px; background:#ffffff;">
-            <div class="form-group">
-              <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Produto *</label>
-              <select id="smProduct" class="admin-filter-select" style="width:100%; height:33px; font-size:0.8125rem;" required>
-                <option value="">Selecione o produto</option>
-                ${productsList.map(p => `
-                  <option value="${p.id}" ${preset?.product_id === p.id ? 'selected' : ''}>
-                    ${p.name} (Atual: ${p.stock || 0} un)
-                  </option>
-                `).join('')}
-              </select>
-            </div>
-
-            <div class="admin-form-grid-2" style="margin-top:10px;">
-              <div class="form-group">
-                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Tipo de Movimento *</label>
-                <select id="smType" class="admin-filter-select" style="width:100%; height:33px; font-size:0.8125rem;">
-                  <option value="in" ${preset?.movement_type === 'in' ? 'selected' : ''}>Entrada (+)</option>
-                  <option value="out" ${preset?.movement_type === 'out' ? 'selected' : ''}>Saída (-)</option>
-                  <option value="adjustment">Ajuste de Balanço</option>
+        <form id="stockMovementForm" style="display:flex; flex-direction:column; margin:0;">
+          <div class="admin-modal-body" style="padding:18px 20px; background:#ffffff; display:flex; flex-direction:column; gap:14px;">
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px;">
+              <div class="form-group" style="margin-bottom:12px;">
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
+                  Produto <span style="color:#ef4444;">*</span>
+                </label>
+                <select id="smProduct" class="admin-filter-select" style="width:100%; height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; background:#ffffff; padding:6px 10px;" required>
+                  <option value="">Selecione o produto</option>
+                  ${productsList.map(p => `
+                    <option value="${p.id}" ${preset?.product_id === p.id ? 'selected' : ''}>
+                      ${p.name} (Atual: ${p.stock || 0} un)
+                    </option>
+                  `).join('')}
                 </select>
               </div>
-              <div class="form-group">
-                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Quantidade *</label>
-                <input type="number" id="smQty" class="form-input" min="1" placeholder="Ex: 5" style="height:33px; font-size:0.875rem;" required />
-              </div>
-            </div>
 
-            <div class="form-group" style="margin-top:10px;">
-              <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Motivo ou Observação *</label>
-              <input type="text" id="smReason" class="form-input" placeholder="Ex: Chegada de remessa de fornecedor" style="height:33px; font-size:0.875rem;" required />
+              <div class="admin-form-grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+                <div class="form-group">
+                  <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
+                    Tipo de Movimento <span style="color:#ef4444;">*</span>
+                  </label>
+                  <select id="smType" class="admin-filter-select" style="width:100%; height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; background:#ffffff; padding:6px 10px;">
+                    <option value="in" ${preset?.movement_type === 'in' ? 'selected' : ''}>Entrada (+)</option>
+                    <option value="out" ${preset?.movement_type === 'out' ? 'selected' : ''}>Saída (-)</option>
+                    <option value="adjustment">Ajuste de Balanço</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
+                    Quantidade <span style="color:#ef4444;">*</span>
+                  </label>
+                  <input type="number" id="smQty" class="form-input" min="1" placeholder="Ex: 5" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 10px;" required />
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
+                  Motivo ou Observação <span style="color:#ef4444;">*</span>
+                </label>
+                <input type="text" id="smReason" class="form-input" placeholder="Ex: Chegada de remessa de fornecedor" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 10px;" required />
+              </div>
             </div>
           </div>
 
-          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
-            <button type="button" class="btn btn-secondary btn-sm close-modal-btn" style="padding:7px 16px; font-size:0.8125rem;">Cancelar</button>
-            <button type="submit" class="btn btn-primary btn-sm" style="font-weight:600; padding:7px 18px; font-size:0.8125rem;">
+          <div class="admin-modal-footer" style="padding:14px 20px; display:flex; justify-content:flex-end; gap:10px; background:#f8fafc; border-top:1px solid #e2e8f0;">
+            <button type="button" class="btn btn-secondary btn-sm close-modal-btn" style="padding:8px 18px; font-size:0.875rem; font-weight:600; border-radius:6px;">Cancelar</button>
+            <button type="submit" class="btn btn-primary btn-sm" style="font-weight:700; padding:8px 20px; font-size:0.875rem; border-radius:6px;">
               Registrar Movimento
             </button>
           </div>
