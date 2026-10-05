@@ -53,11 +53,7 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
   async function syncFromDatabase() {
     try {
       const [realProds, realCats, realBanners] = await Promise.all([
-        Api.products.getAll({
-          category: categorySlug,
-          search: searchQuery,
-          is_deal: isDeals ? true : undefined
-        }),
+        Api.products.getAll({ all: true }),
         Api.categories.getAll(),
         Api.banners.getActive()
       ]);
@@ -126,20 +122,37 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
 
         if (hasCategoryFilter) {
           matchesCat = selectedCategories.some(catVal => {
-            const cleanVal = String(catVal).toLowerCase();
+            if (!catVal) return false;
+            const cleanVal = String(catVal).toLowerCase().trim();
+            const matchedCatObj = activeCategories.find(c => 
+              String(c.id) === cleanVal || 
+              (c.uid && c.uid.toLowerCase() === cleanVal) || 
+              (c.slug && c.slug.toLowerCase() === cleanVal) ||
+              (c.name && c.name.toLowerCase() === cleanVal)
+            );
+            const targetCatId = matchedCatObj ? String(matchedCatObj.id) : null;
+            const targetCatName = matchedCatObj ? (matchedCatObj.name || '').toLowerCase() : null;
+            const targetCatSlug = matchedCatObj ? (matchedCatObj.slug || '').toLowerCase() : null;
+
             return cleanVal === prodCatSlug.toLowerCase() ||
                    cleanVal === prodCatId ||
                    cleanVal === String(product.category_uid || '').toLowerCase() ||
-                   activeCategories.find(c => String(c.id) === cleanVal || (c.uid && c.uid.toLowerCase() === cleanVal) || (c.slug && c.slug.toLowerCase() === cleanVal))?.name?.toLowerCase() === (product.category || '').toLowerCase();
+                   cleanVal === String(product.category || '').toLowerCase() ||
+                   (targetCatId && prodCatId === targetCatId) ||
+                   (targetCatName && String(product.category || '').toLowerCase() === targetCatName) ||
+                   (targetCatSlug && prodCatSlug.toLowerCase() === targetCatSlug);
           });
         }
 
         if (hasSubcategoryFilter) {
           matchesSub = selectedSubcategories.some(subVal => {
-            const cleanSub = String(subVal).toLowerCase();
+            if (!subVal) return false;
+            const cleanSub = String(subVal).toLowerCase().trim();
             return cleanSub === prodSubSlug.toLowerCase() ||
                    cleanSub === prodSubId ||
-                   cleanSub === String(product.subcategory_uid || '').toLowerCase();
+                   cleanSub === String(product.subcategory_uid || '').toLowerCase() ||
+                   cleanSub === String(product.subcategory_name || '').toLowerCase() ||
+                   cleanSub === String(product.subcategory || '').toLowerCase();
           });
         }
 

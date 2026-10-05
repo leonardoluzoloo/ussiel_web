@@ -67,6 +67,11 @@ function setLocalData(key, data) {
 // MAPEADORES BIDIRECIONAIS: SUPABASE (PORTUGUES) <-> FRONTEND COM UID UNIVERSAL
 // ===================================================================
 
+export function isUuidValid(str) {
+  if (!str || typeof str !== 'string') return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str.trim());
+}
+
 export function generateUid() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -1124,9 +1129,17 @@ export const Api = {
       if (!identifier) return null;
       if (isSupabaseConfigured() && supabase) {
         try {
-          let { data } = await supabase.from('categorias').select('*').eq('uid', identifier).maybeSingle();
+          let data = null;
+          if (isUuidValid(identifier)) {
+            const res = await supabase.from('categorias').select('*').eq('uid', identifier).maybeSingle();
+            data = res.data;
+          }
           if (!data) {
             const res = await supabase.from('categorias').select('*').eq('slug', identifier).maybeSingle();
+            data = res.data;
+          }
+          if (!data) {
+            const res = await supabase.from('categorias').select('*').ilike('nome', identifier).maybeSingle();
             data = res.data;
           }
           if (!data && !isNaN(Number(identifier))) {
@@ -1138,7 +1151,7 @@ export const Api = {
       }
 
       const all = await this.getAll();
-      return all.find(c => c.uid === identifier || c.slug === identifier || String(c.id) === String(identifier)) || null;
+      return all.find(c => (c.uid && c.uid.toLowerCase() === String(identifier).toLowerCase()) || c.slug === identifier || String(c.id) === String(identifier) || c.name?.toLowerCase() === String(identifier).toLowerCase()) || null;
     },
 
     async getByUid(uid) {
@@ -1570,16 +1583,20 @@ export const Api = {
           if (params.category) {
             try {
               let catId = null;
-              const { data: catByUid } = await supabase.from('categorias').select('id').eq('uid', params.category).maybeSingle();
-              if (catByUid) {
-                catId = catByUid.id;
-              } else {
+              if (isUuidValid(params.category)) {
+                const { data: catByUid } = await supabase.from('categorias').select('id').eq('uid', params.category).maybeSingle();
+                if (catByUid) catId = catByUid.id;
+              }
+              if (!catId) {
                 const { data: catBySlug } = await supabase.from('categorias').select('id').eq('slug', params.category).maybeSingle();
-                if (catBySlug) {
-                  catId = catBySlug.id;
-                } else if (!isNaN(Number(params.category))) {
-                  catId = Number(params.category);
-                }
+                if (catBySlug) catId = catBySlug.id;
+              }
+              if (!catId) {
+                const { data: catByName } = await supabase.from('categorias').select('id').ilike('nome', params.category).maybeSingle();
+                if (catByName) catId = catByName.id;
+              }
+              if (!catId && !isNaN(Number(params.category))) {
+                catId = Number(params.category);
               }
               if (catId) {
                 query = query.eq('categoria_id', catId);
@@ -1614,7 +1631,7 @@ export const Api = {
         localList = localList.filter(p => p.is_active !== false);
       }
       if (params.category) {
-        localList = localList.filter(p => String(p.category) === String(params.category) || String(p.category_id) === String(params.category) || p.category_slug === params.category);
+        localList = localList.filter(p => String(p.category) === String(params.category) || String(p.category_id) === String(params.category) || p.category_slug === params.category || (p.category_uid && p.category_uid === params.category));
       }
       if (params.brand) {
         localList = localList.filter(p => p.brand && p.brand.toLowerCase().includes(params.brand.toLowerCase()));
@@ -1633,7 +1650,11 @@ export const Api = {
       if (!identifier) return null;
       if (isSupabaseConfigured() && supabase) {
         try {
-          let { data } = await supabase.from('produtos').select('*').eq('uid', identifier).maybeSingle();
+          let data = null;
+          if (isUuidValid(identifier)) {
+            const res = await supabase.from('produtos').select('*').eq('uid', identifier).maybeSingle();
+            data = res.data;
+          }
           if (!data) {
             const res = await supabase.from('produtos').select('*').eq('slug', identifier).maybeSingle();
             data = res.data;

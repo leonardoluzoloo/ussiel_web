@@ -38,23 +38,23 @@ export function renderAccountView(initialTab = 'orders') {
   }
 
   let availableProducts = [];
+  try {
+    const rawProds = localStorage.getItem('novatech_admin_produtos_v4_clean') || localStorage.getItem('novatech_products_v1');
+    if (rawProds) availableProducts = JSON.parse(rawProds);
+  } catch {}
+
   let isSyncing = false;
 
   async function syncRealData() {
     const user = Storage.getUser();
-    if (!user) {
-      ordersList = [];
-      render();
-      return;
-    }
 
     isSyncing = true;
     try {
       const [fetchedOrders, fetchedProducts] = await Promise.all([
-        Api.orders.getMyOrders({ userId: user.id, userEmail: user.email }).catch(e => {
+        user ? Api.orders.getMyOrders({ userId: user.id, userEmail: user.email }).catch(e => {
           console.warn('Erro ao buscar pedidos do usuário:', e.message);
           return [];
-        }),
+        }) : Promise.resolve([]),
         Api.products.getAll({ all: true }).catch(() => [])
       ]);
 
@@ -62,7 +62,7 @@ export function renderAccountView(initialTab = 'orders') {
         ordersList = fetchedOrders;
         if (Storage.saveOrders) Storage.saveOrders(fetchedOrders);
       }
-      if (Array.isArray(fetchedProducts)) {
+      if (Array.isArray(fetchedProducts) && fetchedProducts.length > 0) {
         availableProducts = fetchedProducts;
       }
       render();
@@ -80,11 +80,57 @@ export function renderAccountView(initialTab = 'orders') {
   window.addEventListener('orders-updated', onOrdersUpdated);
   window.addEventListener('order-created', onOrdersUpdated);
   window.addEventListener('products-updated', onOrdersUpdated);
+  window.addEventListener('wishlist-updated', () => render());
 
   function render() {
     const user = Storage.getUser();
+    const wishlistIds = Storage.getWishlist();
+    const wishlistedProducts = (availableProducts || []).filter(p =>
+      wishlistIds.includes(p.id) || wishlistIds.includes(String(p.id)) || wishlistIds.includes(Number(p.id)) || (p.uid && wishlistIds.includes(p.uid))
+    );
 
-    // Se o cliente não estiver logado, exibe tela de login / cadastro
+    // Se a aba for Favoritos e o usuário não estiver logado, exibe os favoritos com banner convidativo
+    if (!user && currentTab === 'wishlist') {
+      container.innerHTML = `
+        <div style="margin-top: 32px; margin-bottom: 24px;">
+          <h1 style="font-family: var(--font-display); font-size: 2rem; font-weight: 900; color: #0f172a; margin-bottom: 6px;">
+            Meus Produtos Favoritos (${wishlistedProducts.length})
+          </h1>
+          <p style="color: #64748b; font-size: 0.9375rem; margin: 0;">
+            Itens que você salvou no seu navegador. <a href="#/login" style="color: var(--primary-600); font-weight: 700; text-decoration: underline;">Entre na sua conta</a> para sincronizar em qualquer dispositivo.
+          </p>
+        </div>
+
+        ${wishlistedProducts.length === 0 ? `
+          <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 56px 24px; text-align: center; box-shadow: var(--shadow-sm); margin-bottom: 48px;">
+            <div style="width: 56px; height: 56px; border-radius: 50%; background: #fee2e2; color: #ef4444; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
+              ${Icons.heart(28, '#ef4444')}
+            </div>
+            <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin-bottom: 8px;">
+              Sua lista de favoritos está vazia
+            </h3>
+            <p style="color: var(--text-secondary); font-size: 0.9375rem; max-width: 440px; margin: 0 auto 24px auto;">
+              Clique no coração dos produtos que você mais gostou para salvá-los e acompanhar preços e novidades!
+            </p>
+            <a href="#/catalogo" class="btn btn-primary" style="padding: 12px 28px; border-radius: 8px; font-weight: 700;">
+              Explorar Catálogo
+            </a>
+          </div>
+        ` : `
+          <div class="products-grid" id="guestWishlistGrid" style="margin-bottom: 48px;">
+            <!-- Inserido dinamicamente via createProductCard -->
+          </div>
+        `}
+      `;
+
+      const grid = container.querySelector('#guestWishlistGrid');
+      if (grid) {
+        wishlistedProducts.forEach(p => grid.appendChild(createProductCard(p)));
+      }
+      return;
+    }
+
+    // Se o cliente não estiver logado e não estiver em Favoritos, exibe tela de login / cadastro
     if (!user) {
       container.innerHTML = `
         <div style="max-width: 560px; margin: 64px auto; background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 48px 32px; text-align: center; box-shadow: var(--shadow-sm);">
@@ -95,7 +141,7 @@ export function renderAccountView(initialTab = 'orders') {
             Acesse a sua Conta
           </h2>
           <p style="color: var(--text-secondary); font-size: 0.9375rem; margin-bottom: 28px; line-height: 1.6;">
-            Inicie sessão ou crie uma conta gratuita com seu e-mail e senha para acompanhar os seus pedidos, visualizar o rastreamento em tempo real e gerenciar seus favoritos.
+            Inicie sessão ou crie uma conta gratuita com seu e-mail e senha para acompanhar os seus pedidos, visualizar o rastreamento em tempo real e gerenciar seus dados cadastrais.
           </p>
           <div style="display: flex; flex-direction: column; gap: 12px;">
             <button class="btn btn-primary btn-full" id="accountLoginPromptBtn">
@@ -118,11 +164,6 @@ export function renderAccountView(initialTab = 'orders') {
       }
       return;
     }
-
-    const wishlistIds = Storage.getWishlist();
-    const wishlistedProducts = availableProducts.filter(p =>
-      wishlistIds.includes(p.id) || wishlistIds.includes(String(p.id)) || wishlistIds.includes(Number(p.id))
-    );
 
     container.innerHTML = `
       <div style="margin-top: 28px; margin-bottom: 24px;">
