@@ -1615,84 +1615,67 @@ export function renderAdminView() {
               const isBlocked = p.is_active === false;
 
               return `
-                <div class="admin-res-card" style="padding:12px; border:1px solid #e2e8f0; border-radius:12px; background:#fff; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.02); box-sizing:border-box; width:100%;">
-                  <div style="display:flex; gap:12px; align-items:flex-start;">
+                <div class="admin-res-card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:14px; padding:14px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.02); box-sizing:border-box; width:100%;">
+                  <!-- Topo: ID + Marca + Status -->
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                      <span style="font-family:ui-monospace, monospace; font-size:0.75rem; font-weight:700; color:#64748b; background:#f1f5f9; padding:2px 8px; border-radius:5px; border:1px solid #e2e8f0;">
+                        ID ${p.id}
+                      </span>
+                      ${p.brand ? `<span style="font-size:0.75rem; color:#475569; font-weight:600; background:#f8fafc; padding:2px 8px; border-radius:5px; border:1px solid #e2e8f0;">${p.brand}</span>` : ''}
+                    </div>
+                    <div>
+                      ${!isBlocked ? `
+                        <span class="badge" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; font-size:0.6875rem; font-weight:700; padding:3px 9px; border-radius:6px;">ATIVO</span>
+                      ` : `
+                        <span class="badge" style="background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; font-size:0.6875rem; font-weight:700; padding:3px 9px; border-radius:6px;">BLOQUEADO</span>
+                      `}
+                    </div>
+                  </div>
+
+                  <!-- Centro: Imagem + Nome + Categoria + Preço + Estoque -->
+                  <div style="display:flex; gap:12px; align-items:center;">
                     ${p.image ? `
-                      <img src="${p.image}" alt="${p.name}" style="width:52px; height:52px; object-fit:contain; border-radius:8px; border:1px solid #e2e8f0; background:#fff; flex-shrink:0;" />
+                      <img src="${p.image}" alt="${p.name}" style="width:60px; height:60px; object-fit:contain; border-radius:10px; border:1px solid #e2e8f0; background:#ffffff; padding:2px; flex-shrink:0;" />
                     ` : `
-                      <div style="width:52px; height:52px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:0.65rem; flex-shrink:0;">
+                      <div style="width:60px; height:60px; background:#f8fafc; border-radius:10px; border:1px solid #e2e8f0; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:0.7rem; flex-shrink:0;">
                         Sem foto
                       </div>
                     `}
                     <div style="flex:1; min-width:0;">
-                      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-                        <div style="min-width:0; flex:1;">
-                          <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
-                            <span style="font-family:ui-monospace, monospace; font-weight:700; color:#64748b; font-size:0.75rem;">#${p.id}</span>
-                            ${p.brand ? `<span style="font-size:0.75rem; color:#64748b; font-weight:600; background:#f1f5f9; padding:1px 6px; border-radius:4px;">${p.brand}</span>` : ''}
-                          </div>
-                          <div style="font-weight:700; color:#0f172a; font-size:0.875rem; line-height:1.3; margin-bottom:2px; word-break:break-word;">
-                            ${p.name}
-                          </div>
-                          <div style="font-size:0.75rem; color:#64748b;">
-                            ${cat ? cat.name : '—'} ${subName ? `• ${subName}` : ''}
-                          </div>
-                        </div>
-
-                        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
-                          <div style="display:flex; align-items:center; gap:6px;">
-                            ${!isBlocked ? `
-                              <span class="badge" style="background:#dcfce7; color:#15803d; font-size:0.6875rem; font-weight:700; padding:2px 8px; border-radius:6px;">ATIVO</span>
-                            ` : `
-                              <span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:0.6875rem; font-weight:700; padding:2px 8px; border-radius:6px;">BLOQUEADO</span>
-                            `}
-                            <div class="admin-actions-dropdown">
-                              <button type="button" class="admin-actions-trigger-btn" data-id="${p.id}" title="Ações do produto" style="width:28px; height:28px; border-radius:6px; border:1px solid #e2e8f0; background:#f8fafc; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0;">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                  <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
-                                  <circle cx="19" cy="12" r="1.5" fill="currentColor"/>
-                                  <circle cx="5" cy="12" r="1.5" fill="currentColor"/>
-                                </svg>
-                              </button>
-                              <div class="admin-actions-menu open-up">
-                                <button type="button" class="admin-action-item edit-product-btn" data-id="${p.id}">
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                                  <span>Editar</span>
-                                </button>
-                                <button type="button" class="admin-action-item toggle-product-block-btn" data-id="${p.id}" data-active="${!isBlocked}">
-                                  ${!isBlocked ? `
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
-                                    <span style="color:#c2410c;">Bloquear</span>
-                                  ` : `
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                                    <span style="color:#15803d;">Desbloquear</span>
-                                  `}
-                                </button>
-                                <button type="button" class="admin-action-item duplicate-product-btn" data-id="${p.id}">
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                                  <span>Copiar</span>
-                                </button>
-                                <div class="admin-action-divider"></div>
-                                <button type="button" class="admin-action-item delete-product-btn danger" data-id="${p.id}">
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-                                  <span>Excluir</span>
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                          <span class="badge" style="font-size:0.6875rem; font-weight:700; padding:2px 8px; border-radius:6px; ${(p.stock || 0) <= 0 ? 'background:#fee2e2; color:#b91c1c;' : ((p.stock || 0) <= (p.stock_min || 2) ? 'background:#fef3c7; color:#b45309;' : 'background:#dcfce7; color:#15803d;')}">
-                            ${p.stock || 0} UN
-                          </span>
-                        </div>
+                      <strong style="font-size:0.9375rem; color:#0f172a; font-weight:700; display:block; line-height:1.3; margin-bottom:3px; word-break:break-word;">
+                        ${p.name}
+                      </strong>
+                      <div style="font-size:0.75rem; color:#64748b; margin-bottom:6px;">
+                        ${cat ? cat.name : '—'} ${subName ? `• ${subName}` : ''}
                       </div>
-
-                      <div style="display:flex; align-items:baseline; justify-content:space-between; margin-top:8px; padding-top:6px; border-top:1px dashed #f1f5f9;">
+                      <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
                         <div>
-                          <strong style="color:#0f172a; font-size:0.95rem; font-weight:800;">${formatPrice(p.price)}</strong>
+                          <span style="font-size:1rem; font-weight:800; color:#0f172a;">${formatPrice(p.price)}</span>
                           ${p.old_price ? `<span style="font-size:0.75rem; text-decoration:line-through; color:#94a3b8; margin-left:6px;">${formatPrice(p.old_price)}</span>` : ''}
                         </div>
+                        <span class="badge" style="font-size:0.6875rem; font-weight:700; padding:2px 8px; border-radius:6px; ${(p.stock || 0) <= 0 ? 'background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;' : ((p.stock || 0) <= (p.stock_min || 2) ? 'background:#fef3c7; color:#b45309; border:1px solid #fde68a;' : 'background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0;')}">
+                          ${p.stock || 0} UN
+                        </span>
                       </div>
                     </div>
+                  </div>
+
+                  <!-- Rodapé: Ações Diretas Touch sem Corte de Menu -->
+                  <div style="display:grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; gap:6px; margin-top:12px; padding-top:10px; border-top:1px solid #f1f5f9;">
+                    <button type="button" class="btn btn-secondary btn-sm edit-product-btn" data-id="${p.id}" style="padding:6px 4px; font-size:0.75rem; font-weight:600; justify-content:center; border-radius:6px;">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:3px;"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                      Editar
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm toggle-product-block-btn" data-id="${p.id}" data-active="${!isBlocked}" style="padding:6px 4px; font-size:0.75rem; font-weight:600; justify-content:center; border-radius:6px; ${!isBlocked ? 'color:#c2410c;' : 'color:#15803d;'}">
+                      ${!isBlocked ? 'Bloquear' : 'Ativar'}
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm duplicate-product-btn" data-id="${p.id}" style="padding:6px 4px; font-size:0.75rem; font-weight:600; justify-content:center; border-radius:6px;">
+                      Copiar
+                    </button>
+                    <button type="button" class="btn btn-sm delete-product-btn danger" data-id="${p.id}" style="padding:6px 4px; font-size:0.75rem; font-weight:600; justify-content:center; border-radius:6px; background:#fff1f2; color:#e11d48; border:1px solid #fecdd3;">
+                      Excluir
+                    </button>
                   </div>
                 </div>
               `;
@@ -2676,51 +2659,43 @@ export function renderAdminView() {
                 const isLow = stock > 0 && stock <= minStock;
 
                 return `
-                  <div class="admin-res-card" style="padding:14px; border:1px solid #e2e8f0; border-radius:8px; background:#fff; margin-bottom:8px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                      <div style="display:flex; gap:10px; align-items:center;">
+                  <div class="admin-res-card" style="padding:14px; border:1px solid #e2e8f0; border-radius:12px; background:#fff; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.02); box-sizing:border-box; width:100%;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; gap:8px;">
+                      <div style="display:flex; gap:10px; align-items:center; min-width:0; flex:1;">
                         ${p.image ? `
-                          <img src="${p.image}" alt="${p.name}" style="width:36px; height:36px; object-fit:contain; border-radius:6px; border:1px solid #e2e8f0;" />
+                          <img src="${p.image}" alt="${p.name}" style="width:44px; height:44px; object-fit:contain; border-radius:8px; border:1px solid #e2e8f0; background:#fff; flex-shrink:0;" />
                         ` : ''}
-                        <div>
-                          <strong style="color:#0f172a; font-size:0.9375rem;">${p.name}</strong>
-                          <div style="font-family:ui-monospace, monospace; font-size:0.75rem; color:#64748b;">${p.sku || '—'}</div>
+                        <div style="min-width:0;">
+                          <strong style="color:#0f172a; font-size:0.9375rem; display:block; word-break:break-word;">${p.name}</strong>
+                          <span style="font-family:ui-monospace, monospace; font-size:0.75rem; color:#64748b; background:#f1f5f9; padding:1px 6px; border-radius:4px; border:1px solid #e2e8f0;">ID ${p.id}</span>
+                          ${p.sku ? `<span style="font-family:ui-monospace, monospace; font-size:0.75rem; color:#64748b; margin-left:4px;">${p.sku}</span>` : ''}
                         </div>
                       </div>
-                      <div style="display:flex; align-items:center; gap:8px;">
+                      <div style="flex-shrink:0;">
                         ${isOut ? `
-                          <span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:0.75rem;">Sem Estoque</span>
+                          <span class="badge" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; font-size:0.6875rem; font-weight:700; padding:3px 8px; border-radius:6px;">SEM ESTOQUE</span>
                         ` : (isLow ? `
-                          <span class="badge" style="background:#fef3c7; color:#b45309; font-size:0.75rem;">Baixo</span>
+                          <span class="badge" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-size:0.6875rem; font-weight:700; padding:3px 8px; border-radius:6px;">BAIXO</span>
                         ` : `
-                          <span class="badge" style="background:#dcfce7; color:#15803d; font-size:0.75rem;">Normal</span>
+                          <span class="badge" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; font-size:0.6875rem; font-weight:700; padding:3px 8px; border-radius:6px;">NORMAL</span>
                         `)}
-                        <div class="admin-actions-dropdown">
-                          <button type="button" class="admin-actions-trigger-btn" data-id="${p.id}" title="Ações">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                              <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
-                              <circle cx="19" cy="12" r="1.5" fill="currentColor"/>
-                              <circle cx="5" cy="12" r="1.5" fill="currentColor"/>
-                            </svg>
-                          </button>
-                          <div class="admin-actions-menu">
-                            <button type="button" class="admin-action-item quick-add-stock-btn" data-id="${p.id}" data-name="${p.name}">
-                              <span>Ajustar Saldo</span>
-                            </button>
-                            <button type="button" class="admin-action-item edit-product-btn" data-id="${p.id}">
-                              <span>Editar Produto</span>
-                            </button>
-                          </div>
-                        </div>
                       </div>
                     </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; font-size:0.875rem;">
-                      <span style="color:#64748b;">Saldo Atual:</span>
-                      <strong style="color:#0f172a;">${stock} unidades</strong>
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #f1f5f9; padding-top:8px; font-size:0.875rem;">
+                      <span style="color:#64748b;">Saldo em Estoque:</span>
+                      <strong style="color:#0f172a; font-size:0.95rem;">${stock} unidades</strong>
                     </div>
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; font-size:0.8125rem; color:#64748b;">
                       <span>Estoque Mínimo:</span>
                       <span>${minStock} unidades</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid #f1f5f9;">
+                      <button type="button" class="btn btn-secondary btn-sm quick-add-stock-btn" data-id="${p.id}" data-name="${p.name}" style="font-size:0.8125rem; font-weight:600; padding:7px 12px; justify-content:center; border-radius:8px;">
+                        Ajustar Saldo
+                      </button>
+                      <button type="button" class="btn btn-secondary btn-sm edit-product-btn" data-id="${p.id}" style="font-size:0.8125rem; font-weight:600; padding:7px 12px; justify-content:center; border-radius:8px;">
+                        Editar Produto
+                      </button>
                     </div>
                   </div>
                 `;
