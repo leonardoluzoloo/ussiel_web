@@ -2894,34 +2894,19 @@ export function renderAdminView() {
                 </div>
               </div>
 
-              <div class="admin-form-grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-                <div class="form-group">
-                  <label class="form-label" for="profilePhone" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
-                    Telefone / WhatsApp Profissional
-                  </label>
-                  <input 
-                    type="tel" 
-                    id="profilePhone" 
-                    class="form-input" 
-                    value="${user.phone || ''}" 
-                    placeholder="+244 923 179 192" 
-                    autocomplete="tel"
-                    style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;"
-                  />
-                </div>
-
-                <div class="form-group">
-                  <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
-                    Cargo & Departamento
-                  </label>
-                  <input 
-                    type="text" 
-                    class="form-input" 
-                    value="Gestão de E-commerce & Backoffice Corporativo" 
-                    readonly 
-                    style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #e2e8f0; background:#f8fafc; color:#64748b; width:100%; box-sizing:border-box; padding:6px 12px; cursor:default;"
-                  />
-                </div>
+              <div class="form-group">
+                <label class="form-label" for="profilePhone" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
+                  Telefone / WhatsApp Profissional
+                </label>
+                <input 
+                  type="tel" 
+                  id="profilePhone" 
+                  class="form-input" 
+                  value="${user.phone || ''}" 
+                  placeholder="+244 923 179 192" 
+                  autocomplete="tel"
+                  style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;"
+                />
               </div>
 
               <div style="display:flex; justify-content:flex-end; margin-top:8px; padding-top:16px; border-top:1px solid #f1f5f9;">
@@ -2934,7 +2919,7 @@ export function renderAdminView() {
         ` : `
           <!-- ABA 2: SEGURANÇA DE ACESSO -->
           <div style="display:flex; flex-direction:column; gap:16px; margin-top:-18px;">
-            <!-- Painel 1: Troca de Senha -->
+            <!-- Painel: Troca de Senha -->
             <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:0 0 12px 12px; padding:24px; box-shadow:0 1px 3px rgba(15,23,42,0.04);">
               <div style="margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
                 <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Atualização de Senha de Acesso</h3>
@@ -3030,22 +3015,6 @@ export function renderAdminView() {
                   </button>
                 </div>
               </form>
-            </div>
-
-            <!-- Painel 2: Política de Segurança & Sessão -->
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:20px 24px; box-shadow:0 1px 3px rgba(15,23,42,0.04); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-              <div>
-                <h4 style="font-size:0.9375rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">
-                  Sessão Administrativa Conectada
-                </h4>
-                <p style="font-size:0.8125rem; color:#64748b; margin:0;">
-                  Ao encerrar a sessão, suas credenciais serão desconectadas com segurança deste navegador.
-                </p>
-              </div>
-              <button type="button" id="profileLogoutBtn" class="admin-logout-btn" style="padding:9px 18px; font-size:0.875rem; font-weight:600; border-radius:6px;">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-                <span>Encerrar Sessão</span>
-              </button>
             </div>
           </div>
         `}
@@ -3952,12 +3921,6 @@ export function renderAdminView() {
         }
       });
     });
-
-    // Encerramento de sessão a partir do card da aba Perfil
-    const profileLogoutBtn = container.querySelector('#profileLogoutBtn');
-    if (profileLogoutBtn) {
-      profileLogoutBtn.addEventListener('click', performAdminLogout);
-    }
   }
 
   // ===================================================================

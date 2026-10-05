@@ -454,20 +454,6 @@ export function renderAccountView(initialTab = 'orders') {
                       </div>
                     </form>
                   </div>
-
-                  <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:20px 24px; box-shadow:0 1px 3px rgba(15,23,42,0.04); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-                    <div>
-                      <h4 style="font-size:0.9375rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">
-                        Sessão de Cliente Conectada
-                      </h4>
-                      <p style="font-size:0.8125rem; color:#64748b; margin:0;">
-                        Ao terminar a sessão, suas credenciais serão desconectadas com segurança deste dispositivo.
-                      </p>
-                    </div>
-                    <button type="button" class="btn btn-secondary" id="accLogoutSubBtn" style="padding:9px 18px; font-size:0.875rem; font-weight:600; border-radius:6px; color:#b91c1c;">
-                      Terminar Sessão
-                    </button>
-                  </div>
                 </div>
               `}
             </div>
@@ -584,17 +570,6 @@ export function renderAccountView(initialTab = 'orders') {
     const logoutBtn = container.querySelector('#accLogoutBtn');
     if (logoutBtn) {
       logoutBtn.onclick = async () => {
-        try {
-          await Api.auth.logout();
-        } catch {}
-        Storage.logoutUser();
-        window.location.hash = '/';
-      };
-    }
-
-    const subLogoutBtn = container.querySelector('#accLogoutSubBtn');
-    if (subLogoutBtn) {
-      subLogoutBtn.onclick = async () => {
         try {
           await Api.auth.logout();
         } catch {}
