@@ -5217,6 +5217,10 @@ export function renderAdminView() {
     const isEdit = Boolean(coupon);
     const modal = document.createElement('div');
     modal.className = 'admin-modal-overlay';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.padding = '16px';
 
     // Normalização das datas para o input date (YYYY-MM-DD)
     const formatDateInput = (d) => {
@@ -5233,15 +5237,15 @@ export function renderAdminView() {
     const initialEndDate = formatDateInput(coupon?.end_date || coupon?.data_fim || coupon?.expires_at);
 
     modal.innerHTML = `
-      <div class="admin-modal-dialog admin-modal-product-dialog" style="max-width:540px;">
-        <div class="admin-modal-product-header">
-          <h3 class="admin-modal-title" style="font-size:1.125rem; font-weight:700; color:#0f172a;">
+      <div class="admin-modal-dialog" style="max-width:540px; width:100%; margin:auto; border-radius:14px; box-shadow:0 20px 45px rgba(0,0,0,0.22); overflow:hidden;">
+        <div class="admin-modal-header" style="padding:14px 18px; display:flex; justify-content:space-between; align-items:center; background:#ffffff; border-bottom:1px solid #e2e8f0;">
+          <h3 class="admin-modal-title" style="font-size:1.125rem; font-weight:700; color:#0f172a; margin:0;">
             ${isEdit ? `Editar Cupom: ${coupon.code}` : 'Novo Cupom de Desconto'}
           </h3>
-          <button type="button" class="btn-clean close-modal-btn" title="Fechar" style="background:none; border:none; font-size:1.25rem; cursor:pointer; color:#64748b;">✕</button>
+          <button type="button" class="admin-modal-close-icon close-modal-btn" title="Fechar">✕</button>
         </div>
 
-        <form id="couponForm" class="admin-modal-product-body" style="padding:16px 20px !important; background:#ffffff !important; display:flex; flex-direction:column; gap:12px;">
+        <form id="couponForm" class="admin-modal-body" style="padding:18px 20px; background:#ffffff; display:flex; flex-direction:column; gap:14px;">
           <!-- Painel 1: Dados do Cupom -->
           <div class="admin-card-panel" style="border:1px solid #e2e8f0; border-radius:8px; padding:14px 16px; background:#ffffff;">
             <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; margin-bottom:12px;">
@@ -5386,54 +5390,71 @@ export function renderAdminView() {
     });
   }
 
-  // 7. Modal de Catálogo / Campanha
+  // 7. Modal de Catálogo / Campanha Comercial (100% Centralizado em Mobile e Desktop)
   function openCatalogModal(cat = null) {
     const isEdit = Boolean(cat);
     const modal = document.createElement('div');
     modal.className = 'admin-modal-overlay';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.padding = '16px';
+
     modal.innerHTML = `
-      <div class="admin-modal-dialog admin-modal-product-dialog" style="max-width:520px;">
-        <div class="admin-modal-product-header">
-          <h3 class="admin-modal-title" style="font-size:1.125rem; font-weight:700; color:#0f172a;">
+      <div class="admin-modal-dialog" style="max-width:520px; width:100%; margin:auto; border-radius:14px; box-shadow:0 20px 45px rgba(0,0,0,0.22); overflow:hidden;">
+        <div class="admin-modal-header" style="padding:14px 18px; display:flex; justify-content:space-between; align-items:center; background:#ffffff; border-bottom:1px solid #e2e8f0;">
+          <h3 class="admin-modal-title" style="font-size:1.125rem; font-weight:700; color:#0f172a; margin:0;">
             ${isEdit ? 'Editar Campanha' : 'Nova Campanha Comercial'}
           </h3>
-          <button type="button" class="btn-clean close-modal-btn" title="Fechar" style="background:none; border:none; font-size:1.25rem; cursor:pointer; color:#64748b;">✕</button>
+          <button type="button" class="admin-modal-close-icon close-modal-btn" title="Fechar">✕</button>
         </div>
 
-        <form id="catalogForm" class="admin-modal-product-body" style="padding:16px 20px !important; background:#ffffff !important; display:flex; flex-direction:column; gap:12px;">
-          <div class="admin-card-panel" style="border:1px solid #e2e8f0; border-radius:8px; padding:14px 16px; background:#ffffff;">
-            <div class="admin-form-grid-2">
-              <div class="form-group">
-                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Nome da Campanha *</label>
-                <input type="text" id="clName" class="form-input" value="${cat?.name || ''}" placeholder="Ex: Black Friday 2026" style="height:33px; font-size:0.875rem;" required />
+        <form id="catalogForm" style="display:flex; flex-direction:column; margin:0;">
+          <div class="admin-modal-body" style="padding:18px 20px; background:#ffffff; display:flex; flex-direction:column; gap:14px;">
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px;">
+              <div class="admin-form-grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+                <div class="form-group">
+                  <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
+                    Nome da Campanha <span style="color:#ef4444;">*</span>
+                  </label>
+                  <input type="text" id="clName" class="form-input" value="${cat?.name || ''}" placeholder="Ex: Black Friday 2026" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 10px;" required />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
+                    Slug URL
+                  </label>
+                  <input type="text" id="clSlug" class="form-input" value="${cat?.slug || ''}" placeholder="black-friday" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 10px;" />
+                </div>
               </div>
-              <div class="form-group">
-                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Slug URL</label>
-                <input type="text" id="clSlug" class="form-input" value="${cat?.slug || ''}" placeholder="black-friday" style="height:33px; font-size:0.875rem;" />
-              </div>
-            </div>
 
-            <div class="admin-form-grid-2" style="margin-top:10px;">
-              <div class="form-group">
-                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Badge Comercial</label>
-                <input type="text" id="clBadge" class="form-input" value="${cat?.badge_text || ''}" placeholder="Ex: ATÉ 40% OFF" style="height:33px; font-size:0.875rem;" />
+              <div class="admin-form-grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+                <div class="form-group">
+                  <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
+                    Badge Comercial
+                  </label>
+                  <input type="text" id="clBadge" class="form-input" value="${cat?.badge_text || ''}" placeholder="Ex: ATÉ 40% OFF" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 10px;" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
+                    Ordem de Exibição <span style="color:#ef4444;">*</span>
+                  </label>
+                  <input type="number" id="clOrder" class="form-input" value="${cat?.display_order || 1}" min="1" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 10px;" required />
+                </div>
               </div>
-              <div class="form-group">
-                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Ordem de Exibição *</label>
-                <input type="number" id="clOrder" class="form-input" value="${cat?.display_order || 1}" style="height:33px; font-size:0.875rem;" required />
-              </div>
-            </div>
 
-            <div class="form-group" style="margin-top:10px;">
-              <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px;">Descrição Comercial</label>
-              <textarea id="clDesc" class="form-input" rows="2" style="font-size:0.875rem;">${cat?.description || ''}</textarea>
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
+                  Descrição Comercial
+                </label>
+                <textarea id="clDesc" class="form-input" rows="3" placeholder="Descrição opcional dos produtos em destaque na campanha..." style="font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 10px;">${cat?.description || ''}</textarea>
+              </div>
             </div>
           </div>
 
-          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
-            <button type="button" class="btn btn-secondary btn-sm close-modal-btn" style="padding:7px 16px; font-size:0.8125rem;">Cancelar</button>
-            <button type="submit" class="btn btn-primary btn-sm" style="font-weight:600; padding:7px 18px; font-size:0.8125rem;">
-              ${isEdit ? 'Salvar' : 'Criar Campanha'}
+          <div class="admin-modal-footer" style="padding:14px 20px; display:flex; justify-content:flex-end; gap:10px; background:#f8fafc; border-top:1px solid #e2e8f0;">
+            <button type="button" class="btn btn-secondary btn-sm close-modal-btn" style="padding:8px 18px; font-size:0.875rem; font-weight:600; border-radius:6px;">Cancelar</button>
+            <button type="submit" class="btn btn-primary btn-sm" style="font-weight:700; padding:8px 20px; font-size:0.875rem; border-radius:6px;">
+              ${isEdit ? 'Salvar Alterações' : 'Criar Campanha'}
             </button>
           </div>
         </form>
