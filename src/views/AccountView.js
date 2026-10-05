@@ -10,6 +10,13 @@ import { Api } from '../services/api.js';
 import { createProductCard } from '../components/ProductCard.js';
 import { Toast } from '../components/Toast.js';
 
+// Lista padrão das 18 províncias de Angola
+const ANGOLA_PROVINCES = [
+  'Bengo', 'Benguela', 'Bié', 'Cabinda', 'Cuando Cubango', 'Cuanza Norte',
+  'Cuanza Sul', 'Cunene', 'Huambo', 'Huíla', 'Luanda', 'Lunda Norte',
+  'Lunda Sul', 'Malanje', 'Moxico', 'Namibe', 'Uíge', 'Zaire'
+];
+
 export function renderAccountView(initialTab = 'orders') {
   const container = document.createElement('div');
   container.className = 'container';
@@ -109,11 +116,11 @@ export function renderAccountView(initialTab = 'orders') {
     );
 
     container.innerHTML = `
-      <div style="margin-top: 32px; margin-bottom: 28px;">
-        <h1 style="font-family: var(--font-display); font-size: 2rem; font-weight: 900; color: var(--text-main);">
+      <div style="margin-top: 28px; margin-bottom: 24px;">
+        <h1 style="font-family: var(--font-display); font-size: 1.875rem; font-weight: 900; color: #0f172a; margin-bottom: 4px;">
           Área do Cliente
         </h1>
-        <p style="color: var(--text-secondary); font-size: 0.9375rem;">
+        <p style="color: #64748b; font-size: 0.9375rem; margin: 0;">
           Gerencie os seus pedidos, dados pessoais, endereço de entrega e produtos favoritos.
         </p>
       </div>
@@ -121,14 +128,14 @@ export function renderAccountView(initialTab = 'orders') {
       <div class="admin-layout">
         <!-- Menu Lateral do Cliente -->
         <aside class="admin-sidebar">
-          <div style="text-align: center; padding-bottom: 20px; border-bottom: 1px solid var(--border-light); margin-bottom: 16px;">
-            <div style="width: 60px; height: 60px; border-radius: 50%; background: var(--primary-100); color: var(--primary-700); display: flex; align-items: center; justify-content: center; margin: 0 auto 10px auto; font-weight: 800; font-size: 1.5rem;">
-              ${user.name ? user.name.split(' ')[0].charAt(0).toUpperCase() : 'U'}
+          <div style="text-align: center; padding-bottom: 18px; border-bottom: 1px solid #e2e8f0; margin-bottom: 14px;">
+            <div style="width: 56px; height: 56px; border-radius: 50%; background: #0f172a; color: #ffffff; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px auto; font-weight: 800; font-size: 1.35rem; letter-spacing: 0.05em;">
+              ${user.name ? user.name.split(' ').map(n => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() : 'CL'}
             </div>
-            <h3 style="font-size: 1rem; font-weight: 800; color: var(--text-main); margin-bottom: 2px;">
-              ${user.name ? user.name.split(' ')[0] : 'Cliente'}
+            <h3 style="font-size: 0.9375rem; font-weight: 800; color: #0f172a; margin-bottom: 2px;">
+              ${user.name || 'Cliente'}
             </h3>
-            <span style="font-size: 0.75rem; color: var(--text-muted);">${user.email || ''}</span>
+            <span style="font-size: 0.75rem; color: #64748b; word-break: break-all;">${user.email || ''}</span>
           </div>
 
           <ul class="admin-menu-list">
@@ -148,7 +155,7 @@ export function renderAccountView(initialTab = 'orders') {
               ${Icons.mapPin(18)}
               <span>Endereço de Entrega</span>
             </li>
-            <li class="admin-menu-item" id="accLogoutBtn" style="color: var(--accent-rose); margin-top: 12px; border-top: 1px solid var(--border-light); padding-top: 14px;">
+            <li class="admin-menu-item" id="accLogoutBtn" style="color: #ef4444; margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
               ${Icons.close(18)}
               <span>Terminar Sessão</span>
             </li>
@@ -159,32 +166,32 @@ export function renderAccountView(initialTab = 'orders') {
         <main>
           ${currentTab === 'orders' ? `
             <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; color: var(--text-main);">
-                  Histórico de Encomendas & Rastreamento
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+                <h2 style="font-family: var(--font-display); font-size: 1.35rem; font-weight: 800; color: #0f172a; margin: 0;">
+                  Histórico de Pedidos & Rastreamento
                 </h2>
-                <button class="btn btn-secondary btn-sm" id="refreshOrdersBtn" title="Atualizar status dos pedidos">
+                <button class="btn btn-secondary btn-sm" id="refreshOrdersBtn" title="Atualizar status dos pedidos" style="border-radius: 8px; font-weight: 600;">
                   ${Icons.refresh ? Icons.refresh(14) : '⟳'} Atualizar Status
                 </button>
               </div>
 
               ${ordersList.length === 0 ? `
-                <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 64px 24px; text-align: center;">
+                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 64px 24px; text-align: center; box-shadow: 0 1px 3px rgba(15,23,42,0.04);">
                   <div style="margin-bottom: 16px; opacity: 0.35;">
-                    ${Icons.package(48, 'var(--text-muted)')}
+                    ${Icons.package(48, '#64748b')}
                   </div>
-                  <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin-bottom: 8px;">
+                  <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin-bottom: 8px;">
                     Nenhum pedido realizado ainda
                   </h3>
-                  <p style="color: var(--text-secondary); font-size: 0.9375rem; max-width: 440px; margin: 0 auto 24px auto; line-height: 1.6;">
-                    Assim que você finalizar a sua primeira compra, o histórico detalhado com timeline e rastreamento em tempo real aparecerão aqui.
+                  <p style="color: #64748b; font-size: 0.9375rem; max-width: 420px; margin: 0 auto 24px auto; line-height: 1.6;">
+                    Assim que você finalizar a sua primeira compra, o histórico detalhado com rastreamento em tempo real aparecerá aqui.
                   </p>
-                  <a href="#/" class="btn btn-primary" style="padding: 12px 28px;">
+                  <a href="#/catalogo" class="btn btn-primary" style="padding: 11px 26px; border-radius: 8px; font-weight: 700;">
                     Explorar Produtos
                   </a>
                 </div>
               ` : `
-                <div style="display: flex; flex-direction: column; gap: 24px;">
+                <div style="display: flex; flex-direction: column; gap: 20px;">
                   ${ordersList.map(order => {
                     const statusIndex = getStatusStepIndex(order.status || order.status_pedido);
                     const isCancelled = (order.status || order.status_pedido) === 'cancelled' || (order.status || order.status_pedido) === 'cancelado';
@@ -192,29 +199,29 @@ export function renderAccountView(initialTab = 'orders') {
                     const items = order.items || order.itens_pedido || [];
 
                     return `
-                      <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 24px; box-shadow: var(--shadow-xs);">
+                      <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px; box-shadow: 0 1px 3px rgba(15,23,42,0.04);">
                         <!-- Cabeçalho do Pedido -->
-                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); padding-bottom: 16px; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 14px; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
                           <div>
-                            <span style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em;">Código do Pedido</span>
-                            <div style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; color: var(--primary-700);">${orderCode}</div>
-                            <span style="font-size: 0.8125rem; color: var(--text-secondary);">${formatDate(order.date || order.created_at || order.criado_em)}</span>
+                            <span style="font-size: 0.6875rem; text-transform: uppercase; color: #64748b; font-weight: 700; letter-spacing: 0.05em;">Código do Pedido</span>
+                            <div style="font-family: var(--font-display); font-size: 1.15rem; font-weight: 800; color: #0f172a;">${orderCode}</div>
+                            <span style="font-size: 0.8125rem; color: #64748b;">${formatDate(order.date || order.created_at || order.criado_em)}</span>
                           </div>
 
                           <div style="text-align: right;">
-                            <span style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Valor Total</span>
-                            <div style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; color: var(--text-main);">${formatPrice(order.total)}</div>
-                            <span style="font-size: 0.75rem; color: var(--text-secondary);">${order.payment_method || order.paymentMethod || 'Multicaixa'}</span>
+                            <span style="font-size: 0.6875rem; text-transform: uppercase; color: #64748b; font-weight: 700;">Total Pago</span>
+                            <div style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 900; color: #0f172a;">${formatPrice(order.total)}</div>
+                            <span style="font-size: 0.75rem; color: #10b981; font-weight: 700;">${order.payment_method || order.paymentMethod || 'Multicaixa'}</span>
                           </div>
                         </div>
 
                         ${isCancelled ? `
-                          <div style="background: #fee2e2; border: 1px solid #fecaca; border-radius: var(--radius-sm); padding: 12px 16px; margin-bottom: 16px; color: #991b1b; font-weight: 700; font-size: 0.875rem;">
+                          <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; color: #991b1b; font-weight: 700; font-size: 0.875rem;">
                             ⚠️ Este pedido foi cancelado. Se tiver dúvidas, entre em contacto com o suporte.
                           </div>
                         ` : `
                           <!-- Timeline Visual do Rastreamento em Tempo Real -->
-                          <div style="margin: 24px 0;">
+                          <div style="margin: 20px 0;">
                             <div class="order-timeline">
                               <div class="timeline-step ${statusIndex >= 0 ? 'completed' : ''}">
                                 <div class="timeline-node">${statusIndex >= 1 ? Icons.check(14) : '1'}</div>
@@ -245,14 +252,14 @@ export function renderAccountView(initialTab = 'orders') {
                         `}
 
                         <!-- Endereço de Entrega Registrado no Pedido -->
-                        <div style="background: #f1f5f9; border-radius: var(--radius-sm); padding: 12px 16px; margin-bottom: 16px; font-size: 0.8125rem; color: var(--text-secondary);">
-                          <strong>Endereço de Entrega:</strong> ${order.shipping_address || order.endereco_entrega || 'Endereço fornecido no checkout'}
-                          ${order.ponto_referencia ? `<br /><strong>Ponto de Referência:</strong> 📍 ${order.ponto_referencia}` : ''}
+                        <div style="background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; font-size: 0.8125rem; color: #475569;">
+                          <strong style="color: #0f172a;">📍 Local de Entrega:</strong> ${order.shipping_address || order.endereco_entrega || 'Endereço fornecido no checkout'}
+                          ${order.ponto_referencia ? `<br /><strong style="color: #0f172a;">Ponto de Referência:</strong> ${order.ponto_referencia}` : ''}
                         </div>
 
                         <!-- Itens do Pedido -->
-                        <div style="background: #f8fafc; border-radius: var(--radius-sm); padding: 16px;">
-                          <div style="font-size: 0.8125rem; font-weight: 700; color: var(--text-main); margin-bottom: 12px;">Itens da Encomenda (${items.length}):</div>
+                        <div style="background: #ffffff; border: 1px solid #f1f5f9; border-radius: 8px; padding: 14px;">
+                          <div style="font-size: 0.8125rem; font-weight: 700; color: #0f172a; margin-bottom: 10px;">Itens da Encomenda (${items.length}):</div>
                           <div style="display: flex; flex-direction: column; gap: 10px;">
                             ${items.map(item => {
                               const name = item.product_name || item.name || 'Produto';
@@ -264,42 +271,42 @@ export function renderAccountView(initialTab = 'orders') {
                                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
                                   <div style="display: flex; align-items: center; gap: 12px;">
                                     ${img ? `
-                                      <img src="${img}" alt="${name}" style="width: 44px; height: 44px; object-fit: contain; background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-xs);" />
+                                      <img src="${img}" alt="${name}" style="width: 42px; height: 42px; object-fit: contain; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px;" />
                                     ` : `
-                                      <div style="width: 44px; height: 44px; background: #e2e8f0; border-radius: var(--radius-xs); display: flex; align-items: center; justify-content: center; color: var(--text-muted);">
+                                      <div style="width: 42px; height: 42px; background: #f1f5f9; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #94a3b8;">
                                         ${Icons.package(18)}
                                       </div>
                                     `}
                                     <div>
-                                      <div style="font-size: 0.875rem; font-weight: 600; color: var(--text-main);">${name}</div>
-                                      <div style="font-size: 0.75rem; color: var(--text-muted);">${qty} unidade(s) • ${formatPrice(price)}</div>
+                                      <div style="font-size: 0.875rem; font-weight: 600; color: #0f172a;">${name}</div>
+                                      <div style="font-size: 0.75rem; color: #64748b;">${qty} unidade(s) • ${formatPrice(price)}</div>
                                     </div>
                                   </div>
-                                  <span style="font-weight: 700; font-size: 0.875rem;">${formatPrice(price * qty)}</span>
+                                  <span style="font-weight: 700; font-size: 0.875rem; color: #0f172a;">${formatPrice(price * qty)}</span>
                                 </div>
                               `;
                             }).join('')}
                           </div>
                         </div>
 
-                        <!-- Ações do Cliente / Confirmação de Entrega (FASE 10) -->
+                        <!-- Ações do Cliente / Confirmação de Entrega -->
                         ${normalizeOrderStatus(order.status || order.status_pedido) === 'shipped' ? `
-                          <div style="margin-top: 16px; padding: 16px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;">
+                          <div style="margin-top: 14px; padding: 14px 16px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
                             <div>
                               <div style="font-weight: 800; color: #1e40af; font-size: 0.9375rem; display: flex; align-items: center; gap: 6px;">
                                 🚚 Sua encomenda está a caminho do seu endereço!
                               </div>
-                              <p style="color: #3b82f6; font-size: 0.8125rem; margin: 4px 0 0 0;">
-                                O estafeta já saiu para entrega. Quando receber o pacote, clique no botão ao lado para confirmar.
+                              <p style="color: #3b82f6; font-size: 0.8125rem; margin: 2px 0 0 0;">
+                                Quando receber o pacote em mãos, clique no botão ao lado para confirmar o recebimento.
                               </p>
                             </div>
-                            <button class="btn btn-primary btn-confirm-delivery" data-order-id="${order.id}" data-order-code="${orderCode}" style="background: #16a34a; border-color: #16a34a; padding: 10px 20px; font-weight: 800; font-size: 0.875rem; white-space: nowrap;">
-                              ✓ Confirmar Recebimento do Pedido
+                            <button class="btn btn-primary btn-confirm-delivery" data-order-id="${order.id}" data-order-code="${orderCode}" style="background: #16a34a; border-color: #16a34a; padding: 9px 18px; font-weight: 800; font-size: 0.875rem; border-radius: 8px; white-space: nowrap;">
+                              ✓ Confirmar Recebimento
                             </button>
                           </div>
                         ` : normalizeOrderStatus(order.status || order.status_pedido) === 'delivered' ? `
-                          <div style="margin-top: 16px; padding: 12px 16px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: var(--radius-sm); color: #065f46; font-weight: 700; font-size: 0.875rem; display: flex; align-items: center; gap: 8px;">
-                            <span>★ Encomenda entregue e finalizada com sucesso. Obrigado por confiar na NovaTech Angola!</span>
+                          <div style="margin-top: 14px; padding: 10px 16px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; color: #065f46; font-weight: 700; font-size: 0.8125rem; display: flex; align-items: center; gap: 8px;">
+                            <span>★ Encomenda entregue e finalizada com sucesso. Obrigado por comprar na loja!</span>
                           </div>
                         ` : ''}
                       </div>
@@ -310,14 +317,14 @@ export function renderAccountView(initialTab = 'orders') {
             </div>
           ` : currentTab === 'wishlist' ? `
             <div>
-              <h2 style="font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 20px;">
+              <h2 style="font-family: var(--font-display); font-size: 1.35rem; font-weight: 800; color: #0f172a; margin-bottom: 20px;">
                 Meus Produtos Favoritos (${wishlistedProducts.length})
               </h2>
 
               ${wishlistedProducts.length === 0 ? `
-                <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 48px 24px; text-align: center;">
-                  <p style="color: var(--text-muted); margin-bottom: 16px;">Você ainda não favoritou nenhum produto cadastrado na loja.</p>
-                  <a href="#/" class="btn btn-primary">Descobrir Produtos</a>
+                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 48px 24px; text-align: center; box-shadow: 0 1px 3px rgba(15,23,42,0.04);">
+                  <p style="color: #64748b; margin-bottom: 16px; font-size: 0.9375rem;">Você ainda não favoritou nenhum produto cadastrado na loja.</p>
+                  <a href="#/catalogo" class="btn btn-primary" style="padding: 10px 24px; border-radius: 8px; font-weight: 700;">Descobrir Produtos</a>
                 </div>
               ` : `
                 <div class="products-grid" id="accountWishlistGrid">
@@ -337,7 +344,7 @@ export function renderAccountView(initialTab = 'orders') {
                     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                       <h2 style="font-size:1.25rem; font-weight:800; color:#0f172a; margin:0;">${user.name || 'Cliente'}</h2>
                       <span class="badge" style="background:#f1f5f9; color:#0f172a; font-size:0.6875rem; font-weight:700; border:1px solid #e2e8f0; padding:2px 8px; border-radius:5px;">
-                        Conta Verificada
+                        Conta Ativa
                       </span>
                     </div>
                     <div style="font-size:0.875rem; color:#64748b; margin-top:2px;">
@@ -348,7 +355,7 @@ export function renderAccountView(initialTab = 'orders') {
 
                 <div>
                   <span class="badge" style="background:#f8fafc; color:#475569; border:1px solid #e2e8f0; font-size:0.75rem; font-weight:600; padding:4px 10px; border-radius:6px;">
-                    Cliente NovaTech
+                    Cliente Registrado
                   </span>
                 </div>
               </div>
@@ -377,47 +384,76 @@ export function renderAccountView(initialTab = 'orders') {
 
                 <!-- Conteúdo da Sub-Aba -->
                 ${profileSubTab === 'data' ? `
-                  <!-- SUB-ABA 1: DADOS CADASTRAIS & ENDEREÇO -->
+                  <!-- SUB-ABA 1: DADOS CADASTRAIS & ENDEREÇO SEPARADO -->
                   <div class="acc-profile-body">
-                    <div style="margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
-                      <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Informações Pessoais & Endereço de Entrega</h3>
-                      <p style="font-size:0.8125rem; color:#64748b; margin:0;">Estes dados são utilizados para faturamento e agendamento de entregas dos seus pedidos.</p>
-                    </div>
+                    <form id="profileForm" onsubmit="event.preventDefault();" style="display:flex; flex-direction:column; gap:18px;">
+                      <!-- Seção 1: Dados Pessoais -->
+                      <div>
+                        <h4 style="font-size:0.875rem; font-weight:800; color:#0f172a; margin:0 0 12px 0; text-transform:uppercase; letter-spacing:0.04em;">Informações Pessoais</h4>
+                        <div class="form-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+                          <div class="form-group" style="grid-column: span 2;">
+                            <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Nome Completo <span style="color:#ef4444;">*</span></label>
+                            <input type="text" id="profName" class="form-input" value="${user.name || ''}" placeholder="Seu nome completo" required style="height:42px; font-size:16px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                          </div>
 
-                    <form id="profileForm" onsubmit="event.preventDefault();" style="display:flex; flex-direction:column; gap:16px;">
-                      <div class="form-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-                        <div class="form-group">
-                          <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Nome Completo <span style="color:#ef4444;">*</span></label>
-                          <input type="text" id="profName" class="form-input" value="${user.name || ''}" placeholder="Ex: Leonardo Adriano" required style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
-                        </div>
+                          <div class="form-group">
+                            <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">E-mail Cadastrado</label>
+                            <input type="email" id="profEmail" class="form-input" value="${user.email || ''}" readonly style="height:42px; font-size:16px; border-radius:8px; border:1px solid #e2e8f0; background:#f8fafc; color:#64748b; width:100%; box-sizing:border-box; padding:8px 12px; cursor:not-allowed;" />
+                          </div>
 
-                        <div class="form-group">
-                          <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">E-mail Cadastrado</label>
-                          <input type="email" id="profEmail" class="form-input" value="${user.email || ''}" readonly style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #e2e8f0; background:#f8fafc; color:#64748b; width:100%; box-sizing:border-box; padding:8px 12px; cursor:not-allowed;" />
-                        </div>
+                          <div class="form-group">
+                            <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Telefone / Telemóvel <span style="color:#ef4444;">*</span></label>
+                            <input type="tel" id="profPhone" class="form-input" value="${user.phone || ''}" placeholder="+244 923 000 000" required style="height:42px; font-size:16px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                          </div>
 
-                        <div class="form-group">
-                          <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Telefone / Telemóvel <span style="color:#ef4444;">*</span></label>
-                          <input type="tel" id="profPhone" class="form-input" value="${user.phone || ''}" placeholder="Ex: +244 923 000 000" required style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
-                        </div>
-
-                        <div class="form-group">
-                          <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">WhatsApp para Notificações</label>
-                          <input type="tel" id="profWA" class="form-input" value="${user.whatsapp || user.phone || ''}" placeholder="Ex: +244 923 000 000" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
-                        </div>
-
-                        <div class="form-group" style="grid-column: span 2;">
-                          <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Endereço Completo de Entrega</label>
-                          <input type="text" id="profAddress" class="form-input" value="${user.endereco || ''}" placeholder="Ex: Província de Luanda, Município de Talatona, Bairro Morro Bento, Rua Principal nº 12" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
-                        </div>
-
-                        <div class="form-group" style="grid-column: span 2;">
-                          <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Ponto de Referência</label>
-                          <input type="text" id="profReference" class="form-input" value="${user.ponto_referencia || ''}" placeholder="Ex: Próximo à bomba Sonangol, em frente ao supermercado..." style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                          <div class="form-group" style="grid-column: span 2;">
+                            <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">WhatsApp para Notificações</label>
+                            <input type="tel" id="profWA" class="form-input" value="${user.whatsapp || user.phone || ''}" placeholder="+244 923 000 000" style="height:42px; font-size:16px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                          </div>
                         </div>
                       </div>
 
-                      <div class="acc-profile-action-row">
+                      <!-- Seção 2: Endereço de Entrega Separado -->
+                      <div style="border-top:1px solid #f1f5f9; padding-top:16px;">
+                        <h4 style="font-size:0.875rem; font-weight:800; color:#0f172a; margin:0 0 12px 0; text-transform:uppercase; letter-spacing:0.04em;">Endereço de Entrega em Angola</h4>
+                        <div class="form-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+                          <div class="form-group">
+                            <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Província <span style="color:#ef4444;">*</span></label>
+                            <select id="profProvincia" class="form-input" style="height:42px; font-size:16px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px; background:#ffffff;">
+                              ${ANGOLA_PROVINCES.map(p => `
+                                <option value="${p}" ${(user.provincia || 'Luanda') === p ? 'selected' : ''}>${p}</option>
+                              `).join('')}
+                            </select>
+                          </div>
+
+                          <div class="form-group">
+                            <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Município / Cidade <span style="color:#ef4444;">*</span></label>
+                            <input type="text" id="profCity" class="form-input" value="${user.cidade || ''}" placeholder="Ex: Talatona, Maianga, Belas..." style="height:42px; font-size:16px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                          </div>
+
+                          <div class="form-group">
+                            <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Bairro <span style="color:#ef4444;">*</span></label>
+                            <input type="text" id="profNeighborhood" class="form-input" value="${user.bairro || ''}" placeholder="Ex: Morro Bento, Alvalade..." style="height:42px; font-size:16px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                          </div>
+
+                          <div class="form-group">
+                            <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Rua / Avenida <span style="color:#ef4444;">*</span></label>
+                            <input type="text" id="profStreet" class="form-input" value="${user.rua || ''}" placeholder="Ex: Rua Principal nº 12" style="height:42px; font-size:16px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                          </div>
+
+                          <div class="form-group" style="grid-column: span 2;">
+                            <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Número / Edifício / Apto</label>
+                            <input type="text" id="profNumber" class="form-input" value="${user.numero || ''}" placeholder="Ex: Casa nº 14 / Edifício Acácias, Apt 3B" style="height:42px; font-size:16px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                          </div>
+
+                          <div class="form-group" style="grid-column: span 2;">
+                            <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Ponto de Referência</label>
+                            <input type="text" id="profReference" class="form-input" value="${user.ponto_referencia || ''}" placeholder="Ex: Próximo à bomba Sonangol, em frente ao supermercado..." style="height:42px; font-size:16px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="acc-profile-action-row" style="margin-top:8px;">
                         <button type="submit" id="saveProfileBtn" class="btn btn-primary" style="padding:11px 24px; font-weight:700; font-size:0.875rem; border-radius:8px;">
                           Salvar Dados Cadastrais
                         </button>
@@ -427,21 +463,16 @@ export function renderAccountView(initialTab = 'orders') {
                 ` : `
                   <!-- SUB-ABA 2: SEGURANÇA DE ACESSO -->
                   <div class="acc-profile-body">
-                    <div style="margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
-                      <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Atualizar Senha de Acesso</h3>
-                      <p style="font-size:0.8125rem; color:#64748b; margin:0;">Cadastre uma senha forte com no mínimo 6 caracteres para proteger sua conta e compras.</p>
-                    </div>
-
                     <form id="customerPasswordForm" style="display:flex; flex-direction:column; gap:16px; max-width:680px;">
                       <div class="form-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                         <div class="form-group">
                           <label class="form-label" for="profNewPass" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Nova Senha <span style="color:#ef4444;">*</span></label>
-                          <input type="password" id="profNewPass" class="form-input" placeholder="Mínimo 6 caracteres" autocomplete="new-password" required minlength="6" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                          <input type="password" id="profNewPass" class="form-input" placeholder="Mínimo 6 caracteres" autocomplete="new-password" required minlength="6" style="height:42px; font-size:16px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
                         </div>
 
                         <div class="form-group">
                           <label class="form-label" for="profNewPassConfirm" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Confirmar Nova Senha <span style="color:#ef4444;">*</span></label>
-                          <input type="password" id="profNewPassConfirm" class="form-input" placeholder="Repita a nova senha" autocomplete="new-password" required minlength="6" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                          <input type="password" id="profNewPassConfirm" class="form-input" placeholder="Repita a nova senha" autocomplete="new-password" required minlength="6" style="height:42px; font-size:16px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
                         </div>
                       </div>
 
@@ -457,30 +488,54 @@ export function renderAccountView(initialTab = 'orders') {
             </div>
           ` : `
             <!-- Aba Endereços -->
-            <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 32px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 28px; box-shadow: 0 1px 3px rgba(15,23,42,0.04);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
                 <div>
-                  <h2 style="font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; color: var(--text-main);">
+                  <h2 style="font-family: var(--font-display); font-size: 1.35rem; font-weight: 800; color: #0f172a; margin: 0 0 4px 0;">
                     Endereço Oficial de Entrega
                   </h2>
-                  <p style="color: var(--text-secondary); font-size: 0.875rem;">
-                    Local utilizado por padrão nos seus pedidos e entregas da NovaTech.
+                  <p style="color: #64748b; font-size: 0.875rem; margin: 0;">
+                    Local utilizado por padrão nos seus pedidos e entregas.
                   </p>
                 </div>
-                <button type="button" class="btn btn-secondary btn-sm" id="editAddressQuickBtn">
-                  ✏️ Atualizar Endereço
+                <button type="button" class="btn btn-secondary btn-sm" id="editAddressQuickBtn" style="border-radius: 8px; font-weight: 600;">
+                  ✏️ Editar Endereço
                 </button>
               </div>
 
-              <div style="border: 2px solid var(--primary-500); border-radius: var(--radius-sm); padding: 24px; background: var(--primary-50); position: relative;">
-                <span class="badge" style="background: var(--primary-600); color: #ffffff; position: absolute; top: 16px; right: 16px;">ENDEREÇO OFICIAL</span>
-                <h4 style="font-weight: 800; color: var(--text-main); margin-bottom: 8px; font-size: 1.0625rem;">
+              <div style="border: 1px solid #cbd5e1; border-radius: 10px; padding: 20px; background: #f8fafc; position: relative;">
+                <span class="badge" style="background: #0f172a; color: #ffffff; position: absolute; top: 16px; right: 16px; font-size: 0.6875rem; padding: 3px 8px; border-radius: 4px;">PADRÃO</span>
+                <h4 style="font-weight: 800; color: #0f172a; margin: 0 0 12px 0; font-size: 1rem;">
                   ${user.name || 'Cliente'}
                 </h4>
-                <div style="font-size: 0.9375rem; color: var(--text-secondary); line-height: 1.8;">
-                  <strong>Endereço Completo:</strong> ${user.endereco ? user.endereco : '<span style="color: #b91c1c;">Nenhum endereço cadastrado ainda.</span>'}<br />
-                  <strong>Ponto de Referência:</strong> ${user.ponto_referencia ? `📍 ${user.ponto_referencia}` : '<span style="color: var(--text-muted);">Sem ponto de referência informado.</span>'}<br />
-                  <strong>Telefone para Contato na Entrega:</strong> ${user.phone ? user.phone : '<span style="color: #b91c1c;">Não informado.</span>'}
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 0.875rem; color: #334155;">
+                  <div>
+                    <span style="font-size: 0.75rem; color: #64748b; display: block; font-weight: 600;">Província</span>
+                    <strong>${user.provincia || 'Luanda'}</strong>
+                  </div>
+                  <div>
+                    <span style="font-size: 0.75rem; color: #64748b; display: block; font-weight: 600;">Município / Cidade</span>
+                    <strong>${user.cidade || 'Não informado'}</strong>
+                  </div>
+                  <div>
+                    <span style="font-size: 0.75rem; color: #64748b; display: block; font-weight: 600;">Bairro</span>
+                    <strong>${user.bairro || 'Não informado'}</strong>
+                  </div>
+                  <div>
+                    <span style="font-size: 0.75rem; color: #64748b; display: block; font-weight: 600;">Rua / Número</span>
+                    <strong>${[user.rua, user.numero].filter(Boolean).join(', ') || user.endereco || 'Não informado'}</strong>
+                  </div>
+                </div>
+
+                ${user.ponto_referencia ? `
+                  <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 0.875rem; color: #475569;">
+                    <strong style="color: #0f172a;">📍 Ponto de Referência:</strong> ${user.ponto_referencia}
+                  </div>
+                ` : ''}
+
+                <div style="margin-top: 12px; font-size: 0.875rem; color: #475569;">
+                  <strong style="color: #0f172a;">📞 Contato para Entrega:</strong> ${user.phone || 'Não informado'} ${user.whatsapp ? `(WhatsApp: ${user.whatsapp})` : ''}
                 </div>
               </div>
             </div>
@@ -549,7 +604,7 @@ export function renderAccountView(initialTab = 'orders') {
         } catch (err) {
           Toast.show(err.message || 'Erro ao confirmar entrega.', 'error');
           btn.disabled = false;
-          btn.textContent = '✓ Confirmar Recebimento do Pedido';
+          btn.textContent = '✓ Confirmar Recebimento';
         }
       };
     });
@@ -592,7 +647,7 @@ export function renderAccountView(initialTab = 'orders') {
         currentTab = 'profile';
         profileSubTab = 'data';
         render();
-        const input = container.querySelector('#profAddress');
+        const input = container.querySelector('#profStreet') || container.querySelector('#profProvincia');
         if (input) {
           input.focus();
           input.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -600,17 +655,23 @@ export function renderAccountView(initialTab = 'orders') {
       };
     }
 
-    // Formulário de Dados Cadastrais do Cliente
+    // Formulário de Dados Cadastrais do Cliente com Campos Separados
     const profForm = container.querySelector('#profileForm');
     if (profForm) {
       profForm.onsubmit = async (e) => {
         if (e && e.preventDefault) e.preventDefault();
         const u = Storage.getUser() || {};
-        const newName = container.querySelector('#profName').value.trim();
-        const newPhone = container.querySelector('#profPhone').value.trim();
+        const newName = container.querySelector('#profName')?.value.trim() || u.name;
+        const newPhone = container.querySelector('#profPhone')?.value.trim() || u.phone;
         const newWA = container.querySelector('#profWA')?.value.trim() || newPhone;
-        const newAddr = container.querySelector('#profAddress')?.value.trim() || '';
+        const newProvincia = container.querySelector('#profProvincia')?.value || 'Luanda';
+        const newCity = container.querySelector('#profCity')?.value.trim() || '';
+        const newNeighborhood = container.querySelector('#profNeighborhood')?.value.trim() || '';
+        const newStreet = container.querySelector('#profStreet')?.value.trim() || '';
+        const newNumber = container.querySelector('#profNumber')?.value.trim() || '';
         const newRef = container.querySelector('#profReference')?.value.trim() || '';
+
+        const fullAddr = [newStreet, newNumber, newNeighborhood, newCity, newProvincia].filter(Boolean).join(', ');
 
         const saveBtn = container.querySelector('#saveProfileBtn');
         if (saveBtn) {
@@ -621,16 +682,21 @@ export function renderAccountView(initialTab = 'orders') {
         u.name = newName;
         u.phone = newPhone;
         u.whatsapp = newWA;
-        u.endereco = newAddr;
+        u.provincia = newProvincia;
+        u.cidade = newCity;
+        u.bairro = newNeighborhood;
+        u.rua = newStreet;
+        u.numero = newNumber;
+        u.endereco = fullAddr;
         u.ponto_referencia = newRef;
 
         try {
           await Api.auth.updateProfile(u);
           Storage.saveUser(u);
-          Toast.show({ title: 'Dados cadastrais atualizados com sucesso!', type: 'success' });
+          Toast.show({ title: 'Dados cadastrais e endereço salvos com sucesso!', type: 'success' });
           render();
         } catch (err) {
-          Toast.show({ title: 'Erro ao salvar dados cadastrais', message: err.message, type: 'error' });
+          Toast.show({ title: 'Erro ao salvar dados', message: err.message, type: 'error' });
           if (saveBtn) {
             saveBtn.disabled = false;
             saveBtn.innerHTML = 'Salvar Dados Cadastrais';

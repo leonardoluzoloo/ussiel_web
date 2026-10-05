@@ -848,25 +848,47 @@ export const Api = {
         try {
           const { data: { user } } = await supabase.auth.getUser();
           if (user) {
-            const { error: dbErr } = await supabase.from('usuarios').update({
+            const dbPayload = {
               nome: profileData.name,
               telefone: profileData.phone,
               whatsapp: profileData.whatsapp || profileData.phone,
-              endereco: profileData.endereco,
-              ponto_referencia: profileData.ponto_referencia
-            }).eq('email', user.email);
+              provincia: profileData.provincia || 'Luanda',
+              cidade: profileData.cidade || '',
+              bairro: profileData.bairro || '',
+              rua: profileData.rua || '',
+              numero: profileData.numero || '',
+              endereco: profileData.endereco || [profileData.rua, profileData.numero, profileData.bairro, profileData.cidade, profileData.provincia].filter(Boolean).join(', '),
+              ponto_referencia: profileData.ponto_referencia || ''
+            };
 
-            if (dbErr) throw dbErr;
+            const { error: dbErr } = await supabase.from('usuarios').update(dbPayload).eq('email', user.email);
+            if (dbErr) {
+              console.warn('Tentativa com colunas individuais falhou ou campos ausentes, fallback para endereco:', dbErr.message);
+              // Fallback para caso alguma coluna específica não exista no schema remoto
+              await supabase.from('usuarios').update({
+                nome: profileData.name,
+                telefone: profileData.phone,
+                whatsapp: profileData.whatsapp || profileData.phone,
+                endereco: dbPayload.endereco,
+                ponto_referencia: profileData.ponto_referencia
+              }).eq('email', user.email);
+            }
 
             const { error: authErr } = await supabase.auth.updateUser({
               data: {
                 name: profileData.name,
                 phone: profileData.phone,
-                endereco: profileData.endereco,
+                whatsapp: profileData.whatsapp || profileData.phone,
+                provincia: profileData.provincia,
+                cidade: profileData.cidade,
+                bairro: profileData.bairro,
+                rua: profileData.rua,
+                numero: profileData.numero,
+                endereco: dbPayload.endereco,
                 ponto_referencia: profileData.ponto_referencia
               }
             });
-            if (authErr) throw authErr;
+            if (authErr) console.warn('Supabase auth metadata update warning:', authErr.message);
           }
         } catch (e) {
           console.error('Erro ao atualizar perfil no Supabase:', e.message);
