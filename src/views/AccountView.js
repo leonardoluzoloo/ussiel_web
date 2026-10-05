@@ -28,7 +28,7 @@ export function renderAccountView(initialTab = 'orders') {
   let ordersList = [];
   const initialUser = Storage.getUser();
   if (initialUser) {
-    const allLocal = Storage.getOrders();
+    const allLocal = Storage.getOrders ? Storage.getOrders() : [];
     const uEmail = (initialUser.email || '').toLowerCase().trim();
     ordersList = (Array.isArray(allLocal) ? allLocal : []).filter(o => {
       const oEmail = (o.customer_email || o.email_cliente || o.customer?.email || '').toLowerCase().trim();
@@ -58,8 +58,9 @@ export function renderAccountView(initialTab = 'orders') {
         Api.products.getAll({ all: true }).catch(() => [])
       ]);
 
-      if (Array.isArray(fetchedOrders) && fetchedOrders.length > 0) {
+      if (Array.isArray(fetchedOrders)) {
         ordersList = fetchedOrders;
+        if (Storage.saveOrders) Storage.saveOrders(fetchedOrders);
       }
       if (Array.isArray(fetchedProducts)) {
         availableProducts = fetchedProducts;

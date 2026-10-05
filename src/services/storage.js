@@ -262,6 +262,22 @@ export const Storage = {
 
 
 
+  // --- ORDERS ---
+  getOrders() {
+    try {
+      const data = localStorage.getItem('novatech_customer_orders_cache');
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  saveOrders(orders) {
+    try {
+      localStorage.setItem('novatech_customer_orders_cache', JSON.stringify(orders || []));
+    } catch {}
+  },
+
   // --- RECENT SEARCHES ---
   getRecentSearches() {
     try {
