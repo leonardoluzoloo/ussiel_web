@@ -249,10 +249,29 @@ CREATE TABLE IF NOT EXISTS public.movimentacoes_estoque (
 CREATE INDEX IF NOT EXISTS idx_movimentacoes_produto ON public.movimentacoes_estoque(produto_id);
 CREATE INDEX IF NOT EXISTS idx_movimentacoes_criado_em ON public.movimentacoes_estoque(criado_em DESC);
 
--- 10. TABELA: configuracoes_loja
+-- 10. TABELA: configuracoes_loja (Colunas dedicadas tipadas para cada dado da empresa, fretes e pagamentos)
 CREATE TABLE IF NOT EXISTS public.configuracoes_loja (
-  chave VARCHAR(100) PRIMARY KEY,
-  valor JSONB NOT NULL,
+  id INT PRIMARY KEY DEFAULT 1,
+  chave VARCHAR(50) DEFAULT 'general' UNIQUE NOT NULL,
+  nome_loja VARCHAR(255) DEFAULT 'NovaTech Angola' NOT NULL,
+  slogan VARCHAR(255) DEFAULT 'Loja de Tecnologia, Smartphones e Eletrônicos Premium',
+  moeda VARCHAR(10) DEFAULT 'Kz' NOT NULL,
+  telefone VARCHAR(50) DEFAULT '+244 923 179 192' NOT NULL,
+  whatsapp VARCHAR(50) DEFAULT '+244 923 179 192' NOT NULL,
+  email VARCHAR(255) DEFAULT 'contacto@novatech.co.ao' NOT NULL,
+  endereco TEXT DEFAULT 'Talatona Shopping & Maianga, Luanda - Angola' NOT NULL,
+  horario_funcionamento VARCHAR(255) DEFAULT 'Seg - Sáb: 08:30 às 19:30 | Dom: 10:00 às 16:00',
+  tarifa_entrega_padrao NUMERIC(15, 2) DEFAULT 3500.00 NOT NULL,
+  tarifa_entrega_expresso NUMERIC(15, 2) DEFAULT 6500.00 NOT NULL,
+  limite_frete_gratis NUMERIC(15, 2) DEFAULT 1000000.00 NOT NULL,
+  titular_conta_bancaria VARCHAR(255) DEFAULT 'NovaTech Comércio & Serviços, Lda',
+  banco_principal VARCHAR(255) DEFAULT 'Banco Angolano de Investimentos (BAI)',
+  iban_oficial VARCHAR(100) DEFAULT 'AO06 0040 0000 1234 5678 9012 3',
+  telefone_multicaixa_express VARCHAR(50) DEFAULT '+244 923 179 192',
+  permitir_pedidos_sem_estoque BOOLEAN DEFAULT FALSE,
+  politica_entrega TEXT,
+  politica_devolucao TEXT,
+  politica_termos TEXT,
   atualizado_em TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 

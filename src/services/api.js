@@ -411,6 +411,64 @@ const DEFAULT_SETTINGS = {
   terms_policy: 'Todas as compras são processadas em Kwanzas (Kz) com suporte a Multicaixa Express, Transferência Bancária Imediata e Pagamento na Entrega.'
 };
 
+function mapConfiguracoesFromDb(c) {
+  if (!c) return DEFAULT_SETTINGS;
+  // Se for registro legado com 'valor' JSONB
+  const obj = (c.valor && typeof c.valor === 'object') ? c.valor : c;
+
+  return {
+    id: obj.id || 1,
+    key: obj.chave || 'general',
+    store_name: obj.nome_loja || obj.store_name || DEFAULT_SETTINGS.store_name,
+    slogan: obj.slogan || DEFAULT_SETTINGS.slogan,
+    currency: obj.moeda || obj.currency || 'Kz',
+    phone: obj.telefone || obj.phone || DEFAULT_SETTINGS.phone,
+    whatsapp: obj.whatsapp || DEFAULT_SETTINGS.whatsapp,
+    email: obj.email || DEFAULT_SETTINGS.email,
+    address: obj.endereco || obj.address || DEFAULT_SETTINGS.address,
+    opening_hours: obj.horario_funcionamento || obj.opening_hours || DEFAULT_SETTINGS.opening_hours,
+    shipping_price_normal: Number(obj.tarifa_entrega_padrao !== undefined ? obj.tarifa_entrega_padrao : (obj.shipping_price_normal !== undefined ? obj.shipping_price_normal : DEFAULT_SETTINGS.shipping_price_normal)),
+    shipping_price_express: Number(obj.tarifa_entrega_expresso !== undefined ? obj.tarifa_entrega_expresso : (obj.shipping_price_express !== undefined ? obj.shipping_price_express : DEFAULT_SETTINGS.shipping_price_express)),
+    free_shipping_threshold: Number(obj.limite_frete_gratis !== undefined ? obj.limite_frete_gratis : (obj.free_shipping_threshold !== undefined ? obj.free_shipping_threshold : DEFAULT_SETTINGS.free_shipping_threshold)),
+    bank_holder: obj.titular_conta_bancaria || obj.bank_holder || DEFAULT_SETTINGS.bank_holder,
+    bank_name: obj.banco_principal || obj.bank_name || DEFAULT_SETTINGS.bank_name,
+    bank_iban: obj.iban_oficial || obj.bank_iban || DEFAULT_SETTINGS.bank_iban,
+    mcx_phone: obj.telefone_multicaixa_express || obj.mcx_phone || DEFAULT_SETTINGS.mcx_phone,
+    allow_out_of_stock_orders: obj.permitir_pedidos_sem_estoque !== undefined ? Boolean(obj.permitir_pedidos_sem_estoque) : Boolean(obj.allow_out_of_stock_orders),
+    delivery_policy: obj.politica_entrega || obj.delivery_policy || DEFAULT_SETTINGS.delivery_policy,
+    return_policy: obj.politica_devolucao || obj.return_policy || DEFAULT_SETTINGS.return_policy,
+    terms_policy: obj.politica_termos || obj.terms_policy || DEFAULT_SETTINGS.terms_policy,
+    updated_at: obj.atualizado_em
+  };
+}
+
+function mapConfiguracoesToDb(s = {}) {
+  return {
+    id: 1,
+    chave: 'general',
+    nome_loja: s.store_name || s.nome_loja || DEFAULT_SETTINGS.store_name,
+    slogan: s.slogan || DEFAULT_SETTINGS.slogan,
+    moeda: s.currency || s.moeda || 'Kz',
+    telefone: s.phone || s.telefone || DEFAULT_SETTINGS.phone,
+    whatsapp: s.whatsapp || DEFAULT_SETTINGS.whatsapp,
+    email: s.email || DEFAULT_SETTINGS.email,
+    endereco: s.address || s.endereco || DEFAULT_SETTINGS.address,
+    horario_funcionamento: s.opening_hours || s.horario_funcionamento || DEFAULT_SETTINGS.opening_hours,
+    tarifa_entrega_padrao: Number(s.shipping_price_normal !== undefined ? s.shipping_price_normal : DEFAULT_SETTINGS.shipping_price_normal),
+    tarifa_entrega_expresso: Number(s.shipping_price_express !== undefined ? s.shipping_price_express : DEFAULT_SETTINGS.shipping_price_express),
+    limite_frete_gratis: Number(s.free_shipping_threshold !== undefined ? s.free_shipping_threshold : DEFAULT_SETTINGS.free_shipping_threshold),
+    titular_conta_bancaria: s.bank_holder || s.titular_conta_bancaria || DEFAULT_SETTINGS.bank_holder,
+    banco_principal: s.bank_name || s.banco_principal || DEFAULT_SETTINGS.bank_name,
+    iban_oficial: s.bank_iban || s.iban_oficial || DEFAULT_SETTINGS.bank_iban,
+    telefone_multicaixa_express: s.mcx_phone || s.telefone_multicaixa_express || DEFAULT_SETTINGS.mcx_phone,
+    permitir_pedidos_sem_estoque: Boolean(s.allow_out_of_stock_orders),
+    politica_entrega: s.delivery_policy || DEFAULT_SETTINGS.delivery_policy,
+    politica_devolucao: s.return_policy || DEFAULT_SETTINGS.return_policy,
+    politica_termos: s.terms_policy || DEFAULT_SETTINGS.terms_policy,
+    atualizado_em: new Date().toISOString()
+  };
+}
+
 export const Api = {
   // --- TOKEN MANAGEMENT ---
   getToken() {
@@ -2617,16 +2675,23 @@ export const Api = {
 
   // ===================================================================
   // 10. CONFIGURAÇÕES DA LOJA (TABELA: 'configuracoes_loja')
+  // Cada campo possui sua própria coluna tipada no banco de dados
   // ===================================================================
   settings: {
     async get(key = 'general') {
       const canonicalKey = (key === 'geral' ? 'general' : key);
       if (isSupabaseConfigured() && supabase) {
         try {
-          const { data, error } = await supabase.from('configuracoes_loja').select('valor').eq('chave', canonicalKey).single();
-          if (!error && data && data.valor) {
-            setLocalData(`${LOCAL_STORAGE_KEYS.SETTINGS}_${canonicalKey}`, data.valor);
-            return data.valor;
+          const { data, error } = await supabase
+            .from('configuracoes_loja')
+            .select('*')
+            .eq('chave', canonicalKey)
+            .maybeSingle();
+
+          if (!error && data) {
+            const mapped = mapConfiguracoesFromDb(data);
+            setLocalData(`${LOCAL_STORAGE_KEYS.SETTINGS}_${canonicalKey}`, mapped);
+            return mapped;
           }
         } catch (e) {
           console.warn('Aviso ao consultar configuracoes no Supabase:', e.message);
@@ -2637,22 +2702,30 @@ export const Api = {
 
     async save(key = 'general', value) {
       const canonicalKey = (key === 'geral' ? 'general' : key);
+      const dbPayload = mapConfiguracoesToDb({ ...value, chave: canonicalKey });
+
       if (isSupabaseConfigured() && supabase) {
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from('configuracoes_loja')
-          .upsert({ chave: canonicalKey, valor: value, atualizado_em: new Date().toISOString() })
+          .upsert(dbPayload, { onConflict: 'chave' })
           .select()
           .single();
 
-        if (error) {
+        // Fallback para schema legado com coluna valor caso o banco ainda não tenha rodado a migração
+        if (error && error.message && (error.message.includes('column') || error.message.includes('coluna'))) {
+          console.warn('Tentando salvar via fallback de coluna única:', error.message);
+          const legacyPayload = { chave: canonicalKey, valor: value, atualizado_em: new Date().toISOString() };
+          const res = await supabase.from('configuracoes_loja').upsert(legacyPayload, { onConflict: 'chave' }).select().single();
+          if (res.error) throw new Error('Falha ao salvar configurações: ' + res.error.message);
+          data = res.data;
+        } else if (error) {
           console.error('Erro ao salvar configuracoes no Supabase:', error);
           throw new Error('Falha ao salvar configurações no banco de dados: ' + (error.message || 'Erro desconhecido'));
         }
 
-        if (data) {
-          setLocalData(`${LOCAL_STORAGE_KEYS.SETTINGS}_${canonicalKey}`, value);
-          return data.valor;
-        }
+        const mapped = data ? mapConfiguracoesFromDb(data) : value;
+        setLocalData(`${LOCAL_STORAGE_KEYS.SETTINGS}_${canonicalKey}`, mapped);
+        return mapped;
       }
 
       setLocalData(`${LOCAL_STORAGE_KEYS.SETTINGS}_${canonicalKey}`, value);
