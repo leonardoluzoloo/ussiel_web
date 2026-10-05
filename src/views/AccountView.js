@@ -15,6 +15,7 @@ export function renderAccountView(initialTab = 'orders') {
   container.className = 'container';
 
   let currentTab = initialTab; // 'orders' | 'profile' | 'wishlist' | 'addresses'
+  let profileSubTab = 'data'; // 'data' | 'security'
   // IMPORTANTE: Inicia com lista vazia. Nunca usa Storage.getOrders() diretamente
   // pois aquele cache é compartilhado e pode conter pedidos de outros usuários.
   // A fonte de verdade é sempre o Supabase via Api.orders.getMyOrders().
@@ -325,64 +326,150 @@ export function renderAccountView(initialTab = 'orders') {
               `}
             </div>
           ` : currentTab === 'profile' ? `
-            <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 32px;">
-              <h2 style="font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 6px;">
-                Dados Pessoais & Endereço
-              </h2>
-              <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 24px;">
-                Atualize seus dados de contato, endereço para entregas em Angola e senha de acesso.
-              </p>
-
-              <form id="profileForm" onsubmit="event.preventDefault();" class="form-grid">
-                <div class="form-group">
-                  <label class="form-label">Nome Completo *</label>
-                  <input type="text" id="profName" class="form-input" value="${user.name || ''}" required />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">E-mail Cadastrado</label>
-                  <input type="email" id="profEmail" class="form-input" value="${user.email || ''}" readonly style="background: #f1f5f9; cursor: not-allowed;" />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Telefone / Telemóvel *</label>
-                  <input type="tel" id="profPhone" class="form-input" value="${user.phone || ''}" placeholder="Ex: +244 923 000 000" required />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">WhatsApp</label>
-                  <input type="tel" id="profWA" class="form-input" value="${user.whatsapp || user.phone || ''}" placeholder="Ex: +244 923 000 000" />
+            <div style="display:flex; flex-direction:column; gap:18px;">
+              <!-- Header Corporativo do Perfil do Cliente -->
+              <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:20px 24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; box-shadow:0 1px 3px rgba(15,23,42,0.04);">
+                <div style="display:flex; align-items:center; gap:16px;">
+                  <div style="width:52px; height:52px; border-radius:10px; background:#0f172a; color:#ffffff; font-size:1.25rem; font-weight:800; display:flex; align-items:center; justify-content:center; letter-spacing:0.05em; flex-shrink:0;">
+                    ${user.name ? user.name.split(' ').map(n => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() : 'CL'}
+                  </div>
+                  <div>
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                      <h2 style="font-size:1.25rem; font-weight:800; color:#0f172a; margin:0;">${user.name || 'Cliente'}</h2>
+                      <span class="badge" style="background:#f1f5f9; color:#0f172a; font-size:0.6875rem; font-weight:700; border:1px solid #e2e8f0; padding:2px 8px; border-radius:5px;">
+                        Conta Verificada
+                      </span>
+                    </div>
+                    <div style="font-size:0.875rem; color:#64748b; margin-top:2px;">
+                      ${user.email || ''}
+                    </div>
+                  </div>
                 </div>
 
-                <div class="form-group" style="grid-column: span 2;">
-                  <label class="form-label">Endereço Completo de Entrega</label>
-                  <input type="text" id="profAddress" class="form-input" value="${user.endereco || ''}" placeholder="Ex: Província de Luanda, Município de Talatona, Bairro Morro Bento, Rua Principal nº 12" />
+                <div>
+                  <span class="badge" style="background:#f8fafc; color:#475569; border:1px solid #e2e8f0; font-size:0.75rem; font-weight:600; padding:4px 10px; border-radius:6px;">
+                    Cliente NovaTech
+                  </span>
                 </div>
+              </div>
 
-                <div class="form-group" style="grid-column: span 2;">
-                  <label class="form-label">Ponto de Referência</label>
-                  <input type="text" id="profReference" class="form-input" value="${user.ponto_referencia || ''}" placeholder="Ex: Próximo à bomba Sonangol, em frente ao supermercado..." />
-                </div>
+              <!-- Barra de Navegação por Sub-Abas do Perfil -->
+              <div style="display:flex; gap:8px; background:#ffffff; border-radius:10px 10px 0 0; padding:8px 16px 0 16px; border:1px solid #e2e8f0; border-bottom:none;">
+                <button
+                  type="button"
+                  class="acc-profile-subtab-btn ${profileSubTab === 'data' ? 'active' : ''}"
+                  data-acc-subtab="data"
+                  style="display:inline-flex; align-items:center; gap:8px; padding:10px 18px; font-size:0.875rem; font-weight:700; border:none; background:none; cursor:pointer; border-bottom:2px solid ${profileSubTab === 'data' ? '#0f172a' : 'transparent'}; color:${profileSubTab === 'data' ? '#0f172a' : '#64748b'}; transition:all 0.15s ease;"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                  <span>Dados Cadastrais & Endereço</span>
+                </button>
 
-                <!-- Seção de Alterar Senha -->
-                <div style="grid-column: span 2; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-light);">
-                  <h4 style="font-weight: 700; color: var(--text-main); margin-bottom: 4px;">Alterar Senha de Acesso (Opcional)</h4>
-                  <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px;">Deixe em branco se não desejar alterar a sua senha atual.</p>
-                </div>
+                <button
+                  type="button"
+                  class="acc-profile-subtab-btn ${profileSubTab === 'security' ? 'active' : ''}"
+                  data-acc-subtab="security"
+                  style="display:inline-flex; align-items:center; gap:8px; padding:10px 18px; font-size:0.875rem; font-weight:700; border:none; background:none; cursor:pointer; border-bottom:2px solid ${profileSubTab === 'security' ? '#0f172a' : 'transparent'}; color:${profileSubTab === 'security' ? '#0f172a' : '#64748b'}; transition:all 0.15s ease;"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                  <span>Segurança de Acesso</span>
+                </button>
+              </div>
 
-                <div class="form-group">
-                  <label class="form-label">Nova Senha</label>
-                  <input type="password" id="profNewPass" class="form-input" placeholder="Mínimo 6 caracteres" autocomplete="new-password" />
-                </div>
+              <!-- Conteúdo da Sub-Aba -->
+              ${profileSubTab === 'data' ? `
+                <!-- SUB-ABA 1: DADOS CADASTRAIS & ENDEREÇO -->
+                <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:0 0 12px 12px; padding:24px; box-shadow:0 1px 3px rgba(15,23,42,0.04); margin-top:-18px;">
+                  <div style="margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
+                    <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Informações Pessoais & Endereço de Entrega</h3>
+                    <p style="font-size:0.8125rem; color:#64748b; margin:0;">Estes dados são utilizados para faturamento e agendamento de entregas dos seus pedidos.</p>
+                  </div>
 
-                <div class="form-group">
-                  <label class="form-label">Confirmar Nova Senha</label>
-                  <input type="password" id="profNewPassConfirm" class="form-input" placeholder="Repita a nova senha" autocomplete="new-password" />
-                </div>
+                  <form id="profileForm" onsubmit="event.preventDefault();" style="display:flex; flex-direction:column; gap:16px;">
+                    <div class="form-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                      <div class="form-group">
+                        <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Nome Completo <span style="color:#ef4444;">*</span></label>
+                        <input type="text" id="profName" class="form-input" value="${user.name || ''}" placeholder="Ex: Leonardo Adriano" required style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" />
+                      </div>
 
-                <div style="grid-column: span 2; margin-top: 16px;">
-                  <button type="submit" id="saveProfileBtn" class="btn btn-primary" style="padding: 12px 32px;">
-                    Salvar Alterações
-                  </button>
+                      <div class="form-group">
+                        <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">E-mail Cadastrado</label>
+                        <input type="email" id="profEmail" class="form-input" value="${user.email || ''}" readonly style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #e2e8f0; background:#f8fafc; color:#64748b; width:100%; box-sizing:border-box; padding:6px 12px; cursor:not-allowed;" />
+                      </div>
+
+                      <div class="form-group">
+                        <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Telefone / Telemóvel <span style="color:#ef4444;">*</span></label>
+                        <input type="tel" id="profPhone" class="form-input" value="${user.phone || ''}" placeholder="Ex: +244 923 000 000" required style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" />
+                      </div>
+
+                      <div class="form-group">
+                        <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">WhatsApp para Notificações</label>
+                        <input type="tel" id="profWA" class="form-input" value="${user.whatsapp || user.phone || ''}" placeholder="Ex: +244 923 000 000" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" />
+                      </div>
+
+                      <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Endereço Completo de Entrega</label>
+                        <input type="text" id="profAddress" class="form-input" value="${user.endereco || ''}" placeholder="Ex: Província de Luanda, Município de Talatona, Bairro Morro Bento, Rua Principal nº 12" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" />
+                      </div>
+
+                      <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Ponto de Referência</label>
+                        <input type="text" id="profReference" class="form-input" value="${user.ponto_referencia || ''}" placeholder="Ex: Próximo à bomba Sonangol, em frente ao supermercado..." style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" />
+                      </div>
+                    </div>
+
+                    <div style="display:flex; justify-content:flex-end; margin-top:8px; padding-top:16px; border-top:1px solid #f1f5f9;">
+                      <button type="submit" id="saveProfileBtn" class="btn btn-primary" style="padding:10px 24px; font-weight:700; font-size:0.875rem; border-radius:6px;">
+                        Salvar Dados Cadastrais
+                      </button>
+                    </div>
+                  </form>
                 </div>
-              </form>
+              ` : `
+                <!-- SUB-ABA 2: SEGURANÇA DE ACESSO -->
+                <div style="display:flex; flex-direction:column; gap:16px; margin-top:-18px;">
+                  <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:0 0 12px 12px; padding:24px; box-shadow:0 1px 3px rgba(15,23,42,0.04);">
+                    <div style="margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
+                      <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Atualizar Senha de Acesso</h3>
+                      <p style="font-size:0.8125rem; color:#64748b; margin:0;">Cadastre uma senha forte com no mínimo 6 caracteres para proteger sua conta e compras.</p>
+                    </div>
+
+                    <form id="customerPasswordForm" style="display:flex; flex-direction:column; gap:16px; max-width:680px;">
+                      <div class="form-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                        <div class="form-group">
+                          <label class="form-label" for="profNewPass" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Nova Senha <span style="color:#ef4444;">*</span></label>
+                          <input type="password" id="profNewPass" class="form-input" placeholder="Mínimo 6 caracteres" autocomplete="new-password" required minlength="6" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" />
+                        </div>
+
+                        <div class="form-group">
+                          <label class="form-label" for="profNewPassConfirm" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Confirmar Nova Senha <span style="color:#ef4444;">*</span></label>
+                          <input type="password" id="profNewPassConfirm" class="form-input" placeholder="Repita a nova senha" autocomplete="new-password" required minlength="6" style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;" />
+                        </div>
+                      </div>
+
+                      <div style="display:flex; justify-content:flex-end; margin-top:8px; padding-top:16px; border-top:1px solid #f1f5f9;">
+                        <button type="submit" id="saveCustomerPasswordBtn" class="btn btn-primary" style="padding:10px 24px; font-weight:700; font-size:0.875rem; border-radius:6px;">
+                          Atualizar Senha de Acesso
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+
+                  <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:20px 24px; box-shadow:0 1px 3px rgba(15,23,42,0.04); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+                    <div>
+                      <h4 style="font-size:0.9375rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">
+                        Sessão de Cliente Conectada
+                      </h4>
+                      <p style="font-size:0.8125rem; color:#64748b; margin:0;">
+                        Ao terminar a sessão, suas credenciais serão desconectadas com segurança deste dispositivo.
+                      </p>
+                    </div>
+                    <button type="button" class="btn btn-secondary" id="accLogoutSubBtn" style="padding:9px 18px; font-size:0.875rem; font-weight:600; border-radius:6px; color:#b91c1c;">
+                      Terminar Sessão
+                    </button>
+                  </div>
+                </div>
+              `}
             </div>
           ` : `
             <!-- Aba Endereços -->
@@ -483,9 +570,31 @@ export function renderAccountView(initialTab = 'orders') {
       };
     });
 
+    // Alternância de Sub-Abas do Perfil do Cliente
+    container.querySelectorAll('.acc-profile-subtab-btn').forEach(btn => {
+      btn.onclick = () => {
+        const targetSub = btn.dataset.accSubtab;
+        if (targetSub && targetSub !== profileSubTab) {
+          profileSubTab = targetSub;
+          render();
+        }
+      };
+    });
+
     const logoutBtn = container.querySelector('#accLogoutBtn');
     if (logoutBtn) {
       logoutBtn.onclick = async () => {
+        try {
+          await Api.auth.logout();
+        } catch {}
+        Storage.logoutUser();
+        window.location.hash = '/';
+      };
+    }
+
+    const subLogoutBtn = container.querySelector('#accLogoutSubBtn');
+    if (subLogoutBtn) {
+      subLogoutBtn.onclick = async () => {
         try {
           await Api.auth.logout();
         } catch {}
@@ -508,6 +617,7 @@ export function renderAccountView(initialTab = 'orders') {
     if (editAddrBtn) {
       editAddrBtn.onclick = () => {
         currentTab = 'profile';
+        profileSubTab = 'data';
         render();
         const input = container.querySelector('#profAddress');
         if (input) {
@@ -517,6 +627,7 @@ export function renderAccountView(initialTab = 'orders') {
       };
     }
 
+    // Formulário de Dados Cadastrais do Cliente
     const profForm = container.querySelector('#profileForm');
     if (profForm) {
       profForm.onsubmit = async (e) => {
@@ -527,19 +638,6 @@ export function renderAccountView(initialTab = 'orders') {
         const newWA = container.querySelector('#profWA')?.value.trim() || newPhone;
         const newAddr = container.querySelector('#profAddress')?.value.trim() || '';
         const newRef = container.querySelector('#profReference')?.value.trim() || '';
-        const newPass = container.querySelector('#profNewPass')?.value || '';
-        const newPassConfirm = container.querySelector('#profNewPassConfirm')?.value || '';
-
-        if (newPass) {
-          if (newPass.length < 6) {
-            Toast.show({ title: 'A nova senha deve ter no mínimo 6 caracteres.', type: 'error' });
-            return;
-          }
-          if (newPass !== newPassConfirm) {
-            Toast.show({ title: 'As senhas digitadas não coincidem.', type: 'error' });
-            return;
-          }
-        }
 
         const saveBtn = container.querySelector('#saveProfileBtn');
         if (saveBtn) {
@@ -555,17 +653,52 @@ export function renderAccountView(initialTab = 'orders') {
 
         try {
           await Api.auth.updateProfile(u);
-          if (newPass) {
-            await Api.auth.updatePassword(newPass);
-          }
           Storage.saveUser(u);
-          Toast.show({ title: 'Perfil atualizado com sucesso!', type: 'success' });
+          Toast.show({ title: 'Dados cadastrais atualizados com sucesso!', type: 'success' });
           render();
         } catch (err) {
-          Toast.show({ title: 'Erro ao salvar perfil', message: err.message, type: 'error' });
+          Toast.show({ title: 'Erro ao salvar dados cadastrais', message: err.message, type: 'error' });
           if (saveBtn) {
             saveBtn.disabled = false;
-            saveBtn.innerHTML = 'Salvar Alterações';
+            saveBtn.innerHTML = 'Salvar Dados Cadastrais';
+          }
+        }
+      };
+    }
+
+    // Formulário de Alteração de Senha do Cliente
+    const custPwdForm = container.querySelector('#customerPasswordForm');
+    if (custPwdForm) {
+      custPwdForm.onsubmit = async (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        const newPass = container.querySelector('#profNewPass')?.value || '';
+        const newPassConfirm = container.querySelector('#profNewPassConfirm')?.value || '';
+
+        if (newPass.length < 6) {
+          Toast.show({ title: 'A nova senha deve ter no mínimo 6 caracteres.', type: 'error' });
+          return;
+        }
+        if (newPass !== newPassConfirm) {
+          Toast.show({ title: 'As senhas digitadas não coincidem.', type: 'error' });
+          return;
+        }
+
+        const saveBtn = container.querySelector('#saveCustomerPasswordBtn');
+        if (saveBtn) {
+          saveBtn.disabled = true;
+          saveBtn.innerHTML = 'Atualizando senha...';
+        }
+
+        try {
+          await Api.auth.updatePassword(newPass);
+          Toast.show({ title: 'Senha de acesso atualizada com sucesso!', type: 'success' });
+          custPwdForm.reset();
+        } catch (err) {
+          Toast.show({ title: 'Erro ao atualizar senha', message: err.message, type: 'error' });
+        } finally {
+          if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = 'Atualizar Senha de Acesso';
           }
         }
       };

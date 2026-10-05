@@ -50,6 +50,7 @@ export function renderAdminView() {
   let categorySortOrder = 'az'; // 'az' | 'za' | 'subs_desc' | 'recent'
   let expandedCategoryIds = new Set();
   let dashboardPeriod = 'today'; // 'today' | '7d' | '30d' | 'all'
+  let profileSubTab = 'data'; // 'data' | 'security'
   let layoutMounted = false;
 
   // 1. Inicialização
@@ -2783,230 +2784,271 @@ export function renderAdminView() {
   }
 
   // ===================================================================
-  // ABA 11: MINHA CONTA / PERFIL DO ADMINISTRADOR (100% INDEPENDENTE DA LOJA)
+  // ABA 11: MINHA CONTA / PERFIL DO ADMINISTRADOR (Enterprise Executive Edition)
+  // 100% Corporativo • Separado por Abas: Dados Cadastrais & Segurança
   // ===================================================================
   function renderProfileTab() {
     const user = Storage.getUser() || { name: 'Administrador', email: 'admin@novatech.co.ao', role: 'admin' };
     const rawName = (user?.name || 'Administrador').trim();
     const firstName = rawName.split(' ')[0] || 'Administrador';
+    const initials = rawName.split(' ').map(n => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'AD';
 
     return `
-      <div style="display:flex; flex-direction:column; gap:20px; max-width:1100px; margin:0 auto; width:100%;">
-        <!-- 1. Hero Card de Identificação do Administrador -->
-        <div class="admin-profile-hero-card">
-          <div class="admin-profile-hero-avatar" style="display:flex; align-items:center; justify-content:center; background:#2563eb; color:#ffffff;">
-            ${Icons.user(32)}
-          </div>
-          <div class="admin-profile-hero-info">
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              <h2 class="admin-profile-hero-name">${firstName}</h2>
-              <span class="badge" style="background:#dbeafe; color:#1e40af; font-size:0.75rem; font-weight:800;">
-                Gestor do Sistema
-              </span>
+      <div style="display:flex; flex-direction:column; gap:18px; max-width:1080px; margin:0 auto; width:100%;">
+        <!-- 1. Header Corporativo de Identificação do Gestor -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:20px 24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; box-shadow:0 1px 3px rgba(15,23,42,0.04);">
+          <div style="display:flex; align-items:center; gap:18px;">
+            <div style="width:56px; height:56px; border-radius:10px; background:#0f172a; color:#ffffff; font-size:1.25rem; font-weight:800; display:flex; align-items:center; justify-content:center; letter-spacing:0.05em; flex-shrink:0; border:1px solid #334155;">
+              ${initials}
             </div>
-            <div class="admin-profile-hero-email">${user.email || 'admin@novatech.co.ao'}</div>
-            <div class="admin-profile-badges">
-              <span class="badge" style="background:#dcfce7; color:#15803d; font-size:0.6875rem; font-weight:700;">
-                ● Sessão Ativa
-              </span>
-              <span class="badge" style="background:#f1f5f9; color:#475569; font-size:0.6875rem;">
-                Nível: Administrador do Sistema
-              </span>
-              <span class="badge" style="background:#f1f5f9; color:#475569; font-size:0.6875rem;">
-                Acesso Irrestrito à Plataforma
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 2. Grid de Edição Cadastral e Segurança de Senha -->
-        <div class="admin-profile-grid">
-          
-          <!-- Bloco 1: Dados Pessoais & Login -->
-          <div class="admin-card">
-            <div class="admin-card-header" style="border-bottom:1px solid #f1f5f9; padding-bottom:12px; margin-bottom:16px;">
-              <div>
-                <h3 class="admin-card-title" style="font-size:1rem;">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                  <span>Dados Cadastrais & Acesso</span>
-                </h3>
-                <p style="font-size:0.8125rem; color:#64748b; margin-top:2px;">
-                  Atualize seu nome de exibição e e-mail utilizado para entrar no painel.
-                </p>
-              </div>
-            </div>
-
-            <form id="adminProfileDataForm" style="display:flex; flex-direction:column; gap:14px;">
-              <div class="form-group">
-                <label class="form-label" for="profileName">Nome Completo</label>
-                <input 
-                  type="text" 
-                  id="profileName" 
-                  class="form-input" 
-                  value="${user.name || ''}" 
-                  placeholder="Ex: Leonardo Adriano" 
-                  required 
-                  minlength="2"
-                  autocomplete="name"
-                />
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="profileEmail">E-mail de Acesso (Login)</label>
-                <input 
-                  type="email" 
-                  id="profileEmail" 
-                  class="form-input" 
-                  value="${user.email || ''}" 
-                  placeholder="admin@novatech.co.ao" 
-                  required 
-                  autocomplete="email"
-                />
-                <small style="font-size:0.75rem; color:#64748b; margin-top:4px; display:block;">
-                  Utilizado para autenticação no painel administrativo.
-                </small>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="profilePhone">Telefone / WhatsApp Profissional</label>
-                <input 
-                  type="tel" 
-                  id="profilePhone" 
-                  class="form-input" 
-                  value="${user.phone || ''}" 
-                  placeholder="+244 923 179 192" 
-                  autocomplete="tel"
-                />
-              </div>
-
-              <div style="display:flex; justify-content:flex-end; margin-top:8px;">
-                <button type="submit" id="saveProfileDataBtn" class="btn btn-primary" style="padding:10px 20px; font-weight:700;">
-                  Salvar Dados Cadastrais
-                </button>
-              </div>
-            </form>
-          </div>
-
-          <!-- Bloco 2: Segurança & Alteração de Senha -->
-          <div class="admin-card">
-            <div class="admin-card-header" style="border-bottom:1px solid #f1f5f9; padding-bottom:12px; margin-bottom:16px;">
-              <div>
-                <h3 class="admin-card-title" style="font-size:1rem;">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                  <span>Segurança & Senha de Acesso</span>
-                </h3>
-                <p style="font-size:0.8125rem; color:#64748b; margin-top:2px;">
-                  Modifique sua senha de gestor com confirmação da senha atual.
-                </p>
-              </div>
-            </div>
-
-            <form id="adminPasswordChangeForm" style="display:flex; flex-direction:column; gap:14px;">
-              <div class="form-group">
-                <label class="form-label" for="pwdCurrent">Senha Atual</label>
-                <div style="position:relative; display:flex; align-items:center;">
-                  <input 
-                    type="password" 
-                    id="pwdCurrent" 
-                    class="form-input" 
-                    placeholder="Digite sua senha atual" 
-                    required 
-                    autocomplete="current-password"
-                    style="padding-right:40px;"
-                  />
-                  <button 
-                    type="button" 
-                    class="toggle-pwd-visibility-btn" 
-                    data-target="pwdCurrent" 
-                    style="position:absolute; right:10px; background:none; border:none; color:#64748b; cursor:pointer; padding:4px;"
-                    title="Alternar visualização da senha"
-                  >
-                    👁
-                  </button>
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="pwdNew">Nova Senha de Acesso</label>
-                <div style="position:relative; display:flex; align-items:center;">
-                  <input 
-                    type="password" 
-                    id="pwdNew" 
-                    class="form-input" 
-                    placeholder="Mínimo de 6 caracteres" 
-                    required 
-                    minlength="6"
-                    autocomplete="new-password"
-                    style="padding-right:40px;"
-                  />
-                  <button 
-                    type="button" 
-                    class="toggle-pwd-visibility-btn" 
-                    data-target="pwdNew" 
-                    style="position:absolute; right:10px; background:none; border:none; color:#64748b; cursor:pointer; padding:4px;"
-                    title="Alternar visualização da senha"
-                  >
-                    👁
-                  </button>
-                </div>
-                <small style="font-size:0.75rem; color:#64748b; margin-top:4px; display:block;">
-                  A nova senha deve ter no mínimo 6 dígitos.
-                </small>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="pwdConfirm">Confirmar Nova Senha</label>
-                <div style="position:relative; display:flex; align-items:center;">
-                  <input 
-                    type="password" 
-                    id="pwdConfirm" 
-                    class="form-input" 
-                    placeholder="Repita a nova senha" 
-                    required 
-                    minlength="6"
-                    autocomplete="new-password"
-                    style="padding-right:40px;"
-                  />
-                  <button 
-                    type="button" 
-                    class="toggle-pwd-visibility-btn" 
-                    data-target="pwdConfirm" 
-                    style="position:absolute; right:10px; background:none; border:none; color:#64748b; cursor:pointer; padding:4px;"
-                    title="Alternar visualização da senha"
-                  >
-                    👁
-                  </button>
-                </div>
-              </div>
-
-              <div style="display:flex; justify-content:flex-end; margin-top:8px;">
-                <button type="submit" id="savePasswordBtn" class="btn btn-primary" style="padding:10px 20px; font-weight:700;">
-                  Atualizar Senha
-                </button>
-              </div>
-            </form>
-          </div>
-
-        </div>
-
-        <!-- 3. Sessão Ativa & Encerramento Claro -->
-        <div class="admin-card" style="border: 1px dashed #cbd5e1; background: #fafafa;">
-          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
             <div>
-              <h4 style="font-size:0.9375rem; font-weight:800; color:#0f172a; margin-bottom:4px;">
-                Sessão Administrativa Conectada
-              </h4>
-              <p style="font-size:0.8125rem; color:#64748b;">
-                Ao encerrar a sessão, suas credenciais locais serão limpas com segurança e o painel será bloqueado.
-              </p>
+              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <h2 style="font-size:1.25rem; font-weight:800; color:#0f172a; margin:0; letter-spacing:-0.01em;">${rawName}</h2>
+                <span class="badge" style="background:#f1f5f9; color:#0f172a; font-size:0.6875rem; font-weight:700; border:1px solid #e2e8f0; padding:2px 8px; border-radius:5px; text-transform:uppercase; letter-spacing:0.04em;">
+                  Gestor Master
+                </span>
+              </div>
+              <div style="font-size:0.875rem; color:#64748b; margin-top:3px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                <span>${user.email || 'admin@novatech.co.ao'}</span>
+                <span style="color:#cbd5e1;">•</span>
+                <span style="display:inline-flex; align-items:center; color:#15803d; font-weight:600; font-size:0.8125rem;">
+                  <span style="width:6px; height:6px; border-radius:50%; background:#16a34a; margin-right:5px; display:inline-block;"></span>
+                  Sessão Autenticada
+                </span>
+              </div>
             </div>
-            <button type="button" id="profileLogoutBtn" class="admin-logout-btn" style="padding:10px 18px; font-size:0.875rem;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-              <span>Encerrar Sessão no Painel</span>
-            </button>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="badge" style="background:#f8fafc; color:#475569; border:1px solid #e2e8f0; font-size:0.75rem; font-weight:600; padding:4px 10px; border-radius:6px;">
+              ID: USR-ADMIN-01
+            </span>
           </div>
         </div>
 
+        <!-- 2. Barra de Navegação por Abas Corporativas -->
+        <div style="display:flex; gap:8px; border-bottom:1px solid #e2e8f0; padding-bottom:0; background:#ffffff; border-radius:10px 10px 0 0; padding:8px 16px 0 16px; border:1px solid #e2e8f0; border-bottom:none;">
+          <button
+            type="button"
+            class="admin-profile-subtab-btn ${profileSubTab === 'data' ? 'active' : ''}"
+            data-profile-subtab="data"
+            style="display:inline-flex; align-items:center; gap:8px; padding:10px 18px; font-size:0.875rem; font-weight:700; border:none; background:none; cursor:pointer; border-bottom:2px solid ${profileSubTab === 'data' ? '#0f172a' : 'transparent'}; color:${profileSubTab === 'data' ? '#0f172a' : '#64748b'}; transition:all 0.15s ease;"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <span>Dados Cadastrais</span>
+          </button>
+
+          <button
+            type="button"
+            class="admin-profile-subtab-btn ${profileSubTab === 'security' ? 'active' : ''}"
+            data-profile-subtab="security"
+            style="display:inline-flex; align-items:center; gap:8px; padding:10px 18px; font-size:0.875rem; font-weight:700; border:none; background:none; cursor:pointer; border-bottom:2px solid ${profileSubTab === 'security' ? '#0f172a' : 'transparent'}; color:${profileSubTab === 'security' ? '#0f172a' : '#64748b'}; transition:all 0.15s ease;"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            <span>Segurança de Acesso</span>
+          </button>
+        </div>
+
+        <!-- 3. Conteúdo da Aba Selecionada -->
+        ${profileSubTab === 'data' ? `
+          <!-- ABA 1: DADOS CADASTRAIS -->
+          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:0 0 12px 12px; padding:24px; box-shadow:0 1px 3px rgba(15,23,42,0.04); margin-top:-18px;">
+            <div style="margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
+              <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Informações Pessoais & Contato Profissional</h3>
+              <p style="font-size:0.8125rem; color:#64748b; margin:0;">Mantenha seus dados de identificação e contato atualizados para comunicações corporativas.</p>
+            </div>
+
+            <form id="adminProfileDataForm" style="display:flex; flex-direction:column; gap:16px;">
+              <div class="admin-form-grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                <div class="form-group">
+                  <label class="form-label" for="profileName" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
+                    Nome Completo <span style="color:#ef4444;">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    id="profileName" 
+                    class="form-input" 
+                    value="${user.name || ''}" 
+                    placeholder="Ex: Leonardo Adriano" 
+                    required 
+                    minlength="2"
+                    autocomplete="name"
+                    style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;"
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="profileEmail" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
+                    E-mail Institucional (Login) <span style="color:#ef4444;">*</span>
+                  </label>
+                  <input 
+                    type="email" 
+                    id="profileEmail" 
+                    class="form-input" 
+                    value="${user.email || ''}" 
+                    placeholder="admin@novatech.co.ao" 
+                    required 
+                    autocomplete="email"
+                    style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;"
+                  />
+                </div>
+              </div>
+
+              <div class="admin-form-grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                <div class="form-group">
+                  <label class="form-label" for="profilePhone" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
+                    Telefone / WhatsApp Profissional
+                  </label>
+                  <input 
+                    type="tel" 
+                    id="profilePhone" 
+                    class="form-input" 
+                    value="${user.phone || ''}" 
+                    placeholder="+244 923 179 192" 
+                    autocomplete="tel"
+                    style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 12px;"
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
+                    Cargo & Departamento
+                  </label>
+                  <input 
+                    type="text" 
+                    class="form-input" 
+                    value="Gestão de E-commerce & Backoffice Corporativo" 
+                    readonly 
+                    style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #e2e8f0; background:#f8fafc; color:#64748b; width:100%; box-sizing:border-box; padding:6px 12px; cursor:default;"
+                  />
+                </div>
+              </div>
+
+              <div style="display:flex; justify-content:flex-end; margin-top:8px; padding-top:16px; border-top:1px solid #f1f5f9;">
+                <button type="submit" id="saveProfileDataBtn" class="btn btn-primary" style="padding:10px 24px; font-weight:700; font-size:0.875rem; border-radius:6px;">
+                  Salvar Alterações Cadastrais
+                </button>
+              </div>
+            </form>
+          </div>
+        ` : `
+          <!-- ABA 2: SEGURANÇA DE ACESSO -->
+          <div style="display:flex; flex-direction:column; gap:16px; margin-top:-18px;">
+            <!-- Painel 1: Troca de Senha -->
+            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:0 0 12px 12px; padding:24px; box-shadow:0 1px 3px rgba(15,23,42,0.04);">
+              <div style="margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
+                <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Atualização de Senha de Acesso</h3>
+                <p style="font-size:0.8125rem; color:#64748b; margin:0;">Para sua proteção, confirme a senha atual antes de cadastrar uma nova chave de acesso.</p>
+              </div>
+
+              <form id="adminPasswordChangeForm" style="display:flex; flex-direction:column; gap:16px; max-width:680px;">
+                <div class="form-group">
+                  <label class="form-label" for="pwdCurrent" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
+                    Senha Atual <span style="color:#ef4444;">*</span>
+                  </label>
+                  <div style="position:relative; display:flex; align-items:center;">
+                    <input 
+                      type="password" 
+                      id="pwdCurrent" 
+                      class="form-input" 
+                      placeholder="Digite sua senha atual" 
+                      required 
+                      autocomplete="current-password"
+                      style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 40px 6px 12px;"
+                    />
+                    <button 
+                      type="button" 
+                      class="toggle-pwd-visibility-btn" 
+                      data-target="pwdCurrent" 
+                      style="position:absolute; right:10px; background:none; border:none; color:#64748b; cursor:pointer; padding:4px;"
+                      title="Alternar visualização da senha"
+                    >
+                      👁
+                    </button>
+                  </div>
+                </div>
+
+                <div class="admin-form-grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                  <div class="form-group">
+                    <label class="form-label" for="pwdNew" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
+                      Nova Senha <span style="color:#ef4444;">*</span>
+                    </label>
+                    <div style="position:relative; display:flex; align-items:center;">
+                      <input 
+                        type="password" 
+                        id="pwdNew" 
+                        class="form-input" 
+                        placeholder="Mínimo de 6 caracteres" 
+                        required 
+                        minlength="6"
+                        autocomplete="new-password"
+                        style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 40px 6px 12px;"
+                      />
+                      <button 
+                        type="button" 
+                        class="toggle-pwd-visibility-btn" 
+                        data-target="pwdNew" 
+                        style="position:absolute; right:10px; background:none; border:none; color:#64748b; cursor:pointer; padding:4px;"
+                        title="Alternar visualização da senha"
+                      >
+                        👁
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="pwdConfirm" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">
+                      Confirmar Nova Senha <span style="color:#ef4444;">*</span>
+                    </label>
+                    <div style="position:relative; display:flex; align-items:center;">
+                      <input 
+                        type="password" 
+                        id="pwdConfirm" 
+                        class="form-input" 
+                        placeholder="Repita a nova senha" 
+                        required 
+                        minlength="6"
+                        autocomplete="new-password"
+                        style="height:38px; font-size:0.875rem; border-radius:6px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:6px 40px 6px 12px;"
+                      />
+                      <button 
+                        type="button" 
+                        class="toggle-pwd-visibility-btn" 
+                        data-target="pwdConfirm" 
+                        style="position:absolute; right:10px; background:none; border:none; color:#64748b; cursor:pointer; padding:4px;"
+                        title="Alternar visualização da senha"
+                      >
+                        👁
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="display:flex; justify-content:flex-end; margin-top:8px; padding-top:16px; border-top:1px solid #f1f5f9;">
+                  <button type="submit" id="savePasswordBtn" class="btn btn-primary" style="padding:10px 24px; font-weight:700; font-size:0.875rem; border-radius:6px;">
+                    Atualizar Senha de Acesso
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <!-- Painel 2: Política de Segurança & Sessão -->
+            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:20px 24px; box-shadow:0 1px 3px rgba(15,23,42,0.04); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+              <div>
+                <h4 style="font-size:0.9375rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">
+                  Sessão Administrativa Conectada
+                </h4>
+                <p style="font-size:0.8125rem; color:#64748b; margin:0;">
+                  Ao encerrar a sessão, suas credenciais serão desconectadas com segurança deste navegador.
+                </p>
+              </div>
+              <button type="button" id="profileLogoutBtn" class="admin-logout-btn" style="padding:9px 18px; font-size:0.875rem; font-weight:600; border-radius:6px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                <span>Encerrar Sessão</span>
+              </button>
+            </div>
+          </div>
+        `}
       </div>
     `;
   }
@@ -3896,6 +3938,17 @@ export function renderAdminView() {
           const isPassword = input.type === 'password';
           input.type = isPassword ? 'text' : 'password';
           btn.textContent = isPassword ? '🔒' : '👁';
+        }
+      });
+    });
+
+    // Alternância entre Sub-Abas do Perfil (Dados Cadastrais & Segurança de Acesso)
+    container.querySelectorAll('.admin-profile-subtab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetSub = btn.dataset.profileSubtab;
+        if (targetSub && targetSub !== profileSubTab) {
+          profileSubTab = targetSub;
+          render();
         }
       });
     });

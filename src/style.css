@@ -8061,3 +8061,23 @@ input:-webkit-autofill:active {
     border-radius: 14px 14px 0 0 !important;
   }
 }
+
+/* Sub-Abas de Perfil Corporativo (Sem visual genérico de IA) */
+.admin-profile-subtab-btn,
+.acc-profile-subtab-btn {
+  user-select: none;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+}
+
+.admin-profile-subtab-btn:hover,
+.acc-profile-subtab-btn:hover {
+  color: #0f172a !important;
+  background: #f8fafc;
+}
+
+.admin-profile-subtab-btn.active,
+.acc-profile-subtab-btn.active {
+  color: #0f172a !important;
+  border-bottom-color: #0f172a !important;
+}
