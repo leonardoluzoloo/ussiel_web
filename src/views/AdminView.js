@@ -2744,8 +2744,9 @@ export function renderAdminView() {
               class="admin-settings-subtab-btn ${settingsSubTab === 'general' ? 'active' : ''}"
               data-settings-subtab="general"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
-              <span>Identidade & Contato</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+              <span class="subtab-text-full">Identidade & Contato</span>
+              <span class="subtab-text-compact">Identidade</span>
             </button>
 
             <button
@@ -2753,8 +2754,9 @@ export function renderAdminView() {
               class="admin-settings-subtab-btn ${settingsSubTab === 'shipping' ? 'active' : ''}"
               data-settings-subtab="shipping"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 17h4V5H2v12h3"></path><path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h2"></path><circle cx="7.5" cy="17.5" r="2.5"></circle><circle cx="17.5" cy="17.5" r="2.5"></circle></svg>
-              <span>Logística & Envio</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 17h4V5H2v12h3"></path><path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h2"></path><circle cx="7.5" cy="17.5" r="2.5"></circle><circle cx="17.5" cy="17.5" r="2.5"></circle></svg>
+              <span class="subtab-text-full">Logística & Envio</span>
+              <span class="subtab-text-compact">Logística</span>
             </button>
 
             <button
@@ -2762,8 +2764,9 @@ export function renderAdminView() {
               class="admin-settings-subtab-btn ${settingsSubTab === 'payments' ? 'active' : ''}"
               data-settings-subtab="payments"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
-              <span>Pagamentos & Bancos</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+              <span class="subtab-text-full">Pagamentos & Bancos</span>
+              <span class="subtab-text-compact">Pagamentos</span>
             </button>
           </div>
 

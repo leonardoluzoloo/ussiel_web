@@ -6470,14 +6470,16 @@ body.admin-backoffice-mode #mainContentArea {
   flex-direction: column;
 }
 
-/* 2. Topbar Corporativa Executiva Limpa (Estática no Topo) */
+/* 2. Topbar Corporativa Executiva Limpa (Estática e Fixa no Topo com Safe Area) */
 .admin-enterprise-topbar {
   background: #0b1120;
   border-bottom: 1px solid #1e293b;
-  position: relative;
+  position: sticky;
+  top: 0;
   flex-shrink: 0;
-  z-index: 120;
-  height: 62px;
+  z-index: 200;
+  min-height: 60px;
+  padding-top: env(safe-area-inset-top, 0px);
   display: flex;
   align-items: center;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
@@ -8096,6 +8098,10 @@ input:-webkit-autofill:active {
   display: none;
 }
 
+.subtab-text-compact {
+  display: none;
+}
+
 .admin-profile-subtab-btn,
 .acc-profile-subtab-btn,
 .admin-settings-subtab-btn {
@@ -8106,6 +8112,7 @@ input:-webkit-autofill:active {
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   padding: 12px 18px;
   font-size: 0.875rem;
@@ -8154,39 +8161,98 @@ input:-webkit-autofill:active {
 }
 
 @media (max-width: 768px) {
-  .admin-content-area {
-    padding-bottom: 120px !important;
+  /* Prevenção de Auto-Zoom no Safari iOS (Inputs com min 16px) */
+  input.form-input,
+  select.form-input,
+  textarea.form-input,
+  .form-input {
+    font-size: 16px !important;
   }
-  .admin-settings-subnav,
+
+  .admin-content-area {
+    padding-bottom: 140px !important;
+  }
+
+  .subtab-text-full {
+    display: none !important;
+  }
+
+  .subtab-text-compact {
+    display: inline !important;
+  }
+
+  .admin-settings-subnav {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    padding: 6px !important;
+    gap: 4px !important;
+    background: #f1f5f9 !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    overflow: hidden !important;
+  }
+
   .admin-profile-subnav,
   .acc-profile-subnav {
-    padding: 4px 6px 0 6px;
-    gap: 2px;
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    padding: 6px !important;
+    gap: 4px !important;
+    background: #f1f5f9 !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    overflow: hidden !important;
   }
+
   .admin-settings-subtab-btn,
   .admin-profile-subtab-btn,
   .acc-profile-subtab-btn {
-    padding: 10px 14px;
-    font-size: 0.8125rem;
+    padding: 10px 4px !important;
+    font-size: 0.775rem !important;
+    font-weight: 700 !important;
+    text-align: center !important;
+    justify-content: center !important;
+    border-radius: 8px !important;
+    border: none !important;
+    white-space: normal !important;
+    gap: 5px !important;
   }
+
+  .admin-settings-subtab-btn.active,
+  .admin-profile-subtab-btn.active,
+  .acc-profile-subtab-btn.active {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+    border-bottom: none !important;
+  }
+
   .admin-settings-body,
   .admin-profile-body,
   .acc-profile-body {
-    padding: 16px;
-    gap: 16px;
+    padding: 16px !important;
+    gap: 16px !important;
   }
+
   .admin-form-grid-2,
   .admin-form-grid-3 {
     grid-template-columns: 1fr !important;
     gap: 12px !important;
   }
+
   .admin-settings-action-row,
   .admin-profile-action-row,
   .acc-profile-action-row {
+    position: sticky !important;
+    bottom: 0 !important;
+    background: #ffffff !important;
+    padding: 12px 16px !important;
+    padding-bottom: max(16px, env(safe-area-inset-bottom, 16px)) !important;
+    margin: 16px -16px -16px -16px !important;
+    border-top: 1px solid #e2e8f0 !important;
+    z-index: 40 !important;
+    box-shadow: 0 -4px 12px rgba(15, 23, 42, 0.06) !important;
     justify-content: stretch !important;
-    padding-top: 14px;
-    margin-top: 8px;
   }
+
   .admin-settings-action-row .btn,
   .admin-profile-action-row .btn,
   .acc-profile-action-row .btn {
@@ -8194,7 +8260,8 @@ input:-webkit-autofill:active {
     text-align: center !important;
     justify-content: center !important;
     padding: 13px 18px !important;
-    font-size: 0.875rem !important;
+    font-size: 0.9375rem !important;
+    font-weight: 700 !important;
     border-radius: 8px !important;
   }
 }
