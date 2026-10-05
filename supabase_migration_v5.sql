@@ -1,6 +1,7 @@
 -- ===================================================================
 -- MIGRAÇÃO V5: MIGRAÇÃO DA TABELA CONFIGURACOES_LOJA
 -- Desfaz a coluna genérica 'valor' (JSONB) e cria colunas dedicadas e tipadas
+-- Endereço Estruturado: provincia, cidade, bairro, rua, endereco, ponto_referencia
 -- ===================================================================
 
 -- 1. Cria ou atualiza as colunas dedicadas na tabela configuracoes_loja
@@ -12,7 +13,12 @@ ALTER TABLE public.configuracoes_loja
   ADD COLUMN IF NOT EXISTS telefone VARCHAR(50) DEFAULT '+244 923 179 192',
   ADD COLUMN IF NOT EXISTS whatsapp VARCHAR(50) DEFAULT '+244 923 179 192',
   ADD COLUMN IF NOT EXISTS email VARCHAR(255) DEFAULT 'contacto@novatech.co.ao',
-  ADD COLUMN IF NOT EXISTS endereco TEXT DEFAULT 'Talatona Shopping & Maianga, Luanda - Angola',
+  ADD COLUMN IF NOT EXISTS provincia VARCHAR(100) DEFAULT 'Luanda',
+  ADD COLUMN IF NOT EXISTS cidade VARCHAR(100) DEFAULT 'Luanda',
+  ADD COLUMN IF NOT EXISTS bairro VARCHAR(100) DEFAULT 'Talatona',
+  ADD COLUMN IF NOT EXISTS rua VARCHAR(255) DEFAULT 'Av. Luanda Sul',
+  ADD COLUMN IF NOT EXISTS endereco TEXT DEFAULT 'Talatona Shopping & Maianga, Loja 12',
+  ADD COLUMN IF NOT EXISTS ponto_referencia TEXT DEFAULT 'Próximo ao Belas Shopping',
   ADD COLUMN IF NOT EXISTS horario_funcionamento VARCHAR(255) DEFAULT 'Seg - Sáb: 08:30 às 19:30 | Dom: 10:00 às 16:00',
   ADD COLUMN IF NOT EXISTS tarifa_entrega_padrao NUMERIC(15, 2) DEFAULT 3500.00,
   ADD COLUMN IF NOT EXISTS tarifa_entrega_expresso NUMERIC(15, 2) DEFAULT 6500.00,
@@ -43,7 +49,12 @@ BEGIN
       telefone = COALESCE((valor->>'phone'), (valor->>'telefone'), telefone),
       whatsapp = COALESCE((valor->>'whatsapp'), whatsapp),
       email = COALESCE((valor->>'email'), email),
+      provincia = COALESCE((valor->>'provincia'), (valor->>'province'), provincia),
+      cidade = COALESCE((valor->>'cidade'), (valor->>'city'), cidade),
+      bairro = COALESCE((valor->>'bairro'), (valor->>'neighborhood'), bairro),
+      rua = COALESCE((valor->>'rua'), (valor->>'street'), rua),
       endereco = COALESCE((valor->>'address'), (valor->>'endereco'), endereco),
+      ponto_referencia = COALESCE((valor->>'ponto_referencia'), (valor->>'reference'), ponto_referencia),
       horario_funcionamento = COALESCE((valor->>'opening_hours'), (valor->>'horario_funcionamento'), horario_funcionamento),
       tarifa_entrega_padrao = COALESCE((valor->>'shipping_price_normal')::numeric, (valor->>'tarifa_entrega_padrao')::numeric, tarifa_entrega_padrao),
       tarifa_entrega_expresso = COALESCE((valor->>'shipping_price_express')::numeric, (valor->>'tarifa_entrega_expresso')::numeric, tarifa_entrega_expresso),
@@ -65,14 +76,16 @@ END $$;
 
 -- 3. Garante o registro inicial com chave 'general'
 INSERT INTO public.configuracoes_loja (
-  id, chave, nome_loja, slogan, moeda, telefone, whatsapp, email, endereco,
+  id, chave, nome_loja, slogan, moeda, telefone, whatsapp, email,
+  provincia, cidade, bairro, rua, endereco, ponto_referencia,
   horario_funcionamento, tarifa_entrega_padrao, tarifa_entrega_expresso,
   limite_frete_gratis, titular_conta_bancaria, banco_principal, iban_oficial,
   telefone_multicaixa_express, permitir_pedidos_sem_estoque
 ) VALUES (
   1, 'general', 'NovaTech Angola', 'Loja de Tecnologia, Smartphones e Eletrônicos Premium', 'Kz',
   '+244 923 179 192', '+244 923 179 192', 'contacto@novatech.co.ao',
-  'Talatona Shopping & Maianga, Luanda - Angola', 'Seg - Sáb: 08:30 às 19:30 | Dom: 10:00 às 16:00',
+  'Luanda', 'Luanda', 'Talatona', 'Av. Luanda Sul', 'Talatona Shopping & Maianga, Loja 12', 'Próximo ao Belas Shopping',
+  'Seg - Sáb: 08:30 às 19:30 | Dom: 10:00 às 16:00',
   3500.00, 6500.00, 1000000.00, 'NovaTech Comércio & Serviços, Lda',
   'Banco Angolano de Investimentos (BAI)', 'AO06 0040 0000 1234 5678 9012 3',
   '+244 923 179 192', FALSE

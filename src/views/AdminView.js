@@ -2704,26 +2704,26 @@ export function renderAdminView() {
 
   // ===================================================================
   // ABA 10: CONFIGURAÇÕES DA LOJA & POLÍTICAS CORPORATIVAS
-  // 100% Organizado por Abas • Sem visual genérico • Alto Padrão
+  // 100% Organizado por Abas • Endereço Separado por Campos • Sem Quebra
   // ===================================================================
   function renderSettingsTab() {
     const s = storeSettings || {};
     return `
-      <div style="display:flex; flex-direction:column; gap:18px; max-width:1080px; margin:0 auto; width:100%;">
+      <div style="display:flex; flex-direction:column; gap:18px; max-width:1080px; margin:0 auto; width:100%; padding-bottom:60px;">
         <!-- 1. Header Institucional da Loja -->
-        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:20px 24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; box-shadow:0 1px 3px rgba(15,23,42,0.04);">
-          <div style="display:flex; align-items:center; gap:16px;">
-            <div style="width:52px; height:52px; border-radius:10px; background:#0f172a; color:#ffffff; font-size:1.25rem; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; border:1px solid #334155;">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:18px 20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; box-shadow:0 1px 3px rgba(15,23,42,0.04);">
+          <div style="display:flex; align-items:center; gap:14px; min-width:240px; flex:1;">
+            <div style="width:48px; height:48px; border-radius:10px; background:#0f172a; color:#ffffff; font-size:1.15rem; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; border:1px solid #334155;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
             </div>
             <div>
-              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <h2 style="font-size:1.25rem; font-weight:800; color:#0f172a; margin:0;">${s.store_name || 'NovaTech Angola'}</h2>
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <h2 style="font-size:1.15rem; font-weight:800; color:#0f172a; margin:0;">${s.store_name || 'NovaTech Angola'}</h2>
                 <span class="badge" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; font-size:0.6875rem; font-weight:700; padding:2px 8px; border-radius:5px;">
-                  ● Loja Online Operacional
+                  ● Operacional
                 </span>
               </div>
-              <div style="font-size:0.875rem; color:#64748b; margin-top:3px;">
+              <div style="font-size:0.8125rem; color:#64748b; margin-top:2px;">
                 ${s.slogan || 'Loja de Tecnologia, Smartphones e Acessórios'} • Moeda: <strong style="color:#0f172a;">Kwanza (Kz)</strong>
               </div>
             </div>
@@ -2731,7 +2731,7 @@ export function renderAdminView() {
 
           <div>
             <span class="badge" style="background:#f8fafc; color:#475569; border:1px solid #e2e8f0; font-size:0.75rem; font-weight:600; padding:4px 10px; border-radius:6px;">
-              Região: Luanda, Angola
+              ${s.provincia || 'Luanda'}, Angola
             </span>
           </div>
         </div>
@@ -2773,52 +2773,101 @@ export function renderAdminView() {
         <form id="storeSettingsForm" style="display:flex; flex-direction:column; margin-top:-18px;">
           ${settingsSubTab === 'general' ? `
             <!-- SUB-ABA 1: IDENTIDADE & CONTATO -->
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:0 0 12px 12px; padding:24px; box-shadow:0 1px 3px rgba(15,23,42,0.04); display:flex; flex-direction:column; gap:16px;">
-              <div style="margin-bottom:8px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
-                <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Dados Institucionais da Empresa</h3>
-                <p style="font-size:0.8125rem; color:#64748b; margin:0;">Informações exibidas no cabeçalho, rodapé e canais de contato da loja.</p>
+            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:0 0 12px 12px; padding:24px; box-shadow:0 1px 3px rgba(15,23,42,0.04); display:flex; flex-direction:column; gap:20px; padding-bottom:32px;">
+              <!-- Bloco A: Identidade da Loja -->
+              <div>
+                <div style="margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #f1f5f9;">
+                  <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Identidade Institucional da Loja</h3>
+                  <p style="font-size:0.8125rem; color:#64748b; margin:0;">Informações da marca e canais de contato da loja.</p>
+                </div>
+
+                <div class="admin-form-grid-2">
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Nome da Loja *</label>
+                    <input type="text" id="setStoreName" class="form-input" value="${s.store_name || 'NovaTech Angola'}" placeholder="Ex: NovaTech Angola" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Slogan Comercial</label>
+                    <input type="text" id="setSlogan" class="form-input" value="${s.slogan || 'Loja de Tecnologia, Smartphones e Eletrônicos Premium'}" placeholder="Ex: A sua loja de tecnologia em Luanda" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                  </div>
+                </div>
+
+                <div class="admin-form-grid-3" style="margin-top:12px;">
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Telefone Principal *</label>
+                    <input type="tel" id="setPhone" class="form-input" value="${s.phone || '+244 923 179 192'}" placeholder="+244 923 179 192" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">WhatsApp Oficial *</label>
+                    <input type="tel" id="setWhatsapp" class="form-input" value="${s.whatsapp || '+244 923 179 192'}" placeholder="+244 923 179 192" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">E-mail Comercial *</label>
+                    <input type="email" id="setEmail" class="form-input" value="${s.email || 'contacto@novatech.co.ao'}" placeholder="contacto@novatech.co.ao" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
+                  </div>
+                </div>
               </div>
 
-              <div class="admin-form-grid-2">
-                <div class="form-group">
-                  <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Nome da Loja *</label>
-                  <input type="text" id="setStoreName" class="form-input" value="${s.store_name || 'NovaTech Angola'}" placeholder="Ex: NovaTech Angola" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
+              <!-- Bloco B: Endereço Estruturado por Campos Separados -->
+              <div style="padding-top:12px; border-top:1px solid #f1f5f9;">
+                <div style="margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #f1f5f9;">
+                  <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Endereço e Sede Física da Loja</h3>
+                  <p style="font-size:0.8125rem; color:#64748b; margin:0;">Campos salvos individualmente no banco de dados para emissão de faturas e transparência.</p>
                 </div>
-                <div class="form-group">
-                  <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Slogan Comercial</label>
-                  <input type="text" id="setSlogan" class="form-input" value="${s.slogan || 'Loja de Tecnologia e Smartphones'}" placeholder="Ex: A sua loja de tecnologia em Luanda" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+
+                <div class="admin-form-grid-2">
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Província *</label>
+                    <select id="setProvincia" class="form-input" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required>
+                      ${[
+                        'Luanda', 'Bengo', 'Benguela', 'Bié', 'Cabinda', 'Cuando', 'Cuanza Norte',
+                        'Cuanza Sul', 'Cubango', 'Cunene', 'Huambo', 'Huíla', 'Ícolo e Bengo',
+                        'Lunda Norte', 'Lunda Sul', 'Malanje', 'Moxico', 'Moxico Leste',
+                        'Namibe', 'Uíge', 'Zaire'
+                      ].map(p => `<option value="${p}" ${(s.provincia || 'Luanda') === p ? 'selected' : ''}>${p}</option>`).join('')}
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Município / Cidade *</label>
+                    <input type="text" id="setCity" class="form-input" value="${s.cidade || 'Luanda'}" placeholder="Ex: Talatona, Maianga, Belas" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
+                  </div>
+                </div>
+
+                <div class="admin-form-grid-2" style="margin-top:12px;">
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Bairro / Distrito *</label>
+                    <input type="text" id="setNeighborhood" class="form-input" value="${s.bairro || 'Talatona'}" placeholder="Ex: Talatona, Alvalade, Maculusso" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Rua / Avenida *</label>
+                    <input type="text" id="setStreet" class="form-input" value="${s.rua || 'Av. Luanda Sul'}" placeholder="Ex: Av. Luanda Sul, Rua 4" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
+                  </div>
+                </div>
+
+                <div class="admin-form-grid-2" style="margin-top:12px;">
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Nº da Casa / Edifício / Sede *</label>
+                    <input type="text" id="setAddress" class="form-input" value="${s.endereco || 'Talatona Shopping, Loja 12'}" placeholder="Ex: Edifício Talatona Shopping, Loja 12" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Ponto de Referência</label>
+                    <input type="text" id="setReference" class="form-input" value="${s.ponto_referencia || 'Próximo ao Belas Shopping'}" placeholder="Ex: Próximo ao Belas Shopping" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" />
+                  </div>
                 </div>
               </div>
 
-              <div class="admin-form-grid-3">
-                <div class="form-group">
-                  <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Telefone Principal *</label>
-                  <input type="tel" id="setPhone" class="form-input" value="${s.phone || '+244 923 179 192'}" placeholder="+244 923 179 192" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
-                </div>
-                <div class="form-group">
-                  <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">WhatsApp Oficial *</label>
-                  <input type="tel" id="setWhatsapp" class="form-input" value="${s.whatsapp || '+244 923 179 192'}" placeholder="+244 923 179 192" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
-                </div>
-                <div class="form-group">
-                  <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">E-mail Comercial *</label>
-                  <input type="email" id="setEmail" class="form-input" value="${s.email || 'contacto@novatech.co.ao'}" placeholder="contacto@novatech.co.ao" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Endereço Físico / Sede Comercial *</label>
-                <input type="text" id="setAddress" class="form-input" value="${s.address || 'Talatona, Luanda - Angola'}" placeholder="Ex: Av. Luanda Sul, Talatona, Luanda - Angola" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required />
-              </div>
-
-              <div class="admin-settings-action-row">
-                <button type="submit" class="btn btn-primary" style="padding:11px 24px; font-weight:700; font-size:0.875rem; border-radius:8px;">
-                  Salvar Identidade & Contatos
+              <div class="admin-settings-action-row" style="margin-top:8px; padding-top:16px;">
+                <button type="submit" class="btn btn-primary" style="padding:12px 28px; font-weight:700; font-size:0.875rem; border-radius:8px;">
+                  Salvar Identidade & Endereços
                 </button>
               </div>
             </div>
           ` : settingsSubTab === 'shipping' ? `
             <!-- SUB-ABA 2: LOGÍSTICA & ENVIO -->
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:0 0 12px 12px; padding:24px; box-shadow:0 1px 3px rgba(15,23,42,0.04); display:flex; flex-direction:column; gap:16px;">
+            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:0 0 12px 12px; padding:24px; box-shadow:0 1px 3px rgba(15,23,42,0.04); display:flex; flex-direction:column; gap:16px; padding-bottom:32px;">
               <div style="margin-bottom:8px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
                 <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Tarifas de Entrega & Política de Frete</h3>
                 <p style="font-size:0.8125rem; color:#64748b; margin:0;">Valores aplicados automaticamente aos clientes durante o checkout e carrinho.</p>
@@ -2844,15 +2893,15 @@ export function renderAdminView() {
                 </div>
               </div>
 
-              <div class="admin-settings-action-row">
-                <button type="submit" class="btn btn-primary" style="padding:11px 24px; font-weight:700; font-size:0.875rem; border-radius:8px;">
+              <div class="admin-settings-action-row" style="margin-top:8px; padding-top:16px;">
+                <button type="submit" class="btn btn-primary" style="padding:12px 28px; font-weight:700; font-size:0.875rem; border-radius:8px;">
                   Salvar Regras de Envio
                 </button>
               </div>
             </div>
           ` : `
             <!-- SUB-ABA 3: PAGAMENTOS & BANCOS -->
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:0 0 12px 12px; padding:24px; box-shadow:0 1px 3px rgba(15,23,42,0.04); display:flex; flex-direction:column; gap:16px;">
+            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:0 0 12px 12px; padding:24px; box-shadow:0 1px 3px rgba(15,23,42,0.04); display:flex; flex-direction:column; gap:16px; padding-bottom:32px;">
               <div style="margin-bottom:8px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
                 <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Contas Bancárias & Meios de Recebimento</h3>
                 <p style="font-size:0.8125rem; color:#64748b; margin:0;">Dados exibidos em tempo real aos clientes ao finalizarem compras por Transferência Bancária ou Multicaixa Express.</p>
@@ -2880,8 +2929,8 @@ export function renderAdminView() {
                 </div>
               </div>
 
-              <div class="admin-settings-action-row">
-                <button type="submit" class="btn btn-primary" style="padding:11px 24px; font-weight:700; font-size:0.875rem; border-radius:8px;">
+              <div class="admin-settings-action-row" style="margin-top:8px; padding-top:16px;">
+                <button type="submit" class="btn btn-primary" style="padding:12px 28px; font-weight:700; font-size:0.875rem; border-radius:8px;">
                   Salvar Dados Bancários
                 </button>
               </div>
@@ -3905,7 +3954,13 @@ export function renderAdminView() {
           phone: container.querySelector('#setPhone')?.value.trim() ?? storeSettings.phone,
           whatsapp: container.querySelector('#setWhatsapp')?.value.trim() ?? storeSettings.whatsapp,
           email: container.querySelector('#setEmail')?.value.trim() ?? storeSettings.email,
-          address: container.querySelector('#setAddress')?.value.trim() ?? storeSettings.address,
+          provincia: container.querySelector('#setProvincia')?.value ?? (storeSettings.provincia || 'Luanda'),
+          cidade: container.querySelector('#setCity')?.value.trim() ?? (storeSettings.cidade || 'Luanda'),
+          bairro: container.querySelector('#setNeighborhood')?.value.trim() ?? (storeSettings.bairro || 'Talatona'),
+          rua: container.querySelector('#setStreet')?.value.trim() ?? (storeSettings.rua || 'Av. Luanda Sul'),
+          endereco: container.querySelector('#setAddress')?.value.trim() ?? (storeSettings.endereco || ''),
+          address: container.querySelector('#setAddress')?.value.trim() ?? (storeSettings.endereco || ''),
+          ponto_referencia: container.querySelector('#setReference')?.value.trim() ?? (storeSettings.ponto_referencia || ''),
           shipping_price_normal: container.querySelector('#setShippingNormal') ? Number(container.querySelector('#setShippingNormal').value) : storeSettings.shipping_price_normal,
           shipping_price_express: container.querySelector('#setShippingExpress') ? Number(container.querySelector('#setShippingExpress').value) : storeSettings.shipping_price_express,
           free_shipping_threshold: container.querySelector('#setFreeShipping') ? Number(container.querySelector('#setFreeShipping').value) : storeSettings.free_shipping_threshold,
