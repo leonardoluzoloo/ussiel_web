@@ -8062,22 +8062,25 @@ input:-webkit-autofill:active {
   }
 }
 
-/* Sub-Abas de Perfil Corporativo (Sem visual genérico de IA) */
+/* Sub-Abas de Perfil Corporativo e Configurações da Loja */
 .admin-profile-subtab-btn,
-.acc-profile-subtab-btn {
+.acc-profile-subtab-btn,
+.admin-settings-subtab-btn {
   user-select: none;
   border-radius: 6px 6px 0 0;
   cursor: pointer;
 }
 
 .admin-profile-subtab-btn:hover,
-.acc-profile-subtab-btn:hover {
+.acc-profile-subtab-btn:hover,
+.admin-settings-subtab-btn:hover {
   color: #0f172a !important;
   background: #f8fafc;
 }
 
 .admin-profile-subtab-btn.active,
-.acc-profile-subtab-btn.active {
+.acc-profile-subtab-btn.active,
+.admin-settings-subtab-btn.active {
   color: #0f172a !important;
   border-bottom-color: #0f172a !important;
 }
