@@ -1170,8 +1170,8 @@ export function renderAdminView() {
                 </thead>
                 <tbody>
                   ${ordersList.slice(0, 5).map(o => {
-                    const cleanCode = String(o.order_code || o.codigo_pedido || o.id).replace(/^#/, '');
-                    return `
+      const cleanCode = String(o.order_code || o.codigo_pedido || o.id).replace(/^#/, '');
+      return `
                     <tr>
                       <td style="font-family:ui-monospace, monospace; font-size:0.8125rem; font-weight:700; color:#334155;">${cleanCode}</td>
                       <td>
@@ -1191,7 +1191,7 @@ export function renderAdminView() {
                       </td>
                     </tr>
                   `;
-                  }).join('')}
+    }).join('')}
                 </tbody>
               </table>
             </div>
@@ -1199,8 +1199,8 @@ export function renderAdminView() {
             <!-- Mobile: Cards Responsivos de Pedidos -->
             <div class="admin-mobile-card-list admin-mobile-only">
               ${ordersList.slice(0, 5).map(o => {
-                const cleanCode = String(o.order_code || o.codigo_pedido || o.id).replace(/^#/, '');
-                return `
+      const cleanCode = String(o.order_code || o.codigo_pedido || o.id).replace(/^#/, '');
+      return `
                 <div class="admin-res-card">
                   <div class="admin-res-card-header">
                     <div>
@@ -1230,7 +1230,7 @@ export function renderAdminView() {
                   </div>
                 </div>
               `;
-              }).join('')}
+    }).join('')}
             </div>
           `}
         </div>
@@ -1314,13 +1314,13 @@ export function renderAdminView() {
               </thead>
               <tbody>
                 ${filtered.map(o => {
-                  const cleanCode = String(o.order_code || o.codigo_pedido || o.id).replace(/^#/, '');
-                  const itemsCount = (o.items || o.itens_pedido || []).length;
-                  const phone = o.customer_phone || o.telefone_cliente || '';
-                  const cleanPhone = phone.replace(/[^0-9]/g, '');
-                  const waLink = cleanPhone ? `https://wa.me/${cleanPhone.startsWith('244') ? cleanPhone : '244' + cleanPhone}` : null;
+      const cleanCode = String(o.order_code || o.codigo_pedido || o.id).replace(/^#/, '');
+      const itemsCount = (o.items || o.itens_pedido || []).length;
+      const phone = o.customer_phone || o.telefone_cliente || '';
+      const cleanPhone = phone.replace(/[^0-9]/g, '');
+      const waLink = cleanPhone ? `https://wa.me/${cleanPhone.startsWith('244') ? cleanPhone : '244' + cleanPhone}` : null;
 
-                  return `
+      return `
                     <tr>
                       <td style="font-family:ui-monospace, monospace; font-size:0.8125rem; font-weight:700; color:#334155;">
                         ${cleanCode}
@@ -1374,7 +1374,7 @@ export function renderAdminView() {
                       </td>
                     </tr>
                   `;
-                }).join('')}
+    }).join('')}
               </tbody>
             </table>
           </div>
@@ -1382,8 +1382,8 @@ export function renderAdminView() {
           <!-- Mobile: Cards Responsivos de Pedidos -->
           <div class="admin-mobile-card-list admin-mobile-only">
             ${filtered.map(o => {
-              const cleanCode = String(o.order_code || o.codigo_pedido || o.id).replace(/^#/, '');
-              return `
+      const cleanCode = String(o.order_code || o.codigo_pedido || o.id).replace(/^#/, '');
+      return `
                 <div class="admin-res-card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:10px;">
                   <div class="admin-res-card-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                     <div>
@@ -1413,7 +1413,7 @@ export function renderAdminView() {
                   </div>
                 </div>
               `;
-            }).join('')}
+    }).join('')}
           </div>
         `}
       </div>
@@ -1511,11 +1511,11 @@ export function renderAdminView() {
               </thead>
               <tbody>
                 ${filtered.map(p => {
-                  const cat = categoriesList.find(c => String(c.id) === String(p.category_id));
-                  const subName = p.subcategory_name || p.subcategory || (cat?.subcategories || []).find(s => String(s.id) === String(p.subcategory_id))?.name || '';
-                  const isBlocked = p.is_active === false;
+      const cat = categoriesList.find(c => String(c.id) === String(p.category_id));
+      const subName = p.subcategory_name || p.subcategory || (cat?.subcategories || []).find(s => String(s.id) === String(p.subcategory_id))?.name || '';
+      const isBlocked = p.is_active === false;
 
-                  return `
+      return `
                     <tr style="${isBlocked ? 'background:#fafafa; opacity:0.85;' : ''}">
                       <td style="font-family:ui-monospace, monospace; font-size:0.8125rem; font-weight:700; color:#64748b;">
                         ${p.id}
@@ -1604,7 +1604,7 @@ export function renderAdminView() {
                       </td>
                     </tr>
                   `;
-                }).join('')}
+    }).join('')}
               </tbody>
             </table>
           </div>
@@ -1612,11 +1612,11 @@ export function renderAdminView() {
           <!-- Mobile: Cards Responsivos de Produtos -->
           <div class="admin-mobile-card-list admin-mobile-only">
             ${filtered.map(p => {
-              const cat = categoriesList.find(c => String(c.id) === String(p.category_id));
-              const subName = p.subcategory_name || p.subcategory || (cat?.subcategories || []).find(s => String(s.id) === String(p.subcategory_id))?.name || '';
-              const isBlocked = p.is_active === false;
+      const cat = categoriesList.find(c => String(c.id) === String(p.category_id));
+      const subName = p.subcategory_name || p.subcategory || (cat?.subcategories || []).find(s => String(s.id) === String(p.subcategory_id))?.name || '';
+      const isBlocked = p.is_active === false;
 
-              return `
+      return `
                 <div class="admin-res-card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:14px; padding:14px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.02); box-sizing:border-box; width:100%;">
                   <!-- Topo: ID + Marca + Status -->
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:8px;">
@@ -1681,7 +1681,7 @@ export function renderAdminView() {
                   </div>
                 </div>
               `;
-            }).join('')}
+    }).join('')}
           </div>
         `}
       </div>
@@ -2328,12 +2328,12 @@ export function renderAdminView() {
               </thead>
               <tbody>
                 ${filtered.map(c => {
-                  const phone = c.phone || c.telefone || '';
-                  const cleanPhone = phone.replace(/[^0-9]/g, '');
-                  const waLink = cleanPhone ? `https://wa.me/${cleanPhone.startsWith('244') ? cleanPhone : '244' + cleanPhone}` : null;
-                  const isBlocked = c.status === 'blocked';
+      const phone = c.phone || c.telefone || '';
+      const cleanPhone = phone.replace(/[^0-9]/g, '');
+      const waLink = cleanPhone ? `https://wa.me/${cleanPhone.startsWith('244') ? cleanPhone : '244' + cleanPhone}` : null;
+      const isBlocked = c.status === 'blocked';
 
-                  return `
+      return `
                     <tr style="${isBlocked ? 'background:#fafafa; opacity:0.85;' : ''}">
                       <td style="font-family:ui-monospace, monospace; font-size:0.8125rem; font-weight:700; color:#64748b;">
                         ${c.id}
@@ -2401,7 +2401,7 @@ export function renderAdminView() {
                       </td>
                     </tr>
                   `;
-                }).join('')}
+    }).join('')}
               </tbody>
             </table>
           </div>
@@ -2409,12 +2409,12 @@ export function renderAdminView() {
           <!-- Mobile: Cards de Clientes -->
           <div class="admin-mobile-card-list admin-mobile-only">
             ${filtered.map(c => {
-              const isBlocked = c.status === 'blocked';
-              const phone = c.phone || c.telefone || '';
-              const cleanPhone = phone.replace(/[^0-9]/g, '');
-              const waLink = cleanPhone ? `https://wa.me/${cleanPhone.startsWith('244') ? cleanPhone : '244' + cleanPhone}` : null;
+      const isBlocked = c.status === 'blocked';
+      const phone = c.phone || c.telefone || '';
+      const cleanPhone = phone.replace(/[^0-9]/g, '');
+      const waLink = cleanPhone ? `https://wa.me/${cleanPhone.startsWith('244') ? cleanPhone : '244' + cleanPhone}` : null;
 
-              return `
+      return `
                 <div class="admin-res-card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.02); box-sizing:border-box; width:100%;">
                   <div class="admin-res-card-header" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; gap:8px;">
                     <div style="min-width:0; flex:1;">
@@ -2454,7 +2454,7 @@ export function renderAdminView() {
                   </div>
                 </div>
               `;
-            }).join('')}
+    }).join('')}
           </div>
         `}
       </div>
@@ -2576,12 +2576,12 @@ export function renderAdminView() {
                 </thead>
                 <tbody>
                   ${filtered.map(p => {
-                    const stock = p.stock || 0;
-                    const minStock = p.stock_min || 2;
-                    const isOut = stock <= 0;
-                    const isLow = stock > 0 && stock <= minStock;
+      const stock = p.stock || 0;
+      const minStock = p.stock_min || 2;
+      const isOut = stock <= 0;
+      const isLow = stock > 0 && stock <= minStock;
 
-                    return `
+      return `
                       <tr>
                         <td style="font-family:ui-monospace, monospace; font-size:0.8125rem; font-weight:700; color:#64748b;">
                           ${p.id}
@@ -2641,7 +2641,7 @@ export function renderAdminView() {
                         </td>
                       </tr>
                     `;
-                  }).join('')}
+    }).join('')}
                 </tbody>
               </table>
             </div>
@@ -2649,12 +2649,12 @@ export function renderAdminView() {
             <!-- Mobile: Cards de Estoque -->
             <div class="admin-mobile-card-list admin-mobile-only">
               ${filtered.map(p => {
-                const stock = p.stock || 0;
-                const minStock = p.stock_min || 2;
-                const isOut = stock <= 0;
-                const isLow = stock > 0 && stock <= minStock;
+      const stock = p.stock || 0;
+      const minStock = p.stock_min || 2;
+      const isOut = stock <= 0;
+      const isLow = stock > 0 && stock <= minStock;
 
-                return `
+      return `
                   <div class="admin-res-card" style="padding:14px; border:1px solid #e2e8f0; border-radius:12px; background:#fff; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.02); box-sizing:border-box; width:100%;">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; gap:8px;">
                       <div style="display:flex; gap:10px; align-items:center; min-width:0; flex:1;">
@@ -2694,7 +2694,7 @@ export function renderAdminView() {
                     </div>
                   </div>
                 `;
-              }).join('')}
+    }).join('')}
             </div>
           `}
         </div>
@@ -2777,7 +2777,6 @@ export function renderAdminView() {
               <div>
                 <div style="margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #f1f5f9;">
                   <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Identidade Institucional da Loja</h3>
-                  <p style="font-size:0.8125rem; color:#64748b; margin:0;">Informações da marca e canais de contato da loja.</p>
                 </div>
 
                 <div class="admin-form-grid-2">
@@ -2810,8 +2809,7 @@ export function renderAdminView() {
               <!-- Bloco B: Endereço Estruturado por Campos Separados -->
               <div style="padding-top:12px; border-top:1px solid #f1f5f9;">
                 <div style="margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #f1f5f9;">
-                  <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Endereço e Sede Física da Loja</h3>
-                  <p style="font-size:0.8125rem; color:#64748b; margin:0;">Campos salvos individualmente no banco de dados para emissão de faturas e transparência.</p>
+                  <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Endereço</h3>
                 </div>
 
                 <div class="admin-form-grid-2">
@@ -2819,11 +2817,11 @@ export function renderAdminView() {
                     <label class="form-label" style="font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:5px; display:block;">Província *</label>
                     <select id="setProvincia" class="form-input" style="height:42px; font-size:0.875rem; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box; padding:8px 12px;" required>
                       ${[
-                        'Luanda', 'Bengo', 'Benguela', 'Bié', 'Cabinda', 'Cuando', 'Cuanza Norte',
-                        'Cuanza Sul', 'Cubango', 'Cunene', 'Huambo', 'Huíla', 'Ícolo e Bengo',
-                        'Lunda Norte', 'Lunda Sul', 'Malanje', 'Moxico', 'Moxico Leste',
-                        'Namibe', 'Uíge', 'Zaire'
-                      ].map(p => `<option value="${p}" ${(s.provincia || 'Luanda') === p ? 'selected' : ''}>${p}</option>`).join('')}
+          'Luanda', 'Bengo', 'Benguela', 'Bié', 'Cabinda', 'Cuando', 'Cuanza Norte',
+          'Cuanza Sul', 'Cubango', 'Cunene', 'Huambo', 'Huíla', 'Ícolo e Bengo',
+          'Lunda Norte', 'Lunda Sul', 'Malanje', 'Moxico', 'Moxico Leste',
+          'Namibe', 'Uíge', 'Zaire'
+        ].map(p => `<option value="${p}" ${(s.provincia || 'Luanda') === p ? 'selected' : ''}>${p}</option>`).join('')}
                     </select>
                   </div>
 
@@ -4227,15 +4225,15 @@ export function renderAdminView() {
             ` : `
               <div style="display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto;">
                 ${items.map(it => {
-                  const name = it.product_name || it.name || it.nome_produto || 'Produto';
-                  const img = it.product_image || it.image || it.imagem_produto || '';
-                  const price = Number(it.unit_price || it.price || it.preco_unitario || 0);
-                  const qty = Number(it.quantity || it.quantidade || 1);
-                  const itemTotal = Number(it.total_price || it.preco_total || (price * qty));
-                  const variant = it.selected_variant || it.variant || {};
-                  const variantStr = Object.entries(variant).map(([k, v]) => `${k}: ${v}`).join(' · ');
+      const name = it.product_name || it.name || it.nome_produto || 'Produto';
+      const img = it.product_image || it.image || it.imagem_produto || '';
+      const price = Number(it.unit_price || it.price || it.preco_unitario || 0);
+      const qty = Number(it.quantity || it.quantidade || 1);
+      const itemTotal = Number(it.total_price || it.preco_total || (price * qty));
+      const variant = it.selected_variant || it.variant || {};
+      const variantStr = Object.entries(variant).map(([k, v]) => `${k}: ${v}`).join(' · ');
 
-                  return `
+      return `
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 8px; border-radius: 6px; background: #f8fafc; border: 1px solid #f1f5f9;">
                       <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
                         ${img ? `
@@ -4259,7 +4257,7 @@ export function renderAdminView() {
                       </div>
                     </div>
                   `;
-                }).join('')}
+    }).join('')}
               </div>
             `}
           </div>
@@ -4437,8 +4435,8 @@ export function renderAdminView() {
             ` : `
               <div style="display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto;">
                 ${cOrders.map(o => {
-                  const cleanCode = String(o.order_code || o.codigo_pedido || o.id).replace(/^#/, '');
-                  return `
+      const cleanCode = String(o.order_code || o.codigo_pedido || o.id).replace(/^#/, '');
+      return `
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 10px; border-radius: 6px; background: #f8fafc; border: 1px solid #f1f5f9; font-size: 0.8125rem;">
                       <div>
                         <strong style="font-family: ui-monospace, monospace; color: #0f172a;">${cleanCode}</strong>
@@ -4450,7 +4448,7 @@ export function renderAdminView() {
                       </div>
                     </div>
                   `;
-                }).join('')}
+    }).join('')}
               </div>
             `}
           </div>
