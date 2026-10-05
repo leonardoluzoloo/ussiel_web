@@ -1615,71 +1615,82 @@ export function renderAdminView() {
               const isBlocked = p.is_active === false;
 
               return `
-                <div class="admin-res-card" style="padding:12px; border:1px solid #e2e8f0; border-radius:8px; background:#fff; margin-bottom:8px;">
-                  <div style="display:flex; gap:12px; align-items:center;">
+                <div class="admin-res-card" style="padding:12px; border:1px solid #e2e8f0; border-radius:12px; background:#fff; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.02); box-sizing:border-box; width:100%;">
+                  <div style="display:flex; gap:12px; align-items:flex-start;">
                     ${p.image ? `
-                      <img src="${p.image}" alt="${p.name}" style="width:48px; height:48px; object-fit:contain; border-radius:6px; border:1px solid #e2e8f0; background:#fff; flex-shrink:0;" />
+                      <img src="${p.image}" alt="${p.name}" style="width:52px; height:52px; object-fit:contain; border-radius:8px; border:1px solid #e2e8f0; background:#fff; flex-shrink:0;" />
                     ` : `
-                      <div style="width:48px; height:48px; background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:0.65rem; flex-shrink:0;">
+                      <div style="width:52px; height:52px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:0.65rem; flex-shrink:0;">
                         Sem foto
                       </div>
                     `}
                     <div style="flex:1; min-width:0;">
-                      <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-family:monospace; font-weight:700; color:#64748b; font-size:0.75rem;">${p.id}</span>
-                        ${!isBlocked ? `
-                          <span class="badge" style="background:#dcfce7; color:#15803d; font-size:0.6875rem;">Ativo</span>
-                        ` : `
-                          <span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:0.6875rem;">Bloqueado</span>
-                        `}
-                      </div>
-                      <div style="font-weight:600; color:#0f172a; font-size:0.875rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                        ${p.name}
-                      </div>
-                      <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">
-                        ${cat ? cat.name : '—'} ${subName ? `• ${subName}` : ''}
-                      </div>
-                      <div style="display:flex; align-items:center; justify-content:space-between; margin-top:4px;">
-                        <strong style="color:#0f172a; font-size:0.875rem;">${formatPrice(p.price)}</strong>
-                        <span class="badge" style="font-size:0.6875rem; ${(p.stock || 0) <= 0 ? 'background:#fee2e2; color:#b91c1c;' : ((p.stock || 0) <= (p.stock_min || 2) ? 'background:#fef3c7; color:#b45309;' : 'background:#dcfce7; color:#15803d;')}">
-                          ${p.stock || 0} un
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                        <div style="min-width:0; flex:1;">
+                          <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+                            <span style="font-family:ui-monospace, monospace; font-weight:700; color:#64748b; font-size:0.75rem;">#${p.id}</span>
+                            ${p.brand ? `<span style="font-size:0.75rem; color:#64748b; font-weight:600; background:#f1f5f9; padding:1px 6px; border-radius:4px;">${p.brand}</span>` : ''}
+                          </div>
+                          <div style="font-weight:700; color:#0f172a; font-size:0.875rem; line-height:1.3; margin-bottom:2px; word-break:break-word;">
+                            ${p.name}
+                          </div>
+                          <div style="font-size:0.75rem; color:#64748b;">
+                            ${cat ? cat.name : '—'} ${subName ? `• ${subName}` : ''}
+                          </div>
+                        </div>
 
-                  <div style="display:flex; justify-content:flex-end; margin-top:10px; padding-top:8px; border-top:1px solid #f1f5f9; position:relative;">
-                    <div class="admin-actions-dropdown">
-                      <button type="button" class="admin-actions-trigger-btn" data-id="${p.id}" title="Ações do produto">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                          <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
-                          <circle cx="19" cy="12" r="1.5" fill="currentColor"/>
-                          <circle cx="5" cy="12" r="1.5" fill="currentColor"/>
-                        </svg>
-                      </button>
-                      <div class="admin-actions-menu open-up">
-                        <button type="button" class="admin-action-item edit-product-btn" data-id="${p.id}">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                          <span>Editar</span>
-                        </button>
-                        <button type="button" class="admin-action-item toggle-product-block-btn" data-id="${p.id}" data-active="${!isBlocked}">
-                          ${!isBlocked ? `
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
-                            <span style="color:#c2410c;">Bloquear</span>
-                          ` : `
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                            <span style="color:#15803d;">Desbloquear</span>
-                          `}
-                        </button>
-                        <button type="button" class="admin-action-item duplicate-product-btn" data-id="${p.id}">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                          <span>Copiar</span>
-                        </button>
-                        <div class="admin-action-divider"></div>
-                        <button type="button" class="admin-action-item delete-product-btn danger" data-id="${p.id}">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-                          <span>Excluir</span>
-                        </button>
+                        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
+                          <div style="display:flex; align-items:center; gap:6px;">
+                            ${!isBlocked ? `
+                              <span class="badge" style="background:#dcfce7; color:#15803d; font-size:0.6875rem; font-weight:700; padding:2px 8px; border-radius:6px;">ATIVO</span>
+                            ` : `
+                              <span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:0.6875rem; font-weight:700; padding:2px 8px; border-radius:6px;">BLOQUEADO</span>
+                            `}
+                            <div class="admin-actions-dropdown">
+                              <button type="button" class="admin-actions-trigger-btn" data-id="${p.id}" title="Ações do produto" style="width:28px; height:28px; border-radius:6px; border:1px solid #e2e8f0; background:#f8fafc; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                  <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+                                  <circle cx="19" cy="12" r="1.5" fill="currentColor"/>
+                                  <circle cx="5" cy="12" r="1.5" fill="currentColor"/>
+                                </svg>
+                              </button>
+                              <div class="admin-actions-menu open-up">
+                                <button type="button" class="admin-action-item edit-product-btn" data-id="${p.id}">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                  <span>Editar</span>
+                                </button>
+                                <button type="button" class="admin-action-item toggle-product-block-btn" data-id="${p.id}" data-active="${!isBlocked}">
+                                  ${!isBlocked ? `
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
+                                    <span style="color:#c2410c;">Bloquear</span>
+                                  ` : `
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                    <span style="color:#15803d;">Desbloquear</span>
+                                  `}
+                                </button>
+                                <button type="button" class="admin-action-item duplicate-product-btn" data-id="${p.id}">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                                  <span>Copiar</span>
+                                </button>
+                                <div class="admin-action-divider"></div>
+                                <button type="button" class="admin-action-item delete-product-btn danger" data-id="${p.id}">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                                  <span>Excluir</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                          <span class="badge" style="font-size:0.6875rem; font-weight:700; padding:2px 8px; border-radius:6px; ${(p.stock || 0) <= 0 ? 'background:#fee2e2; color:#b91c1c;' : ((p.stock || 0) <= (p.stock_min || 2) ? 'background:#fef3c7; color:#b45309;' : 'background:#dcfce7; color:#15803d;')}">
+                            ${p.stock || 0} UN
+                          </span>
+                        </div>
+                      </div>
+
+                      <div style="display:flex; align-items:baseline; justify-content:space-between; margin-top:8px; padding-top:6px; border-top:1px dashed #f1f5f9;">
+                        <div>
+                          <strong style="color:#0f172a; font-size:0.95rem; font-weight:800;">${formatPrice(p.price)}</strong>
+                          ${p.old_price ? `<span style="font-size:0.75rem; text-decoration:line-through; color:#94a3b8; margin-left:6px;">${formatPrice(p.old_price)}</span>` : ''}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1718,7 +1729,7 @@ export function renderAdminView() {
     }
 
     return `
-      <div class="admin-card">
+      <div class="admin-card" style="box-sizing:border-box; width:100%;">
         <div class="admin-card-header" style="margin-bottom:16px;">
           <h2 class="admin-card-title">Categorias & Subcategorias</h2>
           <button id="openNewCategoryModalBtn" class="btn btn-primary btn-sm" style="font-weight:600; padding:8px 16px;">
@@ -1727,18 +1738,18 @@ export function renderAdminView() {
         </div>
 
         <!-- Filtro Rápido Minimalista -->
-        <div style="display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap;">
-          <div style="flex:1; max-width:320px;">
+        <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:180px;">
             <input 
               type="text" 
               id="categorySearchInput" 
               class="form-input" 
               placeholder="Buscar categoria..." 
               value="${categorySearchQuery}" 
-              style="padding:7px 12px; font-size:0.875rem;"
+              style="padding:7px 12px; font-size:0.875rem; width:100%; box-sizing:border-box;"
             />
           </div>
-          <div>
+          <div style="flex-shrink:0;">
             <select id="categorySortSelect" class="admin-filter-select" style="font-size:0.8125rem; padding:6px 10px;">
               <option value="az" ${categorySortOrder === 'az' ? 'selected' : ''}>A → Z</option>
               <option value="za" ${categorySortOrder === 'za' ? 'selected' : ''}>Z → A</option>
@@ -1756,75 +1767,77 @@ export function renderAdminView() {
             </button>
           </div>
         ` : `
-          <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; flex-direction:column; gap:10px; width:100%; box-sizing:border-box;">
             ${filteredCats.map(c => {
       const subs = Array.isArray(c.subcategories) ? [...c.subcategories] : [];
       subs.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt', { sensitivity: 'base' }));
       const isExpanded = expandedCategoryIds.has(c.id);
 
       return `
-                <div class="admin-category-block" style="background:#ffffff; border:1px solid ${isExpanded ? '#cbd5e1' : '#e2e8f0'}; border-radius:8px; overflow:hidden;">
-                  <!-- Linha da Categoria -->
-                  <div class="category-accordion-header" data-cat-id="${c.id}" style="padding:12px 16px; background:${isExpanded ? '#f8fafc' : '#ffffff'}; border-bottom:${isExpanded ? '1px solid #f1f5f9' : 'none'}; display:flex; justify-content:space-between; align-items:center; gap:12px; cursor:pointer;">
-                    <div style="display:flex; align-items:center; gap:10px; min-width:0;">
-                      <span style="color:#64748b; font-size:0.75rem; transition:transform 0.15s ease; display:inline-block; transform:${isExpanded ? 'rotate(90deg)' : 'none'};">
-                        ▶
-                      </span>
-                      <strong style="font-size:0.9375rem; color:#0f172a; font-weight:600;">
-                        ${c.name}
-                      </strong>
-                      <span style="font-size:0.75rem; color:#64748b; background:#f1f5f9; padding:2px 7px; border-radius:10px; font-weight:600;">
-                        ${subs.length}
-                      </span>
-                      ${c.is_active === false ? `<span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:0.6875rem;">Inativa</span>` : ''}
-                    </div>
+                <div class="admin-category-block" style="background:#ffffff; border:1px solid ${isExpanded ? '#cbd5e1' : '#e2e8f0'}; border-radius:10px; overflow:hidden; box-sizing:border-box; width:100%;">
+                  <!-- Linha da Categoria Responsiva -->
+                  <div class="category-accordion-header" data-cat-id="${c.id}" style="padding:12px 14px; background:${isExpanded ? '#f8fafc' : '#ffffff'}; border-bottom:${isExpanded ? '1px solid #f1f5f9' : 'none'}; cursor:pointer; box-sizing:border-box;">
+                    <div class="category-header-top" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                      <div style="display:flex; align-items:center; gap:8px; min-width:0; flex:1;">
+                        <span class="category-chevron-icon" style="color:#64748b; font-size:0.75rem; transition:transform 0.15s ease; display:inline-block; transform:${isExpanded ? 'rotate(90deg)' : 'none'}; flex-shrink:0;">
+                          ▶
+                        </span>
+                        <strong style="font-size:0.9375rem; color:#0f172a; font-weight:700; word-break:break-word;">
+                          ${c.name}
+                        </strong>
+                        <span style="font-size:0.75rem; color:#64748b; background:#f1f5f9; padding:2px 8px; border-radius:10px; font-weight:700; flex-shrink:0;">
+                          ${subs.length}
+                        </span>
+                        ${c.is_active === false ? `<span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:0.6875rem; font-weight:700; flex-shrink:0;">Inativa</span>` : ''}
+                      </div>
 
-                    <div style="display:flex; gap:6px; align-items:center;" onclick="event.stopPropagation()">
-                      <button class="btn btn-xs btn-primary add-sub-to-cat-btn" data-cat-id="${c.id}" data-cat-name="${c.name}" style="padding:4px 10px; font-size:0.75rem; font-weight:600;">
-                        + Subcategoria
-                      </button>
-                      <button class="btn btn-xs btn-secondary edit-category-btn" data-id="${c.id}" style="padding:4px 8px; font-size:0.75rem;">
-                        Editar
-                      </button>
-                      <button class="btn btn-xs delete-category-btn" data-id="${c.id}" data-cat-name="${c.name}" style="background:transparent; color:#e11d48; border:1px solid #fecdd3; padding:4px 8px; font-size:0.75rem;">
-                        Excluir
-                      </button>
+                      <div class="category-header-actions" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;" onclick="event.stopPropagation()">
+                        <button class="btn btn-xs btn-primary add-sub-to-cat-btn" data-cat-id="${c.id}" data-cat-name="${c.name}" style="padding:5px 10px; font-size:0.75rem; font-weight:600; border-radius:6px; white-space:nowrap;">
+                          + Subcategoria
+                        </button>
+                        <button class="btn btn-xs btn-secondary edit-category-btn" data-id="${c.id}" style="padding:5px 8px; font-size:0.75rem; border-radius:6px; white-space:nowrap;">
+                          Editar
+                        </button>
+                        <button class="btn btn-xs delete-category-btn" data-id="${c.id}" data-cat-name="${c.name}" style="background:#fff1f2; color:#e11d48; border:1px solid #fecdd3; padding:5px 8px; font-size:0.75rem; border-radius:6px; white-space:nowrap;">
+                          Excluir
+                        </button>
+                      </div>
                     </div>
                   </div>
 
                   <!-- Subcategorias (Aninhadas e Diretas) -->
                   ${isExpanded ? `
-                    <div style="background:#fafafa; padding:4px 16px 10px 36px;">
+                    <div style="background:#fafafa; padding:6px 14px 12px 24px; box-sizing:border-box;">
                       ${subs.length === 0 ? `
-                        <div style="padding:8px 0; font-size:0.8125rem; color:#94a3b8; display:flex; align-items:center; gap:10px;">
-                          <span>Nenhuma subcategoria.</span>
-                          <button class="btn btn-xs btn-primary add-sub-to-cat-btn" data-cat-id="${c.id}" data-cat-name="${c.name}" style="padding:2px 8px; font-size:0.75rem;">
+                        <div style="padding:8px 0; font-size:0.8125rem; color:#94a3b8; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                          <span>Nenhuma subcategoria vinculada.</span>
+                          <button class="btn btn-xs btn-primary add-sub-to-cat-btn" data-cat-id="${c.id}" data-cat-name="${c.name}" style="padding:3px 8px; font-size:0.75rem; border-radius:4px;">
                             + Adicionar
                           </button>
                         </div>
                       ` : `
                         <div>
                           ${subs.map((sub, idx) => `
-                            <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; ${idx < subs.length - 1 ? 'border-bottom:1px solid #f1f5f9;' : ''}">
-                              <div style="display:flex; align-items:center; gap:8px;">
+                            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 0; flex-wrap:wrap; ${idx < subs.length - 1 ? 'border-bottom:1px solid #f1f5f9;' : ''}">
+                              <div style="display:flex; align-items:center; gap:6px; min-width:0;">
                                 <span style="color:#94a3b8; font-size:0.65rem;">•</span>
-                                <span style="font-size:0.84rem; color:#1e293b; font-weight:500;">
+                                <span style="font-size:0.84rem; color:#1e293b; font-weight:600; word-break:break-word;">
                                   ${sub.name}
                                 </span>
                                 ${sub.is_active === false ? `<span style="font-size:0.65rem; color:#b91c1c; background:#fee2e2; padding:1px 5px; border-radius:4px;">Inativa</span>` : ''}
                               </div>
-                              <div style="display:flex; gap:6px; align-items:center;">
-                                <button class="btn btn-xs edit-subcategory-btn" data-cat-id="${c.id}" data-sub-id="${sub.id}" style="background:transparent; border:none; color:#64748b; font-size:0.75rem; padding:2px 6px; cursor:pointer;" onmouseover="this.style.color='#0f172a'" onmouseout="this.style.color='#64748b'">
+                              <div style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
+                                <button class="btn btn-xs edit-subcategory-btn" data-cat-id="${c.id}" data-sub-id="${sub.id}" style="background:#ffffff; border:1px solid #e2e8f0; color:#475569; font-size:0.75rem; padding:3px 8px; border-radius:4px; cursor:pointer;">
                                   Editar
                                 </button>
-                                <button class="btn btn-xs delete-subcategory-btn" data-cat-id="${c.id}" data-sub-id="${sub.id}" data-sub-name="${sub.name}" style="background:transparent; border:none; color:#e11d48; font-size:0.75rem; padding:2px 6px; cursor:pointer;" onmouseover="this.style.color='#b91c1c'" onmouseout="this.style.color='#e11d48'">
+                                <button class="btn btn-xs delete-subcategory-btn" data-cat-id="${c.id}" data-sub-id="${sub.id}" data-sub-name="${sub.name}" style="background:#fff1f2; border:1px solid #fecdd3; color:#e11d48; font-size:0.75rem; padding:3px 8px; border-radius:4px; cursor:pointer;">
                                   Excluir
                                 </button>
                               </div>
                             </div>
                           `).join('')}
-                          <div style="padding-top:6px;">
-                            <button class="btn btn-xs add-sub-to-cat-btn" data-cat-id="${c.id}" data-cat-name="${c.name}" style="background:transparent; border:1px dashed #cbd5e1; color:#2563eb; font-size:0.75rem; padding:3px 10px; border-radius:4px; font-weight:600;">
+                          <div style="padding-top:8px;">
+                            <button class="btn btn-xs add-sub-to-cat-btn" data-cat-id="${c.id}" data-cat-name="${c.name}" style="background:#ffffff; border:1px dashed #cbd5e1; color:#2563eb; font-size:0.75rem; padding:5px 12px; border-radius:6px; font-weight:600;">
                               + Nova Subcategoria
                             </button>
                           </div>
@@ -2412,35 +2425,45 @@ export function renderAdminView() {
           <div class="admin-mobile-card-list admin-mobile-only">
             ${filtered.map(c => {
               const isBlocked = c.status === 'blocked';
+              const phone = c.phone || c.telefone || '';
+              const cleanPhone = phone.replace(/[^0-9]/g, '');
+              const waLink = cleanPhone ? `https://wa.me/${cleanPhone.startsWith('244') ? cleanPhone : '244' + cleanPhone}` : null;
+
               return `
-                <div class="admin-res-card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:10px;">
-                  <div class="admin-res-card-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                    <div>
-                      <strong style="font-size:0.9375rem; color:#0f172a;">${c.name}</strong>
-                      <div style="font-size:0.75rem; color:#64748b;">${c.email}</div>
+                <div class="admin-res-card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.02); box-sizing:border-box; width:100%;">
+                  <div class="admin-res-card-header" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; gap:8px;">
+                    <div style="min-width:0; flex:1;">
+                      <strong style="font-size:0.9375rem; color:#0f172a; font-weight:700; word-break:break-word;">${c.name}</strong>
+                      <div style="font-size:0.75rem; color:#64748b; word-break:break-all; margin-top:1px;">${c.email}</div>
                     </div>
                     ${!isBlocked ? `
-                      <span class="badge" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; font-size:0.75rem;">Ativo</span>
+                      <span class="badge" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; font-size:0.6875rem; font-weight:700; padding:2px 8px; border-radius:6px; flex-shrink:0;">ATIVO</span>
                     ` : `
-                      <span class="badge" style="background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; font-size:0.75rem;">Bloqueado</span>
+                      <span class="badge" style="background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; font-size:0.6875rem; font-weight:700; padding:2px 8px; border-radius:6px; flex-shrink:0;">BLOQUEADO</span>
                     `}
                   </div>
                   <div class="admin-res-card-body" style="display:flex; flex-direction:column; gap:6px; font-size:0.8125rem; border-top:1px solid #f1f5f9; padding-top:8px;">
-                    <div style="display:flex; justify-content:space-between;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
                       <span style="color:#64748b;">Telefone:</span>
-                      <span>${c.phone || '—'}</span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between;">
-                      <span style="color:#64748b;">Endereço:</span>
-                      <span style="max-width:180px; text-align:right;">${c.endereco || '—'}</span>
+                      <span style="font-weight:600; color:#0f172a;">${phone || '—'}</span>
                     </div>
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                      <span style="color:#64748b;">Total Comprado:</span>
-                      <strong style="color:#0f172a; font-size:0.9375rem;">${formatPrice(c.total_spent || 0)}</strong>
+                      <span style="color:#64748b;">Endereço:</span>
+                      <span style="max-width:180px; text-align:right; color:#475569; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${c.endereco || '—'}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px dashed #f1f5f9; padding-top:6px; margin-top:2px;">
+                      <span style="color:#64748b; font-weight:600;">Total Comprado:</span>
+                      <strong style="color:#0f172a; font-size:0.95rem; font-weight:800;">${formatPrice(c.total_spent || 0)}</strong>
                     </div>
                   </div>
-                  <div class="admin-res-card-actions" style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px; padding-top:8px; border-top:1px solid #f1f5f9;">
-                    <button class="btn btn-secondary btn-sm open-customer-modal-btn" data-id="${c.id}" style="font-size:0.8125rem; padding:6px 12px;">
+                  <div class="admin-res-card-actions" style="display:flex; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid #f1f5f9;">
+                    ${waLink ? `
+                      <a href="${waLink}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:6px; color:#15803d; border-color:#bbf7d0; background:#f0fdf4; font-size:0.8125rem; font-weight:600; padding:8px 12px; text-decoration:none; border-radius:8px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        WhatsApp
+                      </a>
+                    ` : ''}
+                    <button class="btn btn-secondary btn-sm open-customer-modal-btn" data-id="${c.id}" style="flex:1; font-size:0.8125rem; font-weight:600; padding:8px 12px; border-radius:8px;">
                       Ver Detalhes
                     </button>
                   </div>
@@ -4841,41 +4864,41 @@ export function renderAdminView() {
     }
   }
 
-  // 4. Modal de Categoria (Simples, Direto e Sem Ícones)
+  // 4. Modal de Categoria
   function openCategoryModal(cat = null) {
     const isEdit = Boolean(cat);
     const modal = document.createElement('div');
     modal.className = 'admin-modal-overlay';
     modal.innerHTML = `
-      <div class="admin-modal-dialog" style="max-width:500px;">
+      <div class="admin-modal-dialog" style="max-width:480px; width:100%;">
         <div class="admin-modal-header">
-          <h3 class="admin-modal-title">${isEdit ? 'Editar Categoria' : 'Nova Categoria'}</h3>
-          <button class="btn btn-secondary btn-sm close-modal-btn">✕</button>
+          <h3 class="admin-modal-title" style="margin:0; font-size:1.125rem; font-weight:700; color:#0f172a;">${isEdit ? 'Editar Categoria' : 'Nova Categoria'}</h3>
+          <button type="button" class="admin-modal-close-icon close-modal-btn" aria-label="Fechar" title="Fechar (Esc)">✕</button>
         </div>
 
-        <form id="categoryForm" class="admin-modal-body">
+        <form id="categoryForm" class="admin-modal-body" style="padding:16px 20px; display:flex; flex-direction:column; gap:14px; background:#ffffff;">
           <div class="form-group">
-            <label class="form-label">Nome da Categoria *</label>
-            <input type="text" id="catName" class="form-input" value="${cat?.name || ''}" placeholder="Ex: Smartphones, Computadores, Acessórios..." required />
+            <label class="form-label" style="font-weight:600; font-size:0.8125rem; color:#334155; margin-bottom:6px; display:block;">Nome da Categoria *</label>
+            <input type="text" id="catName" class="form-input" value="${cat?.name || ''}" placeholder="Ex: Smartphones, Computadores, Acessórios..." required style="padding:9px 12px; font-size:0.875rem;" />
           </div>
 
           <div class="form-group">
-            <label class="form-label">Descrição (Opcional)</label>
-            <textarea id="catDesc" class="form-input" rows="2" placeholder="Breve descrição dos produtos desta categoria...">${cat?.description || ''}</textarea>
+            <label class="form-label" style="font-weight:600; font-size:0.8125rem; color:#334155; margin-bottom:6px; display:block;">Descrição (Opcional)</label>
+            <textarea id="catDesc" class="form-input" rows="2" placeholder="Breve descrição dos produtos desta categoria..." style="padding:9px 12px; font-size:0.875rem;">${cat?.description || ''}</textarea>
           </div>
 
           <div class="form-group">
-            <label class="form-label">Status *</label>
-            <select id="catStatus" class="admin-filter-select" style="width:100%;">
+            <label class="form-label" style="font-weight:600; font-size:0.8125rem; color:#334155; margin-bottom:6px; display:block;">Status *</label>
+            <select id="catStatus" class="admin-filter-select" style="width:100%; padding:9px 12px; font-size:0.875rem;">
               <option value="true" ${cat?.is_active !== false ? 'selected' : ''}>Ativa (Visível na loja)</option>
               <option value="false" ${cat?.is_active === false ? 'selected' : ''}>Inativa (Oculta da loja)</option>
             </select>
           </div>
           <input type="hidden" id="catOrder" value="${cat?.display_order !== undefined ? cat.display_order : (categoriesList.length + 1)}" />
 
-          <div class="admin-modal-footer" style="padding: 0; margin-top: 14px;">
-            <button type="button" class="btn btn-secondary close-modal-btn">Cancelar</button>
-            <button type="submit" id="saveCategoryBtn" class="btn btn-primary" style="padding: 10px 24px; font-weight:700;">
+          <div class="admin-modal-footer" style="padding:12px 0 0 0; margin-top:6px; border-top:1px solid #f1f5f9; display:flex; justify-content:flex-end; gap:10px;">
+            <button type="button" class="btn btn-secondary close-modal-btn" style="padding:9px 18px; font-weight:600; font-size:0.875rem; flex:1; justify-content:center;">Cancelar</button>
+            <button type="submit" id="saveCategoryBtn" class="btn btn-primary" style="padding:9px 22px; font-weight:700; font-size:0.875rem; flex:1; justify-content:center;">
               ${isEdit ? 'Salvar Alterações' : 'Salvar Categoria'}
             </button>
           </div>
@@ -4929,7 +4952,7 @@ export function renderAdminView() {
     });
   }
 
-  // 4.1. Modal de Subcategoria (Vinculada à Categoria Pai, Sem Ícones)
+  // 4.1. Modal de Subcategoria
   function openSubcategoryModal({ parent_id = null, sub = null } = {}) {
     const isEdit = Boolean(sub);
     const selectedParentId = parent_id || (sub ? categoriesList.find(c => (c.subcategories || []).some(s => String(s.id) === String(sub.id)))?.id : '');
@@ -4938,16 +4961,16 @@ export function renderAdminView() {
     const modal = document.createElement('div');
     modal.className = 'admin-modal-overlay';
     modal.innerHTML = `
-      <div class="admin-modal-dialog" style="max-width:500px;">
+      <div class="admin-modal-dialog" style="max-width:480px; width:100%;">
         <div class="admin-modal-header">
-          <h3 class="admin-modal-title">${isEdit ? 'Editar Subcategoria' : 'Nova Subcategoria'}</h3>
-          <button class="btn btn-secondary btn-sm close-modal-btn">✕</button>
+          <h3 class="admin-modal-title" style="margin:0; font-size:1.125rem; font-weight:700; color:#0f172a;">${isEdit ? 'Editar Subcategoria' : 'Nova Subcategoria'}</h3>
+          <button type="button" class="admin-modal-close-icon close-modal-btn" aria-label="Fechar" title="Fechar (Esc)">✕</button>
         </div>
 
-        <form id="subcategoryForm" class="admin-modal-body">
+        <form id="subcategoryForm" class="admin-modal-body" style="padding:16px 20px; display:flex; flex-direction:column; gap:14px; background:#ffffff;">
           <div class="form-group">
-            <label class="form-label">Categoria Pai *</label>
-            <select id="subParentSelect" class="admin-filter-select" style="width:100%; font-weight:600;" required ${isEdit ? 'disabled' : ''}>
+            <label class="form-label" style="font-weight:600; font-size:0.8125rem; color:#334155; margin-bottom:6px; display:block;">Categoria Pai *</label>
+            <select id="subParentSelect" class="admin-filter-select" style="width:100%; font-weight:600; padding:9px 12px; font-size:0.875rem;" required ${isEdit ? 'disabled' : ''}>
               <option value="">Selecione a categoria pai...</option>
               ${categoriesList.map(c => `
                 <option value="${c.id}" ${String(c.id) === String(selectedParentId) ? 'selected' : ''}>${c.name}</option>
@@ -4956,27 +4979,27 @@ export function renderAdminView() {
           </div>
 
           <div class="form-group">
-            <label class="form-label">Nome da Subcategoria *</label>
-            <input type="text" id="subName" class="form-input" value="${sub?.name || ''}" placeholder="Ex: iPhones, Monitores, Carregadores..." required />
+            <label class="form-label" style="font-weight:600; font-size:0.8125rem; color:#334155; margin-bottom:6px; display:block;">Nome da Subcategoria *</label>
+            <input type="text" id="subName" class="form-input" value="${sub?.name || ''}" placeholder="Ex: iPhones, Monitores, Carregadores..." required style="padding:9px 12px; font-size:0.875rem;" />
           </div>
 
           <div class="form-group">
-            <label class="form-label">Descrição (Opcional)</label>
-            <textarea id="subDesc" class="form-input" rows="2" placeholder="Breve descrição da subcategoria...">${sub?.description || ''}</textarea>
+            <label class="form-label" style="font-weight:600; font-size:0.8125rem; color:#334155; margin-bottom:6px; display:block;">Descrição (Opcional)</label>
+            <textarea id="subDesc" class="form-input" rows="2" placeholder="Breve descrição da subcategoria..." style="padding:9px 12px; font-size:0.875rem;">${sub?.description || ''}</textarea>
           </div>
 
           <div class="form-group">
-            <label class="form-label">Status *</label>
-            <select id="subStatus" class="admin-filter-select" style="width:100%;">
+            <label class="form-label" style="font-weight:600; font-size:0.8125rem; color:#334155; margin-bottom:6px; display:block;">Status *</label>
+            <select id="subStatus" class="admin-filter-select" style="width:100%; padding:9px 12px; font-size:0.875rem;">
               <option value="true" ${sub?.is_active !== false ? 'selected' : ''}>Ativa (Visível na loja)</option>
               <option value="false" ${sub?.is_active === false ? 'selected' : ''}>Inativa (Oculta da loja)</option>
             </select>
           </div>
           <input type="hidden" id="subOrder" value="${sub?.display_order !== undefined ? sub.display_order : 1}" />
 
-          <div class="admin-modal-footer" style="padding: 0; margin-top: 14px;">
-            <button type="button" class="btn btn-secondary close-modal-btn">Cancelar</button>
-            <button type="submit" id="saveSubcategoryBtn" class="btn btn-primary" style="padding: 10px 24px; font-weight:700;">
+          <div class="admin-modal-footer" style="padding:12px 0 0 0; margin-top:6px; border-top:1px solid #f1f5f9; display:flex; justify-content:flex-end; gap:10px;">
+            <button type="button" class="btn btn-secondary close-modal-btn" style="padding:9px 18px; font-weight:600; font-size:0.875rem; flex:1; justify-content:center;">Cancelar</button>
+            <button type="submit" id="saveSubcategoryBtn" class="btn btn-primary" style="padding:9px 22px; font-weight:700; font-size:0.875rem; flex:1; justify-content:center;">
               ${isEdit ? 'Salvar Alterações' : 'Salvar Subcategoria'}
             </button>
           </div>
