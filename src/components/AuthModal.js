@@ -144,7 +144,7 @@ export function setupAuthModal() {
                 </div>
 
                 <button type="submit" class="btn btn-primary btn-full" style="margin-top: 6px; font-weight: 700;">
-                  Próximo: Endereço de Entrega →
+                  Próximo →
                 </button>
 
                 <div style="text-align: center; font-size: 0.8125rem; color: var(--text-secondary); margin-top: 6px;">
@@ -198,7 +198,7 @@ export function setupAuthModal() {
                     ← Voltar
                   </button>
                   <button type="submit" class="btn btn-primary" style="flex: 1.5; font-weight: 700;">
-                    Próximo: Senha →
+                    Próximo →
                   </button>
                 </div>
               </form>
