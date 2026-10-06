@@ -59,6 +59,15 @@ export function renderProductDetailView(productSlug) {
       if (!realProd) {
         realProd = await Api.products.getById(productSlug);
       }
+      if (!realProd) {
+        const all = await Api.products.getAll({ all: true });
+        realProd = (all || []).find(p =>
+          p.uid === productSlug ||
+          p.slug === productSlug ||
+          String(p.id) === String(productSlug) ||
+          p.sku === productSlug
+        );
+      }
 
       if (realProd) {
         const rawGal = Array.isArray(realProd.gallery)
@@ -230,6 +239,8 @@ export function renderProductDetailView(productSlug) {
     if (!catDisplayName || !isNaN(catDisplayName)) {
       catDisplayName = (product.brand ? product.brand : 'Produtos');
     }
+    const catSlug = resolvedCat?.slug || (resolvedCat?.id ? String(resolvedCat.id) : '') || product.category_slug || (typeof product.category === 'string' ? product.category : '') || '';
+
     const productReviews = Array.isArray(product.reviews) ? product.reviews : [];
     const totalReviewsCount = productReviews.length > 0 ? productReviews.length : Number(product.reviewsCount || 0);
     const calculatedRating = productReviews.length > 0
@@ -639,7 +650,11 @@ export function renderProductDetailView(productSlug) {
       }
     }
 
-    attachPDPEvents();
+    try {
+      attachPDPEvents();
+    } catch (err) {
+      console.error('Erro ao conectar eventos da PDP:', err);
+    }
   }
 
   function attachPDPEvents() {
