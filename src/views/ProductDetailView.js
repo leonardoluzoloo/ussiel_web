@@ -527,39 +527,40 @@ export function renderProductDetailView(productSlug) {
       </div>
 
       <!-- Seção Dedicada de Avaliações dos Clientes (Parte Inferior) -->
-      <section class="pdp-reviews-section" style="margin: 48px 0; background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 32px 28px;">
+      <section class="pdp-reviews-section" style="margin: 48px 0; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 28px 24px;">
+        <!-- Cabeçalho de Avaliações -->
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; border-bottom: 1px solid #f1f5f9; padding-bottom: 20px;">
           <div>
-            <h2 style="font-size: 1.375rem; font-weight: 800; color: var(--text-main); margin: 0 0 6px 0;">
+            <h2 style="font-size: 1.25rem; font-weight: 800; color: #0f172a; margin: 0 0 6px 0;">
               Avaliações dos Clientes
             </h2>
             ${hasReviews ? `
               <div style="display: flex; align-items: center; gap: 10px;">
                 <div class="stars">${renderStars(calculatedRating)}</div>
                 <span style="font-weight: 800; font-size: 1rem; color: #0f172a;">${calculatedRating.toFixed(1)} / 5.0</span>
-                <span style="font-size: 0.875rem; color: var(--text-muted);">(${totalReviewsCount} ${totalReviewsCount === 1 ? 'avaliação' : 'avaliações'})</span>
+                <span style="font-size: 0.875rem; color: #64748b;">(${totalReviewsCount} ${totalReviewsCount === 1 ? 'avaliação' : 'avaliações'})</span>
               </div>
             ` : `
-              <p style="font-size: 0.875rem; color: var(--text-muted); margin: 0;">Ainda não há avaliações para este produto.</p>
+              <p style="font-size: 0.875rem; color: #64748b; margin: 0;">Ainda não há avaliações para este produto.</p>
             `}
           </div>
 
           ${hasPurchasedProduct ? `
-            <button class="btn btn-primary btn-sm" id="openReviewFormBtn" style="display: flex; align-items: center; gap: 8px;">
+            <button class="btn btn-primary btn-sm" id="openReviewFormBtn" style="display: flex; align-items: center; gap: 8px; font-weight: 700;">
               ${Icons.edit(15)}
-              <span>Escrever Avaliação</span>
+              <span>Avaliar Produto</span>
             </button>
           ` : ''}
         </div>
 
         <!-- Form de Avaliação para Comprador Verificado -->
         ${hasPurchasedProduct ? `
-          <div id="reviewFormBox" style="display: none; background: #f8fafc; border: 1px solid var(--border-light); padding: 20px; border-radius: var(--radius-md); margin-bottom: 24px;">
+          <div id="reviewFormBox" style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px; margin-bottom: 24px;">
             <h4 style="font-weight: 700; font-size: 0.9375rem; color: #0f172a; margin-bottom: 12px;">Deixe a sua opinião sobre este produto</h4>
             <div style="display: flex; flex-direction: column; gap: 14px;">
               <input type="text" id="newReviewName" placeholder="Seu nome completo" class="form-input" value="${(Storage.getUser()?.name || '').replace(/"/g, '&quot;')}" />
               <div style="display: flex; flex-direction: column; gap: 6px;">
-                <label style="font-size: 0.8125rem; font-weight: 600; color: var(--text-main);">Sua nota</label>
+                <label style="font-size: 0.8125rem; font-weight: 600; color: #0f172a;">Sua nota</label>
                 <div id="reviewStarPicker" style="display: flex; gap: 6px; cursor: pointer;">
                   ${[1,2,3,4,5].map(s => `
                     <span class="review-star-pick" data-star="${s}" style="font-size: 1.5rem; color: ${s <= reviewRating ? '#f59e0b' : '#d1d5db'}; transition: color 0.15s; user-select: none;">★</span>
@@ -568,39 +569,94 @@ export function renderProductDetailView(productSlug) {
                 <input type="hidden" id="newReviewRating" value="${reviewRating}" />
               </div>
               <textarea id="newReviewComment" rows="3" placeholder="Conte a sua experiência com o produto..." class="form-input" style="height: auto; padding: 12px; font-size: 0.875rem;"></textarea>
-              <button class="btn btn-accent btn-sm" id="submitReviewBtn" style="align-self: flex-start;">
+              <button class="btn btn-primary btn-sm" id="submitReviewBtn" style="align-self: flex-start; font-weight: 700;">
                 Publicar Avaliação
               </button>
             </div>
           </div>
         ` : ''}
 
-        <!-- Lista de Avaliações -->
+        <!-- Lista de Avaliações na Página (Exibe 1 avaliação se houver mais de uma) -->
         <div style="display: flex; flex-direction: column; gap: 14px;">
           ${(product.reviews || []).length === 0 ? `
-            <div style="background: #f8fafc; border: 1px dashed var(--border-light); border-radius: var(--radius-md); padding: 36px 20px; text-align: center; color: var(--text-muted);">
-              <p style="font-size: 0.9375rem; color: #64748b; margin: 0;">Nenhuma avaliação registrada para este produto no momento.</p>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 32px 20px; text-align: center; color: #64748b;">
+              <p style="font-size: 0.9375rem; margin: 0;">Nenhuma avaliação registrada para este produto no momento.</p>
               ${hasPurchasedProduct ? `
-                <button class="btn btn-primary btn-sm" id="emptyStateReviewBtn" style="margin-top: 14px;">
+                <button class="btn btn-primary btn-sm" id="emptyStateReviewBtn" style="margin-top: 14px; font-weight: 700;">
                   Seja o primeiro a avaliar
                 </button>
               ` : ''}
             </div>
-          ` : (product.reviews || []).map(r => `
-            <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 18px;">
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+          ` : `
+            <!-- Primeira Avaliação em Destaque -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <strong style="color: var(--text-main); font-size: 0.875rem;">${r.author}</strong>
-                  <span style="font-size: 0.6875rem; background: #ecfdf5; color: #047857; padding: 2px 6px; border-radius: 4px; font-weight: 700;">Compra Verificada ✓</span>
+                  <strong style="color: #0f172a; font-size: 0.875rem;">${product.reviews[0].author}</strong>
+                  <span style="font-size: 0.6875rem; background: #ecfdf5; color: #047857; padding: 2px 6px; border-radius: 4px; font-weight: 700; border: 1px solid #a7f3d0;">Compra Verificada</span>
                 </div>
-                <span style="font-size: 0.75rem; color: var(--text-muted);">${formatDate(r.date)}</span>
+                <span style="font-size: 0.75rem; color: #64748b;">${formatDate(product.reviews[0].date)}</span>
               </div>
-              <div class="stars" style="margin-bottom: 8px;">${renderStars(r.rating || 5)}</div>
-              <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6; margin: 0;">${r.comment}</p>
+              <div class="stars" style="margin-bottom: 8px;">${renderStars(product.reviews[0].rating || 5)}</div>
+              <p style="font-size: 0.875rem; color: #334155; line-height: 1.6; margin: 0;">${product.reviews[0].comment}</p>
             </div>
-          `).join('')}
+
+            <!-- Botão Ver Mais Avaliações (se houver mais de 1) -->
+            ${(product.reviews || []).length > 1 ? `
+              <div style="margin-top: 8px; text-align: center;">
+                <button type="button" class="btn btn-secondary" id="openAllReviewsModalBtn" style="padding: 10px 22px; font-size: 0.875rem; font-weight: 700; border-radius: 8px;">
+                  Ver todas as avaliações (${product.reviews.length})
+                </button>
+              </div>
+            ` : ''}
+          `}
         </div>
       </section>
+
+      <!-- Modal com Todas as Avaliações dos Clientes -->
+      <div class="pdp-details-modal-overlay" id="pdpAllReviewsModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 99999; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box;">
+        <div class="pdp-details-modal-box" style="background: #ffffff; border-radius: 14px; width: 100%; max-width: 760px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.25); border: 1px solid #e2e8f0; overflow: hidden;">
+          <!-- Header do Modal de Avaliações -->
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid #f1f5f9; background: #ffffff;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <h3 style="font-size: 1.125rem; font-weight: 800; color: #0f172a; margin: 0;">Avaliações dos Clientes</h3>
+                ${hasReviews ? `
+                  <span style="font-size: 0.8125rem; font-weight: 700; background: #f1f5f9; color: #0f172a; padding: 3px 8px; border-radius: 6px;">★ ${calculatedRating.toFixed(1)} (${totalReviewsCount})</span>
+                ` : ''}
+              </div>
+              <p style="font-size: 0.8125rem; color: #64748b; margin: 2px 0 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 480px;">${product.name || 'Produto'}</p>
+            </div>
+            <button type="button" id="closeAllReviewsModalBtn" aria-label="Fechar" style="background: #f1f5f9; border: none; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; color: #64748b; cursor: pointer; transition: all 0.15s; flex-shrink: 0;">
+              ${Icons.close(16)}
+            </button>
+          </div>
+
+          <!-- Lista Completa de Avaliações -->
+          <div style="padding: 24px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px;">
+            ${(product.reviews || []).map(r => `
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; flex-wrap: wrap; gap: 8px;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <strong style="color: #0f172a; font-size: 0.875rem;">${r.author}</strong>
+                    <span style="font-size: 0.6875rem; background: #ecfdf5; color: #047857; padding: 2px 6px; border-radius: 4px; font-weight: 700; border: 1px solid #a7f3d0;">Compra Verificada</span>
+                  </div>
+                  <span style="font-size: 0.75rem; color: #64748b;">${formatDate(r.date)}</span>
+                </div>
+                <div class="stars" style="margin-bottom: 6px;">${renderStars(r.rating || 5)}</div>
+                <p style="font-size: 0.875rem; color: #334155; line-height: 1.6; margin: 0;">${r.comment}</p>
+              </div>
+            `).join('')}
+          </div>
+
+          <!-- Rodapé do Modal -->
+          <div style="padding: 12px 24px; border-top: 1px solid #f1f5f9; background: #f8fafc; display: flex; justify-content: flex-end;">
+            <button type="button" id="closeAllReviewsModalFooterBtn" class="btn btn-secondary" style="padding: 8px 20px; font-size: 0.875rem; font-weight: 700; border-radius: 8px;">
+              Fechar
+            </button>
+          </div>
+        </div>
+      </div>
 
       <!-- Related Products: "Você Também Pode Gostar" -->
       <section style="margin-bottom: 48px;" id="relatedSection">
@@ -963,6 +1019,35 @@ export function renderProductDetailView(productSlug) {
     if (emptyReviewBtn) {
       emptyReviewBtn.onclick = () => {
         if (openReviewBtn) openReviewBtn.click();
+      };
+    }
+
+    // Modal Todas as Avaliações (Abertura e Fechamento)
+    const openAllReviewsModalBtn = container.querySelector('#openAllReviewsModalBtn');
+    const allReviewsModal = container.querySelector('#pdpAllReviewsModal');
+    const closeAllReviewsModalBtn = container.querySelector('#closeAllReviewsModalBtn');
+    const closeAllReviewsModalFooterBtn = container.querySelector('#closeAllReviewsModalFooterBtn');
+
+    const openAllReviewsModal = () => {
+      if (allReviewsModal) {
+        allReviewsModal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+      }
+    };
+
+    const closeAllReviewsModal = () => {
+      if (allReviewsModal) {
+        allReviewsModal.style.display = 'none';
+        document.body.style.overflow = '';
+      }
+    };
+
+    if (openAllReviewsModalBtn) openAllReviewsModalBtn.onclick = openAllReviewsModal;
+    if (closeAllReviewsModalBtn) closeAllReviewsModalBtn.onclick = closeAllReviewsModal;
+    if (closeAllReviewsModalFooterBtn) closeAllReviewsModalFooterBtn.onclick = closeAllReviewsModal;
+    if (allReviewsModal) {
+      allReviewsModal.onclick = (e) => {
+        if (e.target === allReviewsModal) closeAllReviewsModal();
       };
     }
   }
