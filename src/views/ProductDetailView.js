@@ -698,14 +698,15 @@ export function renderProductDetailView(productSlug) {
             return;
           }
 
+          const currentQty = Math.max(1, Number(valInput?.value || quantity || 1));
           const itemProduct = {
             ...product,
             price: currentPrice
           };
-          Storage.addToCart(itemProduct, quantity, { color: selectedColor, storage: selectedStorage });
+          Storage.addToCart(itemProduct, currentQty, { color: selectedColor, storage: selectedStorage });
           Toast.show({
             title: 'Produto adicionado ao carrinho ✓',
-            message: `${quantity}x ${product.name} ${selectedStorage ? `(${selectedStorage})` : ''}`,
+            message: `${currentQty} un. • ${product.name} ${selectedStorage ? `(${selectedStorage})` : ''}`,
             type: 'success',
             actionLabel: 'Ver Carrinho →',
             onAction: () => window.dispatchEvent(new CustomEvent('open-mini-cart'))
@@ -717,7 +718,7 @@ export function renderProductDetailView(productSlug) {
       };
     }
 
-    // Buy Now
+    // Buy Now (Garante a quantidade exata selecionada sem duplicar caso já tenha adicionado antes)
     const buyBtn = container.querySelector('#pdpBuyNowBtn');
     if (buyBtn) {
       buyBtn.onclick = () => {
@@ -731,11 +732,12 @@ export function renderProductDetailView(productSlug) {
             return;
           }
 
+          const currentQty = Math.max(1, Number(valInput?.value || quantity || 1));
           const itemProduct = {
             ...product,
             price: currentPrice
           };
-          Storage.addToCart(itemProduct, quantity, { color: selectedColor, storage: selectedStorage });
+          Storage.addToCart(itemProduct, currentQty, { color: selectedColor, storage: selectedStorage }, { overwriteQty: true });
           window.location.hash = '#/checkout';
         } catch (err) {
           Toast.show({ title: 'Erro ao Comprar', message: err.message || 'Não foi possível avançar para o checkout.', type: 'error' });

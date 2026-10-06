@@ -64,11 +64,12 @@ export const Storage = {
     window.dispatchEvent(new CustomEvent('cart-updated', { detail: { cart } }));
   },
 
-  addToCart(product, quantity = 1, selectedVariant = {}) {
+  addToCart(product, quantity = 1, selectedVariant = {}, options = {}) {
     const cart = this.getCart();
     const variantKey = `${product.id}-${selectedVariant.color || ''}-${selectedVariant.storage || ''}`;
     const maxStock = product.stock !== undefined ? Number(product.stock) : 999;
     const allowNoStock = Boolean(product.allow_out_of_stock_sales);
+    const addQty = Math.max(1, Number(quantity) || 1);
 
     // Validação de estoque real
     if (!allowNoStock && maxStock <= 0) {
@@ -79,7 +80,7 @@ export const Storage = {
 
     if (existingIndex > -1) {
       const currentQty = cart[existingIndex].quantity;
-      const desiredQty = currentQty + quantity;
+      const desiredQty = options.overwriteQty ? addQty : (currentQty + addQty);
 
       if (!allowNoStock && desiredQty > maxStock) {
         cart[existingIndex].quantity = maxStock;
@@ -89,7 +90,7 @@ export const Storage = {
       cart[existingIndex].quantity = desiredQty;
       cart[existingIndex].stock = maxStock;
     } else {
-      const finalQty = (!allowNoStock && quantity > maxStock) ? maxStock : quantity;
+      const finalQty = (!allowNoStock && addQty > maxStock) ? maxStock : addQty;
       cart.push({
         key: variantKey,
         id: product.id,
