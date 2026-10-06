@@ -334,27 +334,28 @@ export function renderProductDetailView(productSlug) {
           <div class="pdp-cta-row">
             ${(product.is_active !== false && product.ativo !== false && (product.stock > 0 || product.allow_out_of_stock_sales)) ? `
               <div class="pdp-actions-grid">
-                <div class="pdp-qty-wish-row">
+                <!-- Linha 1: [ - 1 + ] + [ Adicionar ao Carrinho ] + [ Favoritos ] -->
+                <div class="pdp-main-actions-row">
                   <div class="pdp-qty-wrap">
                     <button type="button" class="pdp-qty-btn" id="pdpQtyDec" aria-label="Diminuir">-</button>
                     <input type="text" class="pdp-qty-input" id="pdpQtyVal" value="${quantity}" readonly aria-label="Quantidade" />
                     <button type="button" class="pdp-qty-btn" id="pdpQtyInc" aria-label="Aumentar">+</button>
                   </div>
-                  <button type="button" class="btn-pdp-wishlist ${isWishlisted ? 'active' : ''}" id="pdpWishlistBtn" title="Favoritar">
-                    ${Icons.heart(18, isWishlisted ? '#ef4444' : 'currentColor', isWishlisted ? '#ef4444' : 'none')}
-                  </button>
-                </div>
 
-                <div class="pdp-buy-buttons-group">
                   <button type="button" class="btn-pdp-cart" id="pdpAddToCartBtn">
                     ${Icons.cart(18, '#ffffff')}
                     <span>Adicionar ao Carrinho</span>
                   </button>
 
-                  <button type="button" class="btn-pdp-buy-now" id="pdpBuyNowBtn">
-                    <span>Comprar Agora</span>
+                  <button type="button" class="btn-pdp-wishlist ${isWishlisted ? 'active' : ''}" id="pdpWishlistBtn" title="Favoritar">
+                    ${Icons.heart(18, isWishlisted ? '#ef4444' : 'currentColor', isWishlisted ? '#ef4444' : 'none')}
                   </button>
                 </div>
+
+                <!-- Linha 2: Comprar Agora por baixo -->
+                <button type="button" class="btn-pdp-buy-now" id="pdpBuyNowBtn">
+                  <span>Comprar Agora</span>
+                </button>
               </div>
             ` : `
               <button class="btn-pdp-cart" disabled style="opacity: 0.6; cursor: not-allowed; background: #94a3b8; border-color: #94a3b8;">

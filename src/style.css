@@ -3002,23 +3002,16 @@ img {
 
 .pdp-actions-grid {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 10px;
-  flex-wrap: wrap;
+  width: 100%;
 }
 
-.pdp-qty-wish-row {
+.pdp-main-actions-row {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.pdp-buy-buttons-group {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 280px;
+  width: 100%;
 }
 
 .pdp-qty-wrap {
