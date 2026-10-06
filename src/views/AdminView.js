@@ -1441,7 +1441,8 @@ export function renderAdminView() {
       filtered = filtered.filter(p =>
         String(p.id).includes(q) ||
         (p.name && p.name.toLowerCase().includes(q)) ||
-        (p.brand && p.brand.toLowerCase().includes(q))
+        (p.brand && p.brand.toLowerCase().includes(q)) ||
+        (p.sku && p.sku.toLowerCase().includes(q))
       );
     }
 
@@ -1463,7 +1464,7 @@ export function renderAdminView() {
               type="text"
               id="productSearchInput"
               class="form-input"
-              placeholder="Buscar por ID, nome ou marca..."
+              placeholder="Buscar por ID, nome, marca ou SKU..."
               value="${productSearchQuery}"
               style="padding:7px 12px; font-size:0.875rem;"
             />
@@ -1535,6 +1536,9 @@ export function renderAdminView() {
                       </td>
                       <td>
                         <div style="font-weight:600; color:#0f172a; font-size:0.875rem;">${p.name}</div>
+                        <div style="font-family:ui-monospace, monospace; font-size:0.75rem; color:#64748b; margin-top:2px;">
+                          SKU: <span style="font-weight:600; color:#475569;">${p.sku || '—'}</span>
+                        </div>
                       </td>
                       <td>
                         <span style="font-size:0.8125rem; font-weight:600; color:#334155; background:#f1f5f9; padding:2px 8px; border-radius:4px; border:1px solid #e2e8f0; display:inline-block; white-space:nowrap;">
@@ -1649,7 +1653,7 @@ export function renderAdminView() {
                         ${p.name}
                       </strong>
                       <div style="font-size:0.75rem; color:#64748b; margin-bottom:6px;">
-                        ${cat ? cat.name : '—'} ${subName ? `• ${subName}` : ''}
+                        ${cat ? cat.name : '—'} ${subName ? `• ${subName}` : ''} ${p.sku ? `• <span style="font-family:ui-monospace, monospace; font-weight:600; color:#475569;">SKU: ${p.sku}</span>` : ''}
                       </div>
                       <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
                         <div>
@@ -4464,9 +4468,20 @@ export function renderAdminView() {
     modal.querySelector('.toggle-block-customer-btn')?.addEventListener('click', () => modal.remove());
   }
 
+  // Função geradora de SKU padronizado e único para o cadastro de produtos
+  function generateProductSku(brand = '', name = '') {
+    const brandClean = (brand || '').trim().replace(/[^a-zA-Z0-9]/g, '').slice(0, 3).toUpperCase();
+    const brandCode = brandClean.length >= 2 ? brandClean : 'NV';
+    const nameClean = (name || '').trim().replace(/[^a-zA-Z0-9]/g, '').slice(0, 4).toUpperCase();
+    const rand = Math.floor(1000 + Math.random() * 9000);
+    const timeCode = Date.now().toString(36).slice(-3).toUpperCase();
+    return nameClean ? `NV-${brandCode}-${nameClean}-${rand}` : `NV-${brandCode}-${timeCode}${rand}`;
+  }
+
   // 2. Modal de Produto
   function openProductModal(prod = null) {
     const isEdit = Boolean(prod);
+    const initialSku = (prod?.sku || '').trim() || generateProductSku(prod?.brand, prod?.name);
     const modal = document.createElement('div');
     modal.className = 'admin-modal-overlay';
     modal.innerHTML = `
@@ -4479,7 +4494,7 @@ export function renderAdminView() {
             </h3>
             ${isEdit ? `
               <span style="font-family: ui-monospace, monospace; font-size: 0.75rem; font-weight: 600; color: #64748b; background: #f1f5f9; padding: 2px 7px; border-radius: 4px; border: 1px solid #e2e8f0;">
-                ${prod.id}
+                ID ${prod.id}
               </span>
             ` : ''}
           </div>
@@ -4511,8 +4526,8 @@ export function renderAdminView() {
               </div>
             </div>
 
-            <!-- Linha 1: Nome (2fr), Marca (1fr), Categoria (1fr), Subcategoria (1fr) -->
-            <div style="display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-bottom: 8px;">
+            <!-- Linha 1: Nome (2fr), Marca (1fr), SKU Automático (1.2fr) -->
+            <div style="display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1.2fr); gap: 8px; margin-bottom: 8px;">
               <div class="form-group">
                 <label class="admin-form-label" for="pName">Nome do Produto *</label>
                 <input type="text" id="pName" class="form-input" value="${prod?.name || ''}" placeholder="Ex: iPhone 16 Pro Max 256GB" required style="font-weight: 600;" />
@@ -4542,6 +4557,20 @@ export function renderAdminView() {
               </div>
 
               <div class="form-group">
+                <label class="admin-form-label" for="pSku" style="display: flex; justify-content: space-between; align-items: center;">
+                  <span>Código SKU *</span>
+                  <button type="button" id="btnRegenerateSku" title="Gerar novo SKU automático" style="background: none; border: none; color: #2563eb; font-weight: 700; font-size: 0.7rem; cursor: pointer; padding: 0; display: inline-flex; align-items: center; gap: 3px;">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+                    Regerar
+                  </button>
+                </label>
+                <input type="text" id="pSku" class="form-input" value="${initialSku}" placeholder="Ex: NV-APP-8921" required style="font-family: ui-monospace, monospace; font-weight: 700; letter-spacing: 0.02em; color: #1e293b; background: #f8fafc;" />
+              </div>
+            </div>
+
+            <!-- Linha 2: Categoria (1fr), Subcategoria (1fr), Preço Venda (1fr), Preço Original (1fr) -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+              <div class="form-group">
                 <label class="admin-form-label" for="pCategory">Categoria *</label>
                 <select id="pCategory" class="form-input" style="font-weight: 600;" required>
                   <option value="">Selecione...</option>
@@ -4558,10 +4587,7 @@ export function renderAdminView() {
                 </select>
                 <div id="pSubcategoryNotice" style="margin-top: 2px; font-size: 0.7rem;"></div>
               </div>
-            </div>
 
-            <!-- Linha 2: Preço Venda, Preço Original, Estoque Atual, Estoque Mínimo -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px;">
               <div class="form-group">
                 <label class="admin-form-label" for="pPrice">Preço de Venda *</label>
                 <div class="admin-input-affix-group">
@@ -4580,7 +4606,10 @@ export function renderAdminView() {
                   <input type="number" id="pOldPrice" class="form-input has-prefix" value="${prod?.old_price || prod?.oldPrice || ''}" placeholder="0" style="color: #64748b;" />
                 </div>
               </div>
+            </div>
 
+            <!-- Linha 3: Estoque Atual (1fr), Estoque Mínimo (1fr), Descrição (2fr) -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 8px; margin-bottom: 8px;">
               <div class="form-group">
                 <label class="admin-form-label" for="pStock">Estoque Atual *</label>
                 <div class="admin-input-affix-group">
@@ -4596,12 +4625,11 @@ export function renderAdminView() {
                   <span class="admin-input-suffix">un</span>
                 </div>
               </div>
-            </div>
 
-            <!-- Linha 3: Descrição Compacta -->
-            <div class="form-group">
-              <label class="admin-form-label" for="pDesc">Descrição do Produto</label>
-              <textarea id="pDesc" class="form-input" rows="2" placeholder="Breve apresentação comercial e diferenciais..." style="resize: vertical; min-height: 48px; font-size: 0.8125rem;">${prod?.description || prod?.descricao || ''}</textarea>
+              <div class="form-group">
+                <label class="admin-form-label" for="pDesc">Descrição do Produto</label>
+                <input type="text" id="pDesc" class="form-input" value="${(prod?.description || prod?.descricao || '').replace(/"/g, '&quot;')}" placeholder="Breve apresentação comercial e diferenciais..." style="font-size: 0.8125rem;" />
+              </div>
             </div>
           </div>
 
@@ -4711,6 +4739,35 @@ export function renderAdminView() {
         card.classList.toggle('checked', checkbox.checked);
       });
     });
+
+    // Interatividade Dinâmica do SKU (Geração, Re-geração e Edição)
+    const skuInput = modal.querySelector('#pSku');
+    const brandInput = modal.querySelector('#pBrand');
+    const nameInput = modal.querySelector('#pName');
+    const btnRegenerateSku = modal.querySelector('#btnRegenerateSku');
+
+    let skuManuallyEdited = isEdit;
+
+    skuInput?.addEventListener('input', () => {
+      skuManuallyEdited = true;
+    });
+
+    btnRegenerateSku?.addEventListener('click', () => {
+      const freshSku = generateProductSku(brandInput?.value, nameInput?.value);
+      if (skuInput) {
+        skuInput.value = freshSku;
+        skuManuallyEdited = false;
+        Toast.show(`Novo SKU gerado: ${freshSku}`, 'info');
+      }
+    });
+
+    if (!isEdit) {
+      brandInput?.addEventListener('change', () => {
+        if (!skuManuallyEdited && skuInput) {
+          skuInput.value = generateProductSku(brandInput.value, nameInput?.value);
+        }
+      });
+    }
 
     // Calculadora automática de economia / desconto em tempo real
     const priceInput = modal.querySelector('#pPrice');
@@ -4903,6 +4960,7 @@ export function renderAdminView() {
       const catVal = catSelect.value;
       const subVal = subSelect.value;
       const isActiveVal = modal.querySelector('#pStatus').value === 'true';
+      const skuVal = (modal.querySelector('#pSku')?.value || '').trim() || generateProductSku(modal.querySelector('#pBrand')?.value, nameVal);
 
       if (!nameVal) {
         Toast.show('O nome do produto é obrigatório.', 'warning');
@@ -4939,6 +4997,7 @@ export function renderAdminView() {
 
       const payload = {
         name: nameVal,
+        sku: skuVal,
         brand: modal.querySelector('#pBrand').value.trim() || 'NovaTech',
         price: Number(modal.querySelector('#pPrice').value),
         old_price: modal.querySelector('#pOldPrice').value ? Number(modal.querySelector('#pOldPrice').value) : null,
@@ -4957,10 +5016,6 @@ export function renderAdminView() {
         is_featured: modal.querySelector('#pIsFeatured').checked,
         is_active: isActiveVal
       };
-
-      if (isEdit && prod?.sku) {
-        payload.sku = prod.sku;
-      }
 
       try {
         if (isEdit) {
