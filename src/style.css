@@ -3092,18 +3092,16 @@ img {
   min-height: 42px;
   background: var(--primary-600);
   color: #ffffff;
-  font-size: 0.71875rem;
+  font-size: 0.775rem;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   border-radius: 9px;
   border: 1px solid transparent;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 0 6px;
+  padding: 0 8px;
   white-space: nowrap;
-  overflow: hidden;
   cursor: pointer;
   transition: all var(--transition-fast);
   box-shadow: 0 1px 3px rgba(37, 99, 235, 0.15);
@@ -3111,14 +3109,11 @@ img {
 
 .btn-pdp-cart span {
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 @media (max-width: 380px) {
   .btn-pdp-cart {
-    font-size: 0.675rem;
-    gap: 3px;
+    font-size: 0.72rem;
     padding: 0 4px;
   }
 }

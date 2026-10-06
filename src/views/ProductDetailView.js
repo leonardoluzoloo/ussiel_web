@@ -347,8 +347,7 @@ export function renderProductDetailView(productSlug) {
                   </button>
 
                   <button type="button" class="btn-pdp-cart" id="pdpAddToCartBtn">
-                    ${Icons.cart(14, '#ffffff')}
-                    <span>Adicionar ao Carrinho</span>
+                    <span>Adicionar ao carrinho</span>
                   </button>
                 </div>
 
