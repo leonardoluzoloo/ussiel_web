@@ -2997,49 +2997,87 @@ img {
 }
 
 .pdp-cta-row {
+  margin-bottom: 20px;
+}
+
+.pdp-actions-grid {
   display: flex;
-  gap: 12px;
-  margin-bottom: 28px;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pdp-qty-wish-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pdp-buy-buttons-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 280px;
 }
 
 .pdp-qty-wrap {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  height: 48px;
-  background: #ffffff;
+  justify-content: space-between;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  width: 108px;
+  height: 44px;
+  background: #f8fafc;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .pdp-qty-btn {
-  width: 44px;
+  width: 34px;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.125rem;
-  color: var(--text-secondary);
+  font-weight: 700;
+  color: #334155;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.pdp-qty-btn:hover {
+  background: #e2e8f0;
 }
 
 .pdp-qty-input {
-  width: 44px;
+  width: 40px;
   text-align: center;
-  font-weight: 700;
-  font-size: 1rem;
+  font-weight: 800;
+  font-size: 0.9375rem;
+  color: #0f172a;
+  border: none;
+  background: transparent;
+  padding: 0;
 }
 
 .btn-pdp-cart {
   flex: 1;
-  height: 48px;
+  height: 44px;
   background: var(--primary-600);
   color: #ffffff;
-  font-size: 1rem;
+  font-size: 0.9375rem;
   font-weight: 700;
-  border-radius: var(--radius-sm);
+  border-radius: 8px;
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  cursor: pointer;
   transition: all var(--transition-fast);
 }
 
@@ -3049,15 +3087,17 @@ img {
 
 .btn-pdp-buy-now {
   flex: 1;
-  height: 48px;
+  height: 44px;
   background: var(--accent-orange);
   color: #ffffff;
-  font-size: 1rem;
+  font-size: 0.9375rem;
   font-weight: 700;
-  border-radius: var(--radius-sm);
+  border-radius: 8px;
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
   transition: all var(--transition-fast);
 }
 
@@ -3066,14 +3106,16 @@ img {
 }
 
 .btn-pdp-wishlist {
-  width: 48px;
-  height: 48px;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
+  width: 44px;
+  height: 44px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted);
+  color: #64748b;
+  cursor: pointer;
   transition: all var(--transition-fast);
 }
 
@@ -3081,6 +3123,7 @@ img {
 .btn-pdp-wishlist.active {
   color: var(--accent-rose);
   border-color: var(--accent-rose);
+  background: #fff1f2;
 }
 
 /* Trust Perks Box in PDP */
@@ -5303,59 +5346,94 @@ img {
     gap: 6px !important;
   }
 
-  .variant-pill {
-    padding: 6px 12px !important;
-    font-size: 0.8125rem !important;
+  .pdp-cta-row {
+    margin-bottom: 16px !important;
   }
 
-  .pdp-cta-row {
+  .pdp-actions-grid {
     display: flex !important;
     flex-direction: column !important;
     gap: 10px !important;
-    margin-bottom: 18px !important;
+    width: 100% !important;
   }
 
-  .pdp-qty-wishlist-row {
+  .pdp-qty-wish-row {
     display: flex !important;
     align-items: center !important;
-    gap: 10px !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .pdp-buy-buttons-group {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
     width: 100% !important;
   }
 
   .pdp-qty-wrap {
-    flex: 1 !important;
-    height: 46px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 110px !important;
+    max-width: 110px !important;
+    min-width: 110px !important;
+    height: 42px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    background: #f8fafc !important;
+    flex: 0 0 auto !important;
+    box-sizing: border-box !important;
   }
 
   .pdp-qty-btn {
-    flex: 1 !important;
+    width: 34px !important;
     height: 100% !important;
+    font-size: 1.125rem !important;
+    font-weight: 700 !important;
+    color: #334155 !important;
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
   }
 
   .pdp-qty-input {
-    flex: 1 !important;
-    width: 40px !important;
+    width: 42px !important;
+    text-align: center !important;
+    font-weight: 800 !important;
+    font-size: 0.9375rem !important;
+    color: #0f172a !important;
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
   }
 
   .btn-pdp-wishlist {
-    width: 48px !important;
-    height: 46px !important;
+    width: 42px !important;
+    height: 42px !important;
     flex-shrink: 0 !important;
-    border-radius: var(--radius-sm) !important;
+    border-radius: 8px !important;
+    border: 1px solid #cbd5e1 !important;
+    background: #ffffff !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   .btn-pdp-cart {
     width: 100% !important;
-    height: 48px !important;
-    font-size: 0.95rem !important;
-    border-radius: var(--radius-sm) !important;
+    height: 46px !important;
+    font-size: 0.9375rem !important;
+    font-weight: 700 !important;
+    border-radius: 8px !important;
   }
 
   .btn-pdp-buy-now {
     width: 100% !important;
-    height: 48px !important;
-    font-size: 0.95rem !important;
-    border-radius: var(--radius-sm) !important;
+    height: 46px !important;
+    font-size: 0.9375rem !important;
+    font-weight: 700 !important;
+    border-radius: 8px !important;
   }
 
   .pdp-trust-box {
@@ -6780,66 +6858,79 @@ img {
   }
 
   .pdp-cta-row {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 12px !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-    margin-bottom: 24px !important;
+    margin-bottom: 20px !important;
   }
 
-  .pdp-qty-wishlist-row {
+  .pdp-actions-grid {
     display: flex !important;
+    flex-direction: column !important;
     gap: 10px !important;
     width: 100% !important;
+  }
+
+  .pdp-qty-wish-row {
+    display: flex !important;
     align-items: center !important;
-    box-sizing: border-box !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .pdp-buy-buttons-group {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
   }
 
   .pdp-qty-wrap {
-    flex: 1 !important;
-    min-width: 0 !important;
-    width: auto !important;
-    height: 50px !important;
-    display: flex !important;
+    display: inline-flex !important;
     align-items: center !important;
     justify-content: space-between !important;
-    border: 1.5px solid var(--border-light) !important;
-    border-radius: var(--radius-sm) !important;
-    background: #ffffff !important;
+    width: 110px !important;
+    max-width: 110px !important;
+    min-width: 110px !important;
+    height: 42px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    background: #f8fafc !important;
+    flex: 0 0 auto !important;
     box-sizing: border-box !important;
   }
 
   .pdp-qty-btn {
-    width: 48px !important;
+    width: 34px !important;
     height: 100% !important;
-    font-size: 1.35rem !important;
+    font-size: 1.125rem !important;
     font-weight: 700 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
+    color: #334155 !important;
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
   }
 
   .pdp-qty-input {
-    flex: 1 !important;
-    min-width: 0 !important;
-    width: auto !important;
+    width: 42px !important;
     text-align: center !important;
-    font-size: 1.125rem !important;
     font-weight: 800 !important;
+    font-size: 0.9375rem !important;
+    color: #0f172a !important;
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
   }
 
   .btn-pdp-wishlist {
-    width: 50px !important;
-    height: 50px !important;
-    min-width: 50px !important;
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
     flex-shrink: 0 !important;
-    border-radius: var(--radius-sm) !important;
-    box-sizing: border-box !important;
+    border-radius: 8px !important;
+    border: 1px solid #cbd5e1 !important;
+    background: #ffffff !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+    box-sizing: border-box !important;
   }
 
   .btn-pdp-cart {

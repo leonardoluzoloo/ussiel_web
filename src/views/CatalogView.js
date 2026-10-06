@@ -322,76 +322,76 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
     )).sort((a, b) => a.localeCompare(b, 'pt', { sensitivity: 'base' }));
 
     const selectedCatNames = selectedCategories.map(catVal => {
-      const c = activeCategories.find(item => item.slug === catVal || String(item.id) === String(catVal));
-      return c ? c.name : catVal;
-    });
+      if (!catVal) return '';
+      const clean = String(catVal).toLowerCase().trim();
+      const c = activeCategories.find(item => 
+        String(item.id) === clean ||
+        (item.slug && item.slug.toLowerCase() === clean) ||
+        (item.uid && item.uid.toLowerCase() === clean) ||
+        (item.uuid && item.uuid.toLowerCase() === clean) ||
+        (item.name && item.name.toLowerCase() === clean)
+      );
+      return c ? c.name : (clean.length > 20 ? 'Categoria' : catVal);
+    }).filter(Boolean);
 
-    const titleText = isDeals ? 'Ofertas & Promoções da Semana' :
-      isNew ? 'Lançamentos & Novidades Tecnológicas' :
-        searchQuery ? `Resultados da busca por "${searchQuery}"` :
+    const hasFiltersActive = selectedCategories.length > 0 || selectedSubcategories.length > 0 || searchQuery || isDeals || isNew;
+
+    const titleText = isDeals ? 'Ofertas & Promoções' :
+      isNew ? 'Lançamentos' :
+        searchQuery ? `Busca por "${searchQuery}"` :
           selectedCatNames.length > 0 ? selectedCatNames.join(', ') : 'Catálogo Completo';
 
-    const descText = isDeals ? 'Aproveite descontos especiais em smartphones, gaming e áudio por tempo limitado.' :
-      searchQuery ? `Mostrando produtos que correspondem aos seus termos de pesquisa.` :
-        'Explore os mais avançados aparelhos eletrônicos, computadores e gadgets disponíveis com pronta entrega em Luanda.';
-
     container.innerHTML = `
-      ${isHomePage ? `
-        <!-- Header Hero Banner (Banner Limpo Oficial: Imagem integral com link) -->
-        <section class="hero-clean-banner-section" style="margin-top: 16px; margin-bottom: 28px;">
-          <div class="hero-clean-banner-box" id="heroCommercialBox">
-            ${f ? `
-              <a href="${bannerLink}" class="hero-clean-banner-link" id="heroLink" title="${bannerTitle}" aria-label="${bannerTitle}">
-                ${bannerImg ? `
-                  <img src="${bannerImg}" alt="${bannerTitle}" class="hero-clean-banner-img" id="heroProductImage" />
-                ` : `
-                  <div class="hero-clean-fallback-banner">
-                    <div class="hero-fallback-brand-badge">TECNOLOGIA & INOVAÇÃO</div>
-                    <h2 class="hero-fallback-title">${bannerTitle}</h2>
-                    <p class="hero-fallback-sub">Equipamentos e eletrônicos de alto desempenho com garantia oficial e entrega rápida.</p>
-                    <span class="btn btn-primary" style="margin-top: 14px; padding: 10px 24px; font-weight: 700; border-radius: 8px;">Explorar Catálogo →</span>
-                  </div>
-                `}
-              </a>
-            ` : `
-              <div class="hero-clean-banner-skeleton" style="width: 100%; height: 320px; background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%); background-size: 200% 100%; animation: adminShimmer 1.5s infinite; border-radius: 16px;"></div>
-            `}
+      <!-- Header Hero Banner (Banner Limpo Oficial: Imagem integral com link) -->
+      <section class="hero-clean-banner-section" style="margin-top: 16px; margin-bottom: 20px;">
+        <div class="hero-clean-banner-box" id="heroCommercialBox">
+          ${f ? `
+            <a href="${bannerLink}" class="hero-clean-banner-link" id="heroLink" title="${bannerTitle}" aria-label="${bannerTitle}">
+              ${bannerImg ? `
+                <img src="${bannerImg}" alt="${bannerTitle}" class="hero-clean-banner-img" id="heroProductImage" />
+              ` : `
+                <div class="hero-clean-fallback-banner">
+                  <div class="hero-fallback-brand-badge">TECNOLOGIA & INOVAÇÃO</div>
+                  <h2 class="hero-fallback-title">${bannerTitle}</h2>
+                  <p class="hero-fallback-sub">Equipamentos e eletrônicos de alto desempenho com garantia oficial e entrega rápida.</p>
+                  <span class="btn btn-primary" style="margin-top: 14px; padding: 10px 24px; font-weight: 700; border-radius: 8px;">Explorar Catálogo →</span>
+                </div>
+              `}
+            </a>
+          ` : `
+            <div class="hero-clean-banner-skeleton" style="width: 100%; height: 320px; background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%); background-size: 200% 100%; animation: adminShimmer 1.5s infinite; border-radius: 16px;"></div>
+          `}
 
-            <!-- Setas e Dots condicionais -->
-            ${currentBannerList.length > 1 ? `
-              <button class="hero-nav-arrow hero-nav-prev" id="heroPrevBtn" aria-label="Voltar para o banner anterior" title="Banner Anterior">
-                ${Icons.chevronLeft(26, '#ffffff')}
-              </button>
-              <button class="hero-nav-arrow hero-nav-next" id="heroNextBtn" aria-label="Avançar para o próximo banner" title="Próximo Banner">
-                ${Icons.chevronRight(26, '#ffffff')}
-              </button>
-              <div class="hero-dots-indicator" id="heroDotsIndicator">
-                ${currentBannerList.map((_, idx) => `
-                  <button class="hero-dot ${(idx === (activeFlagshipIndex % currentBannerList.length)) ? 'active' : ''}" data-dot-idx="${idx}" aria-label="Slide ${idx + 1}"></button>
-                `).join('')}
-              </div>
-            ` : ''}
-          </div>
-        </section>
-
-      ` : `
-        <!-- Filter Header Banner -->
-        <div style="margin-top: 16px; margin-bottom: 20px; background: linear-gradient(135deg, #090d16 0%, #1e293b 100%); color: #ffffff; padding: 22px 28px; border-radius: 12px; position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 4px 16px rgba(0,0,0,0.12);">
-          <div style="position: relative; z-index: 2; max-width: 700px;">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-              <span style="font-size: 0.6875rem; font-weight: 800; text-transform: uppercase; color: #38bdf8; letter-spacing: 0.08em; background: rgba(56, 189, 248, 0.15); padding: 3px 8px; border-radius: 4px;">
-                ${selectedCategories.length > 0 ? 'Filtro Ativo' : isDeals ? 'Ofertas' : isNew ? 'Lançamentos' : 'Catálogo'}
-              </span>
+          <!-- Setas e Dots condicionais -->
+          ${currentBannerList.length > 1 ? `
+            <button class="hero-nav-arrow hero-nav-prev" id="heroPrevBtn" aria-label="Voltar para o banner anterior" title="Banner Anterior">
+              ${Icons.chevronLeft(26, '#ffffff')}
+            </button>
+            <button class="hero-nav-arrow hero-nav-next" id="heroNextBtn" aria-label="Avançar para o próximo banner" title="Próximo Banner">
+              ${Icons.chevronRight(26, '#ffffff')}
+            </button>
+            <div class="hero-dots-indicator" id="heroDotsIndicator">
+              ${currentBannerList.map((_, idx) => `
+                <button class="hero-dot ${(idx === (activeFlagshipIndex % currentBannerList.length)) ? 'active' : ''}" data-dot-idx="${idx}" aria-label="Slide ${idx + 1}"></button>
+              `).join('')}
             </div>
-            <h1 style="font-family: var(--font-display); font-size: 1.75rem; font-weight: 900; margin: 0 0 4px 0; letter-spacing: -0.02em;">
-              ${titleText}
-            </h1>
-            <p style="color: #cbd5e1; font-size: 0.875rem; line-height: 1.4; margin: 0;">
-              ${descText || `Produtos oficiais com garantia e assistência técnica especializada.`}
-            </p>
-          </div>
+          ` : ''}
         </div>
-      `}
+      </section>
+
+      ${hasFiltersActive ? `
+        <!-- Sleek Active Filter Strip -->
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; padding: 10px 16px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Exibindo:</span>
+            <span style="font-size: 0.875rem; font-weight: 800; color: #0f172a;">${titleText}</span>
+            <span style="font-size: 0.75rem; color: #64748b; font-weight: 600;">(${filtered.length} ${filtered.length === 1 ? 'produto' : 'produtos'})</span>
+          </div>
+          <button type="button" id="catalogClearCategoryBtn" style="background: none; border: none; color: #2563eb; font-size: 0.8125rem; font-weight: 700; cursor: pointer; text-decoration: underline;">
+            Ver todos os produtos
+          </button>
+        </div>
+      ` : ''}
 
       <!-- Mobile Filter Trigger Button -->
       <div class="mobile-filter-bar">
@@ -828,6 +828,15 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
         onlyInStock = false;
         onlyDeals = false;
         minRating = 0;
+        render();
+      };
+    }
+
+    const clearCatBtn = container.querySelector('#catalogClearCategoryBtn');
+    if (clearCatBtn) {
+      clearCatBtn.onclick = () => {
+        selectedCategories = [];
+        selectedSubcategories = [];
         render();
       };
     }

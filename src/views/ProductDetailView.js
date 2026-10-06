@@ -253,53 +253,34 @@ export function renderProductDetailView(productSlug) {
 
         <!-- Details (Right) -->
         <div class="pdp-details">
-          <div class="pdp-brand-sku" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <div class="pdp-meta-row" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
             ${product.brand ? `
-              <span style="font-weight: 700; color: var(--text-main); font-size: 0.8125rem;">${product.brand}</span>
+              <span class="pdp-badge-brand" style="font-size: 0.75rem; font-weight: 700; color: #1e293b; background: #f1f5f9; padding: 3px 8px; border-radius: 6px; border: 1px solid #e2e8f0;">${product.brand}</span>
             ` : ''}
             ${product.sku ? `
-              <span style="font-size: 0.8125rem; color: var(--text-muted);">Ref: <strong style="font-weight: 600; color: var(--text-secondary);">${product.sku}</strong></span>
+              <span class="pdp-badge-sku" style="font-family: ui-monospace, monospace; font-size: 0.75rem; color: #64748b; background: #f8fafc; padding: 3px 8px; border-radius: 6px; border: 1px solid #e2e8f0;">SKU: <strong style="color: #334155; font-weight: 700;">${product.sku}</strong></span>
             ` : ''}
-            <span style="color: var(--border-light); font-size: 0.8125rem;">•</span>
             ${(product.is_active === false || product.ativo === false) ? `
-              <span style="color: #ef4444; font-weight: 700; font-size: 0.8125rem;">● Indisponível</span>
+              <span style="color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; font-weight: 700; font-size: 0.75rem; padding: 3px 8px; border-radius: 6px;">Indisponível</span>
             ` : (product.stock > 0) ? `
-              <span style="color: var(--accent-emerald, #10b981); font-weight: 700; font-size: 0.8125rem;">● Em estoque (${product.stock} un.)</span>
+              <span style="color: #15803d; background: #f0fdf4; border: 1px solid #bbf7d0; font-weight: 700; font-size: 0.75rem; padding: 3px 8px; border-radius: 6px;">● Em estoque (${product.stock} un.)</span>
             ` : `
-              <span style="color: #ef4444; font-weight: 700; font-size: 0.8125rem;">● Esgotado</span>
+              <span style="color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; font-weight: 700; font-size: 0.75rem; padding: 3px 8px; border-radius: 6px;">Esgotado</span>
             `}
           </div>
 
-          ${(product.is_active === false || product.ativo === false) ? `
-            <div style="background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; padding: 12px 16px; border-radius: var(--radius-sm); font-weight: 700; font-size: 0.875rem; margin-top: 12px;">
-              ⚠️ Este produto foi desativado temporariamente pela loja e não está disponível para compra.
-            </div>
-          ` : (product.stock <= 0) ? `
-            <div style="background: #fffbeb; border: 1px solid #fef3c7; color: #b45309; padding: 12px 16px; border-radius: var(--radius-sm); font-weight: 700; font-size: 0.875rem; margin-top: 12px;">
-              📦 Produto esgotado no momento. Nova remessa a caminho em Luanda!
-            </div>
-          ` : ''}
-
           <h1 class="pdp-title">${product.name}</h1>
 
-          <!-- Ratings -->
-          <div class="pdp-rating-row">
-            <div class="stars">${renderStars(product.rating || 5)}</div>
-            <span style="font-weight: 700; color: var(--text-main); font-size: 0.875rem;">${(product.rating || 5).toFixed(1)}</span>
-            <span style="color: var(--text-muted); font-size: 0.8125rem;">(${product.reviewCount || 0} avaliações de clientes verificados)</span>
-          </div>
-
-          <!-- Price Box -->
-          <div class="pdp-price-box">
+          <!-- Price Section -->
+          <div class="pdp-price-section" style="margin-bottom: 18px;">
             ${currentOldPrice ? `
-              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 2px;">
                 <span class="pdp-old-price">${formatPrice(currentOldPrice)}</span>
-                <span class="badge badge-discount">-${discountPct}% OFF</span>
+                <span class="pdp-discount-tag" style="background: #fee2e2; color: #dc2626; font-size: 0.75rem; font-weight: 800; padding: 2px 7px; border-radius: 4px;">-${discountPct}% OFF</span>
               </div>
             ` : ''}
-            <div class="pdp-current-price">${formatPrice(currentPrice)}</div>
-            <div style="font-size: 0.8125rem; color: var(--text-secondary); margin-top: 4px;">
-              Preço à vista no Multicaixa Express ou Transferência Imediata
+            <div class="pdp-current-price" style="font-family: var(--font-display); font-size: 2rem; font-weight: 900; color: #0f172a; letter-spacing: -0.02em;">
+              ${formatPrice(currentPrice)}
             </div>
           </div>
 
@@ -328,7 +309,7 @@ export function renderProductDetailView(productSlug) {
             ${product.variants?.storage ? `
               <div>
                 <div class="variant-group-title">
-                  Capacidade / Armazenamento: <strong>${selectedStorage}</strong>
+                  Capacidade: <strong>${selectedStorage}</strong>
                 </div>
                 <div class="variant-pills">
                   ${product.variants.storage.map(s => {
@@ -352,60 +333,60 @@ export function renderProductDetailView(productSlug) {
           <!-- Quantity and Action Buttons -->
           <div class="pdp-cta-row">
             ${(product.is_active !== false && product.ativo !== false && (product.stock > 0 || product.allow_out_of_stock_sales)) ? `
-              <div class="pdp-qty-wishlist-row">
-                <div class="pdp-qty-wrap">
-                  <button class="pdp-qty-btn" id="pdpQtyDec" aria-label="Diminuir quantidade">-</button>
-                  <input type="text" class="pdp-qty-input" id="pdpQtyVal" value="${quantity}" readonly aria-label="Quantidade selecionada" />
-                  <button class="pdp-qty-btn" id="pdpQtyInc" aria-label="Aumentar quantidade">+</button>
+              <div class="pdp-actions-grid">
+                <div class="pdp-qty-wish-row">
+                  <div class="pdp-qty-wrap">
+                    <button type="button" class="pdp-qty-btn" id="pdpQtyDec" aria-label="Diminuir">-</button>
+                    <input type="text" class="pdp-qty-input" id="pdpQtyVal" value="${quantity}" readonly aria-label="Quantidade" />
+                    <button type="button" class="pdp-qty-btn" id="pdpQtyInc" aria-label="Aumentar">+</button>
+                  </div>
+                  <button type="button" class="btn-pdp-wishlist ${isWishlisted ? 'active' : ''}" id="pdpWishlistBtn" title="Favoritar">
+                    ${Icons.heart(18, isWishlisted ? '#ef4444' : 'currentColor', isWishlisted ? '#ef4444' : 'none')}
+                  </button>
                 </div>
-                <button class="btn-pdp-wishlist ${isWishlisted ? 'active' : ''}" id="pdpWishlistBtn" title="Favoritar">
-                  ${Icons.heart(20, isWishlisted ? '#ef4444' : 'currentColor', isWishlisted ? '#ef4444' : 'none')}
-                </button>
+
+                <div class="pdp-buy-buttons-group">
+                  <button type="button" class="btn-pdp-cart" id="pdpAddToCartBtn">
+                    ${Icons.cart(18, '#ffffff')}
+                    <span>Adicionar ao Carrinho</span>
+                  </button>
+
+                  <button type="button" class="btn-pdp-buy-now" id="pdpBuyNowBtn">
+                    <span>Comprar Agora</span>
+                  </button>
+                </div>
               </div>
-
-              <button class="btn-pdp-cart" id="pdpAddToCartBtn">
-                ${Icons.cart(20, '#ffffff')}
-                <span>Adicionar ao Carrinho</span>
-              </button>
-
-              <button class="btn-pdp-buy-now" id="pdpBuyNowBtn">
-                Comprar Agora
-              </button>
             ` : `
-              <button class="btn-pdp-cart" id="pdpAddToCartBtn" disabled style="opacity: 0.6; cursor: not-allowed; background: #94a3b8; border-color: #94a3b8;">
+              <button class="btn-pdp-cart" disabled style="opacity: 0.6; cursor: not-allowed; background: #94a3b8; border-color: #94a3b8;">
                 <span>${(product.is_active === false || product.ativo === false) ? 'Produto Desativado' : 'Produto Esgotado'}</span>
-              </button>
-              <button class="btn-pdp-buy-now" id="pdpBuyNowBtn" disabled style="opacity: 0.6; cursor: not-allowed; background: #cbd5e1; color: #475569;">
-                Sem Disponibilidade
               </button>
             `}
           </div>
 
-          <!-- Trust Perks -->
-          <div class="pdp-trust-box">
-            <div class="pdp-trust-item">
-              <span class="pdp-trust-icon">${Icons.truck(20)}</span>
-              <span><strong>Entrega Rápida em Luanda:</strong> Receba em 24h a 48h com rastreamento</span>
+          <!-- Compact Benefits Strip -->
+          <div class="pdp-benefits-strip" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 18px; padding: 12px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 0.75rem; font-weight: 600; color: #475569; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="color: #2563eb;">${Icons.truck(16)}</span>
+              <span>Entrega Luanda</span>
             </div>
-            <div class="pdp-trust-item">
-              <span class="pdp-trust-icon">${Icons.shieldCheck(20)}</span>
-              <span><strong>Garantia Oficial NovaTech:</strong> 12 meses com troca imediata para defeitos</span>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="color: #16a34a;">${Icons.shieldCheck(16)}</span>
+              <span>12 Meses Garantia</span>
             </div>
-            <div class="pdp-trust-item">
-              <span class="pdp-trust-icon">${Icons.whatsapp(20, '#25d366')}</span>
-              <span>Dúvidas antes de comprar? <a href="https://wa.me/244923179192" target="_blank" style="color: var(--primary-600); text-decoration: underline;">Converse com um especialista no WhatsApp (+244 923 179 192)</a></span>
-            </div>
+            <a href="https://wa.me/244923179192" target="_blank" style="display: flex; align-items: center; gap: 6px; color: #15803d; text-decoration: none;">
+              <span>${Icons.whatsapp(16, '#15803d')}</span>
+              <span>WhatsApp Suporte</span>
+            </a>
           </div>
         </div>
       </div>
 
-      <!-- PDP Tabs (Descrição, Ficha Técnica, Avaliações, Entrega) -->
+      <!-- PDP Tabs (Descrição, Ficha Técnica, Avaliações) -->
       <div class="pdp-tabs-container">
         <div class="pdp-tabs-header">
           <div class="pdp-tab-btn ${activeTab === 'desc' ? 'active' : ''}" data-tab="desc">Descrição do Produto</div>
           <div class="pdp-tab-btn ${activeTab === 'specs' ? 'active' : ''}" data-tab="specs">Ficha Técnica & Especificações</div>
           <div class="pdp-tab-btn ${activeTab === 'reviews' ? 'active' : ''}" data-tab="reviews">Avaliações (${product.reviews?.length || 0})</div>
-          <div class="pdp-tab-btn ${activeTab === 'shipping' ? 'active' : ''}" data-tab="shipping">Entrega & Devoluções</div>
         </div>
 
         <div class="pdp-tab-content">
@@ -423,8 +404,8 @@ export function renderProductDetailView(productSlug) {
             </div>
           ` : activeTab === 'specs' ? `
             <div>
-              <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin-bottom: 16px;">
-                Especificações Técnicas Detalhadas
+              <h3 style="font-size: 1.125rem; font-weight: 700; color: #0f172a; margin-bottom: 14px;">
+                Especificações Técnicas
               </h3>
               ${(() => {
                 const validSpecs = Object.entries(product.specs || {}).filter(([key, val]) => {
