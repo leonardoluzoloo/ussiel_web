@@ -627,8 +627,13 @@ export const Api = {
   // ===================================================================
   auth: {
     async register(name, email, password, phone = '', extra = {}) {
-      const endereco = extra.endereco || '';
+      const provincia = extra.provincia || 'Luanda';
+      const cidade = extra.cidade || '';
+      const bairro = extra.bairro || '';
+      const rua = extra.rua || '';
+      const numero = extra.numero || '';
       const pontoReferencia = extra.ponto_referencia || '';
+      const fullEndereco = extra.endereco || [rua, numero ? `Nº ${numero}` : '', bairro, cidade, provincia].filter(Boolean).join(', ');
       const cleanEmail = String(email || '').trim().toLowerCase();
 
       if (isSupabaseConfigured() && supabase) {
@@ -646,7 +651,13 @@ export const Api = {
               data: {
                 name,
                 phone,
-                endereco,
+                whatsapp: phone,
+                provincia,
+                cidade,
+                bairro,
+                rua,
+                numero,
+                endereco: fullEndereco,
                 ponto_referencia: pontoReferencia,
                 role: 'customer'
               }
@@ -670,7 +681,12 @@ export const Api = {
               email: cleanEmail,
               telefone: phone,
               whatsapp: phone,
-              endereco: endereco,
+              provincia: provincia,
+              cidade: cidade,
+              bairro: bairro,
+              rua: rua,
+              numero: numero,
+              endereco: fullEndereco,
               ponto_referencia: pontoReferencia,
               nivel_acesso: 'cliente',
               status: 'ativo',
@@ -686,7 +702,13 @@ export const Api = {
             name: name || cleanEmail.split('@')[0],
             email: cleanEmail,
             phone,
-            endereco,
+            whatsapp: phone,
+            provincia,
+            cidade,
+            bairro,
+            rua,
+            numero,
+            endereco: fullEndereco,
             ponto_referencia: pontoReferencia,
             role: 'customer'
           };
