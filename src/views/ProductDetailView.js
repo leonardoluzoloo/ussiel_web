@@ -424,172 +424,179 @@ export function renderProductDetailView(productSlug) {
               <span>3 Meses de Garantia</span>
             </div>
           </div>
+
+          <!-- Botão Fora da Borda de Entregas: Ver Detalhes do Produto (Abre Modal com Descrição e Ficha Técnica) -->
+          <button type="button" class="btn-pdp-view-details" id="pdpOpenDetailsModalBtn" style="margin-top: 12px; width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.875rem; font-weight: 700; color: #0f172a; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="display: flex; align-items: center; color: var(--primary-600);">${Icons.fileText(18)}</span>
+              <span>Ver Detalhes do Produto</span>
+            </div>
+            <span style="display: flex; align-items: center; color: #64748b;">${Icons.chevronRight(16)}</span>
+          </button>
         </div>
       </div>
 
-      <!-- PDP Tabs (Descrição, Ficha Técnica, Avaliações) -->
-      <div class="pdp-tabs-container">
-        <div class="pdp-tabs-header">
-          <div class="pdp-tab-btn ${activeTab === 'desc' ? 'active' : ''}" data-tab="desc">Descrição do Produto</div>
-          <div class="pdp-tab-btn ${activeTab === 'specs' ? 'active' : ''}" data-tab="specs">Ficha Técnica & Especificações</div>
-          <div class="pdp-tab-btn ${activeTab === 'reviews' ? 'active' : ''}" data-tab="reviews">Avaliações (${totalReviewsCount})</div>
-        </div>
+      <!-- Modal de Detalhes do Produto (Descrição & Ficha Técnica) -->
+      <div class="pdp-details-modal-overlay" id="pdpDetailsModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 99999; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box;">
+        <div class="pdp-details-modal-box" style="background: #ffffff; border-radius: 16px; width: 100%; max-width: 760px; max-height: 88vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3); overflow: hidden;">
+          <!-- Header do Modal -->
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid #e2e8f0; background: #ffffff;">
+            <div style="padding-right: 12px;">
+              <h3 style="font-size: 1.1875rem; font-weight: 800; color: #0f172a; margin: 0;">Detalhes do Produto</h3>
+              <p style="font-size: 0.8125rem; color: #64748b; margin: 2px 0 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 500px;">${product.name || 'Produto'}</p>
+            </div>
+            <button type="button" id="pdpCloseDetailsModalBtn" aria-label="Fechar" style="background: #f1f5f9; border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; color: #64748b; cursor: pointer; transition: all 0.15s; flex-shrink: 0;">
+              ${Icons.close(18)}
+            </button>
+          </div>
 
-        <div class="pdp-tab-content">
-          ${activeTab === 'desc' ? `
-            <div style="max-width: 860px;">
+          <!-- Corpo do Modal com Scroll -->
+          <div style="padding: 24px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 24px;">
+            <!-- Seção: Descrição -->
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                <span style="display: flex; align-items: center; color: var(--primary-600);">${Icons.fileText(18)}</span>
+                <h4 style="font-size: 1rem; font-weight: 800; color: #0f172a; margin: 0;">Descrição do Produto</h4>
+              </div>
               ${productDesc ? `
-                <div style="font-size: 0.9375rem; line-height: 1.8; color: var(--text-secondary); white-space: pre-line;">
+                <div style="font-size: 0.9375rem; line-height: 1.8; color: #475569; white-space: pre-line; background: #f8fafc; border: 1px solid #e2e8f0; padding: 18px; border-radius: 10px;">
                   ${productDesc}
                 </div>
               ` : `
-                <div style="font-size: 0.875rem; color: var(--text-muted); font-style: italic;">
+                <div style="font-size: 0.875rem; color: #94a3b8; font-style: italic; background: #f8fafc; border: 1px solid #e2e8f0; padding: 18px; border-radius: 10px;">
                   Nenhuma descrição detalhada informada para este produto.
                 </div>
               `}
             </div>
-          ` : activeTab === 'specs' ? `
+
+            <!-- Seção: Ficha Técnica & Especificações -->
             <div>
-              <h3 style="font-size: 1.125rem; font-weight: 700; color: #0f172a; margin-bottom: 14px;">
-                Especificações Técnicas
-              </h3>
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                <span style="display: flex; align-items: center; color: var(--primary-600);">${Icons.sliders(18)}</span>
+                <h4 style="font-size: 1rem; font-weight: 800; color: #0f172a; margin: 0;">Ficha Técnica & Especificações</h4>
+              </div>
               ${(() => {
                 const validSpecs = Object.entries(product.specs || {}).filter(([key, val]) => {
                   const lower = key.toLowerCase().trim();
-                  return !['subcategory', 'subcategoria', 'subcategory_id', 'subcategoria_id', 'subcategory_name', 'subcategoria_nome', 'id', 'category_id', 'catalog_id'].includes(lower) &&
+                  return !['subcategory', 'subcategoria', 'subcategory_id', 'subcategoria_id', 'subcategory_name', 'subcategoria_nome', 'id', 'category_id', 'catalog_id', '_descricao'].includes(lower) &&
                          val !== undefined && val !== null && String(val).trim() !== '';
                 });
 
                 if (validSpecs.length === 0) {
                   return `
-                    <div style="padding: 24px; background: #f8fafc; border-radius: var(--radius-sm); color: var(--text-muted); text-align: center;">
+                    <div style="padding: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; color: #64748b; text-align: center; font-size: 0.875rem;">
                       As especificações detalhadas deste item estão sendo catalogadas. Para cotações empresariais e dúvidas técnicas, fale com nossa equipa no WhatsApp.
                     </div>
                   `;
                 }
 
                 return `
-                  <table class="tech-specs-table">
-                    <tbody>
-                      ${validSpecs.map(([key, val]) => {
-                        const formattedLabel = key
-                          .replace(/_/g, ' ')
-                          .replace(/\b\w/g, l => l.toUpperCase());
-                        return `
-                          <tr>
-                            <td style="font-weight: 700; width: 35%; color: var(--text-main);">${formattedLabel}</td>
-                            <td style="color: var(--text-secondary);">${val}</td>
-                          </tr>
-                        `;
-                      }).join('')}
-                    </tbody>
-                  </table>
+                  <div style="border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                      <tbody>
+                        ${validSpecs.map(([key, val], idx) => {
+                          const formattedLabel = key
+                            .replace(/_/g, ' ')
+                            .replace(/\b\w/g, l => l.toUpperCase());
+                          return `
+                            <tr style="border-bottom: 1px solid #f1f5f9; background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                              <td style="font-weight: 700; width: 35%; color: #0f172a; padding: 11px 16px; font-size: 0.875rem; border-right: 1px solid #f1f5f9;">${formattedLabel}</td>
+                              <td style="color: #475569; padding: 11px 16px; font-size: 0.875rem;">${val}</td>
+                            </tr>
+                          `;
+                        }).join('')}
+                      </tbody>
+                    </table>
+                  </div>
                 `;
               })()}
             </div>
-          ` : activeTab === 'reviews' ? `
-            <div>
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
-                <div>
-                  <h3 style="font-size: 1.125rem; font-weight: 800; color: var(--text-main); margin: 0;">Avaliações dos Clientes</h3>
-                  ${hasReviews ? `
-                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
-                      <div class="stars">${renderStars(calculatedRating)}</div>
-                      <span style="font-weight: 800; font-size: 0.875rem;">${calculatedRating.toFixed(1)} / 5.0</span>
-                      <span style="font-size: 0.8125rem; color: var(--text-muted);">(${totalReviewsCount} ${totalReviewsCount === 1 ? 'avaliação' : 'avaliações'})</span>
-                    </div>
-                  ` : ''}
-                </div>
-                ${hasPurchasedProduct ? `
-                  <button class="btn btn-primary btn-sm" id="openReviewFormBtn">
-                    Escrever Avaliação
-                  </button>
-                ` : ''}
-              </div>
+          </div>
 
-              <!-- New Review Form Modal/Inline -->
-              ${hasPurchasedProduct ? `
-                <div id="reviewFormBox" style="display: none; background: #f8fafc; border: 1px solid var(--border-light); padding: 18px; border-radius: var(--radius-md); margin-bottom: 20px;">
-                  <h4 style="font-weight: 700; font-size: 0.9375rem; margin-bottom: 12px;">Deixe a sua opinião sobre este produto</h4>
-                  <div style="display: flex; flex-direction: column; gap: 12px;">
-                    <input type="text" id="newReviewName" placeholder="Seu nome completo" class="form-input" value="${(Storage.getUser()?.name || '').replace(/"/g, '&quot;')}" />
-                    <!-- Seleção de estrelas -->
-                    <div style="display: flex; flex-direction: column; gap: 6px;">
-                      <label style="font-size: 0.8125rem; font-weight: 600; color: var(--text-main);">Sua nota</label>
-                      <div id="reviewStarPicker" style="display: flex; gap: 6px; cursor: pointer;">
-                        ${[1,2,3,4,5].map(s => `
-                          <span class="review-star-pick" data-star="${s}" style="font-size: 1.5rem; color: ${s <= reviewRating ? '#f59e0b' : '#d1d5db'}; transition: color 0.15s; user-select: none;">★</span>
-                        `).join('')}
-                      </div>
-                      <input type="hidden" id="newReviewRating" value="${reviewRating}" />
-                    </div>
-                    <textarea id="newReviewComment" rows="3" placeholder="Conte a sua experiência com o produto..." class="form-input" style="height: auto; padding: 10px; font-size: 0.875rem;"></textarea>
-                    <button class="btn btn-accent btn-sm" id="submitReviewBtn" style="align-self: flex-start;">
-                      Publicar Avaliação
-                    </button>
-                  </div>
-                </div>
-              ` : ''}
-
-              <!-- Reviews List -->
-              <div style="display: flex; flex-direction: column; gap: 14px;">
-                ${(product.reviews || []).length === 0 ? `
-                  <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 32px 20px; text-align: center; color: var(--text-muted);">
-                    <p style="font-size: 0.9375rem; color: #64748b; margin: 0;">Nenhuma avaliação registrada para este produto no momento.</p>
-                    ${hasPurchasedProduct ? `
-                      <button class="btn btn-primary btn-sm" id="emptyStateReviewBtn" style="margin-top: 14px;">
-                        Seja o primeiro a avaliar
-                      </button>
-                    ` : ''}
-                  </div>
-                ` : (product.reviews || []).map(r => `
-                  <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 16px;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-                      <div style="display: flex; align-items: center; gap: 8px;">
-                        <strong style="color: var(--text-main); font-size: 0.875rem;">${r.author}</strong>
-                        <span style="font-size: 0.6875rem; background: #ecfdf5; color: #047857; padding: 2px 6px; border-radius: 4px; font-weight: 700;">Compra Verificada ✓</span>
-                      </div>
-                      <span style="font-size: 0.75rem; color: var(--text-muted);">${formatDate(r.date)}</span>
-                    </div>
-                    <div class="stars" style="margin-bottom: 6px;">${renderStars(r.rating || 5)}</div>
-                    <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">${r.comment}</p>
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-          ` : `
-            <!-- Shipping Info Tab -->
-            <div style="max-width: 800px; display: flex; flex-direction: column; gap: 18px;">
-              <div>
-                <h4 style="font-weight: 700; font-size: 1.125rem; color: var(--text-main); margin-bottom: 6px;">
-                  Prazos e Condições de Entrega em Luanda
-                </h4>
-                <p style="font-size: 0.9375rem; color: var(--text-secondary); line-height: 1.6;">
-                  Entregas em Luanda (Talatona, Belas, Morro Bento, Maianga, Kilamba, Viana e arredores) ocorrem em 24h a 48h úteis após a confirmação do pagamento. Disponibilizamos também o modo <strong>Entrega Expressa Mesmo Dia</strong> para pedidos confirmados até as 13:00.
-                </p>
-              </div>
-
-              <div>
-                <h4 style="font-weight: 700; font-size: 1.125rem; color: var(--text-main); margin-bottom: 6px;">
-                  Envio para Outras Províncias de Angola
-                </h4>
-                <p style="font-size: 0.9375rem; color: var(--text-secondary); line-height: 1.6;">
-                  Enviamos via transportadoras parceiras oficiais ou via aérea para Benguela, Huíla, Huambo, Cabinda e demais províncias com prazo de 3 a 5 dias úteis.
-                </p>
-              </div>
-
-              <div>
-                <h4 style="font-weight: 700; font-size: 1.125rem; color: var(--text-main); margin-bottom: 6px;">
-                  Política de Trocas e Devoluções
-                </h4>
-                <p style="font-size: 0.9375rem; color: var(--text-secondary); line-height: 1.6;">
-                  Garantimos 15 dias de devolução sem complicações caso o produto apresente defeito ou não corresponda à sua expectativa, desde que mantida a embalagem original intacta.
-                </p>
-              </div>
-            </div>
-          `}
+          <!-- Rodapé do Modal -->
+          <div style="padding: 14px 24px; border-top: 1px solid #e2e8f0; background: #f8fafc; display: flex; justify-content: flex-end;">
+            <button type="button" id="pdpCloseDetailsModalFooterBtn" class="btn btn-secondary" style="padding: 9px 24px; font-size: 0.875rem; font-weight: 700; border-radius: 8px;">
+              Fechar
+            </button>
+          </div>
         </div>
       </div>
+
+      <!-- Seção Dedicada de Avaliações dos Clientes (Parte Inferior) -->
+      <section class="pdp-reviews-section" style="margin: 48px 0; background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 32px 28px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; border-bottom: 1px solid #f1f5f9; padding-bottom: 20px;">
+          <div>
+            <h2 style="font-size: 1.375rem; font-weight: 800; color: var(--text-main); margin: 0 0 6px 0;">
+              Avaliações dos Clientes
+            </h2>
+            ${hasReviews ? `
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="stars">${renderStars(calculatedRating)}</div>
+                <span style="font-weight: 800; font-size: 1rem; color: #0f172a;">${calculatedRating.toFixed(1)} / 5.0</span>
+                <span style="font-size: 0.875rem; color: var(--text-muted);">(${totalReviewsCount} ${totalReviewsCount === 1 ? 'avaliação' : 'avaliações'})</span>
+              </div>
+            ` : `
+              <p style="font-size: 0.875rem; color: var(--text-muted); margin: 0;">Ainda não há avaliações para este produto.</p>
+            `}
+          </div>
+
+          ${hasPurchasedProduct ? `
+            <button class="btn btn-primary btn-sm" id="openReviewFormBtn" style="display: flex; align-items: center; gap: 8px;">
+              ${Icons.edit(15)}
+              <span>Escrever Avaliação</span>
+            </button>
+          ` : ''}
+        </div>
+
+        <!-- Form de Avaliação para Comprador Verificado -->
+        ${hasPurchasedProduct ? `
+          <div id="reviewFormBox" style="display: none; background: #f8fafc; border: 1px solid var(--border-light); padding: 20px; border-radius: var(--radius-md); margin-bottom: 24px;">
+            <h4 style="font-weight: 700; font-size: 0.9375rem; color: #0f172a; margin-bottom: 12px;">Deixe a sua opinião sobre este produto</h4>
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+              <input type="text" id="newReviewName" placeholder="Seu nome completo" class="form-input" value="${(Storage.getUser()?.name || '').replace(/"/g, '&quot;')}" />
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <label style="font-size: 0.8125rem; font-weight: 600; color: var(--text-main);">Sua nota</label>
+                <div id="reviewStarPicker" style="display: flex; gap: 6px; cursor: pointer;">
+                  ${[1,2,3,4,5].map(s => `
+                    <span class="review-star-pick" data-star="${s}" style="font-size: 1.5rem; color: ${s <= reviewRating ? '#f59e0b' : '#d1d5db'}; transition: color 0.15s; user-select: none;">★</span>
+                  `).join('')}
+                </div>
+                <input type="hidden" id="newReviewRating" value="${reviewRating}" />
+              </div>
+              <textarea id="newReviewComment" rows="3" placeholder="Conte a sua experiência com o produto..." class="form-input" style="height: auto; padding: 12px; font-size: 0.875rem;"></textarea>
+              <button class="btn btn-accent btn-sm" id="submitReviewBtn" style="align-self: flex-start;">
+                Publicar Avaliação
+              </button>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Lista de Avaliações -->
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          ${(product.reviews || []).length === 0 ? `
+            <div style="background: #f8fafc; border: 1px dashed var(--border-light); border-radius: var(--radius-md); padding: 36px 20px; text-align: center; color: var(--text-muted);">
+              <p style="font-size: 0.9375rem; color: #64748b; margin: 0;">Nenhuma avaliação registrada para este produto no momento.</p>
+              ${hasPurchasedProduct ? `
+                <button class="btn btn-primary btn-sm" id="emptyStateReviewBtn" style="margin-top: 14px;">
+                  Seja o primeiro a avaliar
+                </button>
+              ` : ''}
+            </div>
+          ` : (product.reviews || []).map(r => `
+            <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 18px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <strong style="color: var(--text-main); font-size: 0.875rem;">${r.author}</strong>
+                  <span style="font-size: 0.6875rem; background: #ecfdf5; color: #047857; padding: 2px 6px; border-radius: 4px; font-weight: 700;">Compra Verificada ✓</span>
+                </div>
+                <span style="font-size: 0.75rem; color: var(--text-muted);">${formatDate(r.date)}</span>
+              </div>
+              <div class="stars" style="margin-bottom: 8px;">${renderStars(r.rating || 5)}</div>
+              <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6; margin: 0;">${r.comment}</p>
+            </div>
+          `).join('')}
+        </div>
+      </section>
 
       <!-- Related Products: "Você Também Pode Gostar" -->
       <section style="margin-bottom: 48px;" id="relatedSection">
@@ -797,13 +804,34 @@ export function renderProductDetailView(productSlug) {
       };
     }
 
-    // Tabs toggle
-    container.querySelectorAll('.pdp-tab-btn').forEach(btn => {
-      btn.onclick = () => {
-        activeTab = btn.dataset.tab;
-        render();
+    // Modal Detalhes do Produto (Abertura e Fechamento)
+    const openDetailsModalBtn = container.querySelector('#pdpOpenDetailsModalBtn');
+    const detailsModal = container.querySelector('#pdpDetailsModal');
+    const closeDetailsModalBtn = container.querySelector('#pdpCloseDetailsModalBtn');
+    const closeDetailsModalFooterBtn = container.querySelector('#pdpCloseDetailsModalFooterBtn');
+
+    const openDetailsModal = () => {
+      if (detailsModal) {
+        detailsModal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+      }
+    };
+
+    const closeDetailsModal = () => {
+      if (detailsModal) {
+        detailsModal.style.display = 'none';
+        document.body.style.overflow = '';
+      }
+    };
+
+    if (openDetailsModalBtn) openDetailsModalBtn.onclick = openDetailsModal;
+    if (closeDetailsModalBtn) closeDetailsModalBtn.onclick = closeDetailsModal;
+    if (closeDetailsModalFooterBtn) closeDetailsModalFooterBtn.onclick = closeDetailsModal;
+    if (detailsModal) {
+      detailsModal.onclick = (e) => {
+        if (e.target === detailsModal) closeDetailsModal();
       };
-    });
+    }
 
     // Review form toggle
     const openReviewBtn = container.querySelector('#openReviewFormBtn');

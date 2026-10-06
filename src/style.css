@@ -8866,3 +8866,51 @@ input:-webkit-autofill:active {
     border-radius: 8px !important;
   }
 }
+
+/* ===================================================================
+   PDP VIEW DETAILS BUTTON & MODAL
+   =================================================================== */
+.btn-pdp-view-details {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  color: #0f172a;
+  font-weight: 700;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-pdp-view-details:hover {
+  background: #f8fafc;
+  border-color: var(--primary-600);
+  color: var(--primary-700);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+  transform: translateY(-1px);
+}
+
+.btn-pdp-view-details:active {
+  transform: translateY(0);
+}
+
+.pdp-details-modal-overlay {
+  animation: modalOverlayFadeIn 0.2s ease forwards;
+}
+
+.pdp-details-modal-box {
+  animation: modalBoxScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes modalOverlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalBoxScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
