@@ -334,22 +334,22 @@ export function renderProductDetailView(productSlug) {
           <div class="pdp-cta-row">
             ${(product.is_active !== false && product.ativo !== false && (product.stock > 0 || product.allow_out_of_stock_sales)) ? `
               <div class="pdp-actions-grid">
-                <!-- Linha 1: [ - 1 + ] + [ Adicionar ao Carrinho ] + [ Favoritos ] -->
+                <!-- Linha 1: [ 🛒 Adicionar ao Carrinho ] + [ ❤️ Favoritos ] + [ - 1 + Quantidade por último ] -->
                 <div class="pdp-main-actions-row">
+                  <button type="button" class="btn-pdp-cart" id="pdpAddToCartBtn">
+                    ${Icons.cart(16, '#ffffff')}
+                    <span>Adicionar ao Carrinho</span>
+                  </button>
+
+                  <button type="button" class="btn-pdp-wishlist ${isWishlisted ? 'active' : ''}" id="pdpWishlistBtn" title="Favoritar">
+                    ${Icons.heart(16, isWishlisted ? '#ef4444' : 'currentColor', isWishlisted ? '#ef4444' : 'none')}
+                  </button>
+
                   <div class="pdp-qty-wrap">
                     <button type="button" class="pdp-qty-btn" id="pdpQtyDec" aria-label="Diminuir">-</button>
                     <input type="text" class="pdp-qty-input" id="pdpQtyVal" value="${quantity}" readonly aria-label="Quantidade" />
                     <button type="button" class="pdp-qty-btn" id="pdpQtyInc" aria-label="Aumentar">+</button>
                   </div>
-
-                  <button type="button" class="btn-pdp-cart" id="pdpAddToCartBtn">
-                    ${Icons.cart(18, '#ffffff')}
-                    <span>Adicionar ao Carrinho</span>
-                  </button>
-
-                  <button type="button" class="btn-pdp-wishlist ${isWishlisted ? 'active' : ''}" id="pdpWishlistBtn" title="Favoritar">
-                    ${Icons.heart(18, isWishlisted ? '#ef4444' : 'currentColor', isWishlisted ? '#ef4444' : 'none')}
-                  </button>
                 </div>
 
                 <!-- Linha 2: Comprar Agora por baixo -->

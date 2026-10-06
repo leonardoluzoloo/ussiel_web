@@ -3003,14 +3003,14 @@ img {
 .pdp-actions-grid {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
 }
 
 .pdp-main-actions-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
 }
 
@@ -3018,39 +3018,43 @@ img {
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  width: 108px;
-  height: 44px;
+  width: 82px;
+  min-width: 82px;
+  height: 38px;
   background: #f8fafc;
   overflow: hidden;
   box-sizing: border-box;
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .pdp-qty-btn {
-  width: 34px;
+  width: 26px;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: #334155;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #475569;
   background: transparent;
   border: none;
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: all var(--transition-fast);
 }
 
 .pdp-qty-btn:hover {
   background: #e2e8f0;
+  color: #0f172a;
 }
 
 .pdp-qty-input {
-  width: 40px;
+  width: 30px;
   text-align: center;
-  font-weight: 800;
-  font-size: 0.9375rem;
+  font-weight: 700;
+  font-size: 0.8125rem;
   color: #0f172a;
   border: none;
   background: transparent;
@@ -3059,32 +3063,38 @@ img {
 
 .btn-pdp-cart {
   flex: 1;
-  height: 44px;
+  height: 38px;
+  min-height: 38px;
   background: var(--primary-600);
   color: #ffffff;
-  font-size: 0.9375rem;
-  font-weight: 700;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   border-radius: 8px;
-  border: none;
+  border: 1px solid transparent;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   cursor: pointer;
   transition: all var(--transition-fast);
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.15);
 }
 
 .btn-pdp-cart:hover {
   background: var(--primary-700);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
 }
 
 .btn-pdp-buy-now {
-  flex: 1;
-  height: 44px;
+  width: 100%;
+  height: 38px;
+  min-height: 38px;
   background: var(--accent-orange);
   color: #ffffff;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 700;
+  letter-spacing: 0.01em;
   border-radius: 8px;
   border: none;
   display: flex;
@@ -3092,16 +3102,20 @@ img {
   justify-content: center;
   cursor: pointer;
   transition: all var(--transition-fast);
+  box-shadow: 0 1px 4px rgba(249, 115, 22, 0.2);
 }
 
 .btn-pdp-buy-now:hover {
   background: #ea580c;
+  box-shadow: 0 3px 8px rgba(249, 115, 22, 0.3);
 }
 
 .btn-pdp-wishlist {
-  width: 44px;
-  height: 44px;
-  border: 1px solid #cbd5e1;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  flex-shrink: 0;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #ffffff;
   display: flex;
@@ -3110,12 +3124,13 @@ img {
   color: #64748b;
   cursor: pointer;
   transition: all var(--transition-fast);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .btn-pdp-wishlist:hover,
 .btn-pdp-wishlist.active {
   color: var(--accent-rose);
-  border-color: var(--accent-rose);
+  border-color: #fecdd3;
   background: #fff1f2;
 }
 
