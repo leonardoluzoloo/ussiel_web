@@ -410,18 +410,18 @@ export function renderProductDetailView(productSlug) {
           </div>
 
           <!-- Professional Benefits Strip -->
-          <div class="pdp-benefits-strip" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; padding: 12px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 0.78125rem; font-weight: 600; color: #334155;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 6px; background: #eff6ff; color: #2563eb; flex-shrink: 0;">
-                ${Icons.truck(15)}
+          <div class="pdp-benefits-strip" style="display: flex; flex-direction: column; gap: 8px; margin-top: 18px; padding: 12px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 0.8125rem; font-weight: 600; color: #334155;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; background: #eff6ff; color: #2563eb; flex-shrink: 0;">
+                ${Icons.truck(16)}
               </span>
-              <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Entrega Grátis em Luanda</span>
+              <span>Entrega Grátis em Luanda</span>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 6px; background: #f0fdf4; color: #16a34a; flex-shrink: 0;">
-                ${Icons.shieldCheck(15)}
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; background: #f0fdf4; color: #16a34a; flex-shrink: 0;">
+                ${Icons.shieldCheck(16)}
               </span>
-              <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">3 Meses de Garantia</span>
+              <span>3 Meses de Garantia</span>
             </div>
           </div>
         </div>
