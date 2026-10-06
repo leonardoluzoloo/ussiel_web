@@ -62,11 +62,11 @@ export function renderProductDetailView(productSlug) {
 
       if (realProd) {
         const rawGal = Array.isArray(realProd.gallery)
-          ? realGal = realProd.gallery
+          ? realProd.gallery
           : (realProd.gallery && typeof realProd.gallery === 'string')
             ? (JSON.parse(realProd.gallery) || [])
             : [];
-        const cleanGal = (Array.isArray(realProd.gallery) ? realProd.gallery : []).filter(Boolean);
+        const cleanGal = (Array.isArray(rawGal) ? rawGal : []).filter(Boolean);
         if (cleanGal.length === 0 && realProd.image) {
           cleanGal.push(realProd.image);
         }
