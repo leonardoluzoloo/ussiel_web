@@ -3092,9 +3092,9 @@ img {
   min-height: 42px;
   background: var(--primary-600);
   color: #ffffff;
-  font-size: 0.775rem;
+  font-size: 0.6875rem;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: normal;
   border-radius: 9px;
   border: 1px solid transparent;
   display: flex;
@@ -3113,7 +3113,7 @@ img {
 
 @media (max-width: 380px) {
   .btn-pdp-cart {
-    font-size: 0.72rem;
+    font-size: 0.65rem;
     padding: 0 4px;
   }
 }
