@@ -51,6 +51,7 @@ export function renderProductDetailView(productSlug) {
   let activeTab = 'desc'; // 'desc' | 'specs' | 'reviews' | 'shipping'
   let currentImage = product?.gallery?.[0] || product?.image || '';
   let reviewRating = 5; // estrelas selecionadas pelo usuário no form
+  let hasPurchasedProduct = false; // apenas quem comprou o produto pode avaliar
 
   async function syncProduct() {
     try {
@@ -61,11 +62,11 @@ export function renderProductDetailView(productSlug) {
 
       if (realProd) {
         const rawGal = Array.isArray(realProd.gallery)
-          ? realProd.gallery
+          ? realGal = realProd.gallery
           : (realProd.gallery && typeof realProd.gallery === 'string')
             ? (JSON.parse(realProd.gallery) || [])
             : [];
-        const cleanGal = rawGal.filter(Boolean);
+        const cleanGal = (Array.isArray(realProd.gallery) ? realProd.gallery : []).filter(Boolean);
         if (cleanGal.length === 0 && realProd.image) {
           cleanGal.push(realProd.image);
         }
@@ -92,6 +93,38 @@ export function renderProductDetailView(productSlug) {
         // Recalcular rating médio localmente com dados frescos
         if (product.reviews.length > 0) {
           product.rating = product.reviews.reduce((sum, r) => sum + (r.rating || 5), 0) / product.reviews.length;
+        }
+
+        // Checagem de comprador verificado (apenas quem comprou pode avaliar)
+        try {
+          const curUser = Storage.getUser();
+          if (curUser) {
+            const userOrders = await Api.orders.getMyOrders(curUser);
+            const targetProdId = String(product.id || '').toLowerCase();
+            const targetSku = String(product.sku || '').toLowerCase();
+            const targetName = String(product.name || '').toLowerCase();
+            const targetUid = String(product.uid || '').toLowerCase();
+
+            hasPurchasedProduct = (userOrders || []).some(order => {
+              const status = String(order.status || '').toLowerCase();
+              if (status === 'cancelled' || status === 'cancelado') return false;
+              const items = Array.isArray(order.items) ? order.items : (Array.isArray(order.itens) ? order.itens : []);
+              return items.some(item => {
+                const iId = String(item.product_id || item.productId || item.id || '').toLowerCase();
+                const iSku = String(item.sku || '').toLowerCase();
+                const iName = String(item.name || item.nome || item.product_name || '').toLowerCase();
+                const iUid = String(item.uid || '').toLowerCase();
+                return (targetProdId && iId === targetProdId) ||
+                       (targetSku && iSku === targetSku) ||
+                       (targetUid && iUid === targetUid) ||
+                       (targetName && iName === targetName);
+              });
+            });
+          } else {
+            hasPurchasedProduct = false;
+          }
+        } catch {
+          hasPurchasedProduct = false;
         }
         if (!selectedColor && product.variants?.colors?.[0]?.name) selectedColor = product.variants.colors[0].name;
         if (!selectedStorage && product.variants?.storage?.[0]) selectedStorage = product.variants.storage[0];
@@ -197,7 +230,12 @@ export function renderProductDetailView(productSlug) {
     if (!catDisplayName || !isNaN(catDisplayName)) {
       catDisplayName = (product.brand ? product.brand : 'Produtos');
     }
-    const catSlug = resolvedCat?.uid || resolvedCat?.slug || (resolvedCat?.id ? String(resolvedCat.id) : '');
+    const productReviews = Array.isArray(product.reviews) ? product.reviews : [];
+    const totalReviewsCount = productReviews.length > 0 ? productReviews.length : Number(product.reviewsCount || 0);
+    const calculatedRating = productReviews.length > 0
+      ? Number((productReviews.reduce((sum, r) => sum + Number(r.rating || r.avaliacao || 0), 0) / productReviews.length).toFixed(1))
+      : (product.rating ? Number(product.rating) : 0);
+    const hasReviews = totalReviewsCount > 0 && calculatedRating > 0;
 
     const productDesc = (product.description && product.description !== 'undefined' && product.description !== 'null' && product.description.trim() !== '')
       ? product.description
@@ -256,9 +294,6 @@ export function renderProductDetailView(productSlug) {
           <div class="pdp-meta-row" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
             ${product.brand ? `
               <span class="pdp-badge-brand" style="font-size: 0.75rem; font-weight: 700; color: #1e293b; background: #f1f5f9; padding: 3px 8px; border-radius: 6px; border: 1px solid #e2e8f0;">${product.brand}</span>
-            ` : ''}
-            ${product.sku ? `
-              <span class="pdp-badge-sku" style="font-family: ui-monospace, monospace; font-size: 0.75rem; color: #64748b; background: #f8fafc; padding: 3px 8px; border-radius: 6px; border: 1px solid #e2e8f0;">SKU: <strong style="color: #334155; font-weight: 700;">${product.sku}</strong></span>
             ` : ''}
             ${(product.is_active === false || product.ativo === false) ? `
               <span style="color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; font-weight: 700; font-size: 0.75rem; padding: 3px 8px; border-radius: 6px;">Indisponível</span>
@@ -363,20 +398,20 @@ export function renderProductDetailView(productSlug) {
             `}
           </div>
 
-          <!-- Compact Benefits Strip -->
-          <div class="pdp-benefits-strip" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 18px; padding: 12px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 0.75rem; font-weight: 600; color: #475569; flex-wrap: wrap;">
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span style="color: #2563eb;">${Icons.truck(16)}</span>
-              <span>Entrega Luanda</span>
+          <!-- Professional Benefits Strip -->
+          <div class="pdp-benefits-strip" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; padding: 12px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 0.78125rem; font-weight: 600; color: #334155;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 6px; background: #eff6ff; color: #2563eb; flex-shrink: 0;">
+                ${Icons.truck(15)}
+              </span>
+              <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Entrega Grátis em Luanda</span>
             </div>
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span style="color: #16a34a;">${Icons.shieldCheck(16)}</span>
-              <span>12 Meses Garantia</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 6px; background: #f0fdf4; color: #16a34a; flex-shrink: 0;">
+                ${Icons.shieldCheck(15)}
+              </span>
+              <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">3 Meses de Garantia</span>
             </div>
-            <a href="https://wa.me/244923179192" target="_blank" style="display: flex; align-items: center; gap: 6px; color: #15803d; text-decoration: none;">
-              <span>${Icons.whatsapp(16, '#15803d')}</span>
-              <span>WhatsApp Suporte</span>
-            </a>
           </div>
         </div>
       </div>
@@ -386,7 +421,7 @@ export function renderProductDetailView(productSlug) {
         <div class="pdp-tabs-header">
           <div class="pdp-tab-btn ${activeTab === 'desc' ? 'active' : ''}" data-tab="desc">Descrição do Produto</div>
           <div class="pdp-tab-btn ${activeTab === 'specs' ? 'active' : ''}" data-tab="specs">Ficha Técnica & Especificações</div>
-          <div class="pdp-tab-btn ${activeTab === 'reviews' ? 'active' : ''}" data-tab="reviews">Avaliações (${product.reviews?.length || 0})</div>
+          <div class="pdp-tab-btn ${activeTab === 'reviews' ? 'active' : ''}" data-tab="reviews">Avaliações (${totalReviewsCount})</div>
         </div>
 
         <div class="pdp-tab-content">
@@ -397,8 +432,8 @@ export function renderProductDetailView(productSlug) {
                   ${productDesc}
                 </div>
               ` : `
-                <div style="font-size: 0.9375rem; line-height: 1.8; color: var(--text-secondary);">
-                  ${product.name} — Produto original com garantia oficial e suporte técnico dedicado.
+                <div style="font-size: 0.875rem; color: var(--text-muted); font-style: italic;">
+                  Nenhuma descrição detalhada informada para este produto.
                 </div>
               `}
             </div>
@@ -443,63 +478,70 @@ export function renderProductDetailView(productSlug) {
             </div>
           ` : activeTab === 'reviews' ? `
             <div>
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
                 <div>
-                  <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main);">Avaliações de Clientes Verificados</h3>
-                  <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
-                    <div class="stars">${renderStars(product.rating || 5)}</div>
-                    <span style="font-weight: 800;">${(product.rating || 5).toFixed(1)} de 5.0 estrelas</span>
-                  </div>
+                  <h3 style="font-size: 1.125rem; font-weight: 800; color: var(--text-main); margin: 0;">Avaliações dos Clientes</h3>
+                  ${hasReviews ? `
+                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                      <div class="stars">${renderStars(calculatedRating)}</div>
+                      <span style="font-weight: 800; font-size: 0.875rem;">${calculatedRating.toFixed(1)} / 5.0</span>
+                      <span style="font-size: 0.8125rem; color: var(--text-muted);">(${totalReviewsCount} ${totalReviewsCount === 1 ? 'avaliação' : 'avaliações'})</span>
+                    </div>
+                  ` : ''}
                 </div>
-                <button class="btn btn-primary" id="openReviewFormBtn">
-                  Escrever uma Avaliação
-                </button>
+                ${hasPurchasedProduct ? `
+                  <button class="btn btn-primary btn-sm" id="openReviewFormBtn">
+                    Escrever Avaliação
+                  </button>
+                ` : ''}
               </div>
 
               <!-- New Review Form Modal/Inline -->
-              <div id="reviewFormBox" style="display: none; background: #f8fafc; border: 1px solid var(--border-light); padding: 20px; border-radius: var(--radius-md); margin-bottom: 24px;">
-                <h4 style="font-weight: 700; margin-bottom: 12px;">Deixe a sua opinião sobre este produto</h4>
-                <div style="display: flex; flex-direction: column; gap: 12px;">
-                  <input type="text" id="newReviewName" placeholder="Seu nome completo" class="form-input" />
-                  <!-- Seleção de estrelas -->
-                  <div style="display: flex; flex-direction: column; gap: 6px;">
-                    <label style="font-size: 0.875rem; font-weight: 600; color: var(--text-main);">Sua avaliação</label>
-                    <div id="reviewStarPicker" style="display: flex; gap: 6px; cursor: pointer;">
-                      ${[1,2,3,4,5].map(s => `
-                        <span class="review-star-pick" data-star="${s}" style="font-size: 1.75rem; color: ${s <= reviewRating ? '#f59e0b' : '#d1d5db'}; transition: color 0.15s; user-select: none;">★</span>
-                      `).join('')}
+              ${hasPurchasedProduct ? `
+                <div id="reviewFormBox" style="display: none; background: #f8fafc; border: 1px solid var(--border-light); padding: 18px; border-radius: var(--radius-md); margin-bottom: 20px;">
+                  <h4 style="font-weight: 700; font-size: 0.9375rem; margin-bottom: 12px;">Deixe a sua opinião sobre este produto</h4>
+                  <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <input type="text" id="newReviewName" placeholder="Seu nome completo" class="form-input" value="${(Storage.getUser()?.name || '').replace(/"/g, '&quot;')}" />
+                    <!-- Seleção de estrelas -->
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                      <label style="font-size: 0.8125rem; font-weight: 600; color: var(--text-main);">Sua nota</label>
+                      <div id="reviewStarPicker" style="display: flex; gap: 6px; cursor: pointer;">
+                        ${[1,2,3,4,5].map(s => `
+                          <span class="review-star-pick" data-star="${s}" style="font-size: 1.5rem; color: ${s <= reviewRating ? '#f59e0b' : '#d1d5db'}; transition: color 0.15s; user-select: none;">★</span>
+                        `).join('')}
+                      </div>
+                      <input type="hidden" id="newReviewRating" value="${reviewRating}" />
                     </div>
-                    <input type="hidden" id="newReviewRating" value="${reviewRating}" />
-                  </div>
-                  <textarea id="newReviewComment" rows="3" placeholder="O que achou do produto, desempenho e entrega?" class="form-input" style="height: auto; padding: 10px;"></textarea>
-                  <button class="btn btn-accent" id="submitReviewBtn" style="align-self: flex-start;">
-                    Publicar Avaliação
-                  </button>
-                </div>
-              </div>
-
-              <!-- Reviews List -->
-              <div style="display: flex; flex-direction: column; gap: 16px;">
-                ${(product.reviews || []).length === 0 ? `
-                  <div style="background: #ffffff; border: 1.5px dashed var(--border-light); border-radius: var(--radius-sm); padding: 36px 20px; text-align: center; color: var(--text-muted);">
-                    <div style="font-size: 1.5rem; margin-bottom: 8px;">⭐</div>
-                    <div style="font-weight: 700; color: var(--text-main); margin-bottom: 4px;">Ainda não há avaliações para este produto</div>
-                    <p style="font-size: 0.875rem; margin-bottom: 16px;">Comprou este item? Compartilhe a sua experiência e ajude outros compradores!</p>
-                    <button class="btn btn-secondary btn-sm" id="emptyStateReviewBtn">
-                      Avaliar este Produto
+                    <textarea id="newReviewComment" rows="3" placeholder="Conte a sua experiência com o produto..." class="form-input" style="height: auto; padding: 10px; font-size: 0.875rem;"></textarea>
+                    <button class="btn btn-accent btn-sm" id="submitReviewBtn" style="align-self: flex-start;">
+                      Publicar Avaliação
                     </button>
                   </div>
+                </div>
+              ` : ''}
+
+              <!-- Reviews List -->
+              <div style="display: flex; flex-direction: column; gap: 14px;">
+                ${(product.reviews || []).length === 0 ? `
+                  <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 32px 20px; text-align: center; color: var(--text-muted);">
+                    <p style="font-size: 0.9375rem; color: #64748b; margin: 0;">Nenhuma avaliação registrada para este produto no momento.</p>
+                    ${hasPurchasedProduct ? `
+                      <button class="btn btn-primary btn-sm" id="emptyStateReviewBtn" style="margin-top: 14px;">
+                        Seja o primeiro a avaliar
+                      </button>
+                    ` : ''}
+                  </div>
                 ` : (product.reviews || []).map(r => `
-                  <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 18px;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                  <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 16px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
                       <div style="display: flex; align-items: center; gap: 8px;">
-                        <strong style="color: var(--text-main); font-size: 0.9375rem;">${r.author}</strong>
-                        <span style="font-size: 0.72rem; background: #ecfdf5; color: #047857; padding: 2px 6px; border-radius: 4px; font-weight: 700;">Compra Verificada ✓</span>
+                        <strong style="color: var(--text-main); font-size: 0.875rem;">${r.author}</strong>
+                        <span style="font-size: 0.6875rem; background: #ecfdf5; color: #047857; padding: 2px 6px; border-radius: 4px; font-weight: 700;">Compra Verificada ✓</span>
                       </div>
                       <span style="font-size: 0.75rem; color: var(--text-muted);">${formatDate(r.date)}</span>
                     </div>
                     <div class="stars" style="margin-bottom: 6px;">${renderStars(r.rating || 5)}</div>
-                    <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.5;">${r.comment}</p>
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">${r.comment}</p>
                   </div>
                 `).join('')}
               </div>
@@ -786,6 +828,11 @@ export function renderProductDetailView(productSlug) {
     const submitReviewBtn = container.querySelector('#submitReviewBtn');
     if (submitReviewBtn) {
       submitReviewBtn.onclick = async () => {
+        if (!hasPurchasedProduct) {
+          Toast.show({ title: 'Ação não permitida', message: 'Apenas compradores verificados deste produto podem enviar avaliações.', type: 'warning' });
+          return;
+        }
+
         const name = container.querySelector('#newReviewName').value.trim();
         const comment = container.querySelector('#newReviewComment').value.trim();
         const ratingVal = Number(container.querySelector('#newReviewRating')?.value || reviewRating);

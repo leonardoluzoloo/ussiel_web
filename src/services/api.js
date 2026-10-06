@@ -248,8 +248,19 @@ function mapProdutoFromDb(p) {
     variants: (typeof p.variacoes === 'object' && p.variacoes !== null) ? p.variacoes : (p.variacoes ? JSON.parse(p.variacoes) : {}),
     specs: cleanSpecs,
     badges: Array.isArray(p.etiquetas) ? p.etiquetas : (p.etiquetas ? (typeof p.etiquetas === 'string' ? JSON.parse(p.etiquetas) : p.etiquetas) : []),
-    rating: Number(p.avaliacao_media || 5.0),
-    reviewsCount: Number(p.total_avaliacoes || 0),
+    reviews: Array.isArray(p.avaliacoes) ? p.avaliacoes : (Array.isArray(p.reviews) ? p.reviews : []),
+    rating: (() => {
+      const rawRev = Array.isArray(p.avaliacoes) ? p.avaliacoes : (Array.isArray(p.reviews) ? p.reviews : []);
+      if (rawRev.length > 0) {
+        return Number((rawRev.reduce((sum, r) => sum + Number(r.rating || r.avaliacao || 0), 0) / rawRev.length).toFixed(1));
+      }
+      return (p.avaliacao_media !== null && p.avaliacao_media !== undefined && Number(p.avaliacao_media) > 0) ? Number(p.avaliacao_media) : 0;
+    })(),
+    reviewsCount: (() => {
+      const rawRev = Array.isArray(p.avaliacoes) ? p.avaliacoes : (Array.isArray(p.reviews) ? p.reviews : []);
+      if (rawRev.length > 0) return rawRev.length;
+      return (p.total_avaliacoes !== null && p.total_avaliacoes !== undefined) ? Number(p.total_avaliacoes) : 0;
+    })(),
     created_at: p.criado_em
   };
 }

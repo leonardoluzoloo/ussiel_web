@@ -4627,8 +4627,8 @@ export function renderAdminView() {
               </div>
 
               <div class="form-group">
-                <label class="admin-form-label" for="pDesc">Descrição do Produto</label>
-                <input type="text" id="pDesc" class="form-input" value="${(prod?.description || prod?.descricao || '').replace(/"/g, '&quot;')}" placeholder="Breve apresentação comercial e diferenciais..." style="font-size: 0.8125rem;" />
+                <label class="admin-form-label" for="pDesc">Descrição do Produto (Texto Real)</label>
+                <textarea id="pDesc" class="form-input" rows="3" placeholder="Insira a descrição detalhada e real do produto..." style="font-size: 0.8125rem; resize: vertical; line-height: 1.5;">${prod?.description || prod?.descricao || ''}</textarea>
               </div>
             </div>
           </div>
