@@ -1882,7 +1882,7 @@ export function renderAdminView() {
                     src="${b.image_url}"
                     alt="${b.title}"
                     class="admin-banner-card-img"
-                    onerror="this.src='https://placehold.co/800x400/0f172a/38bdf8?text=Banner+NovaTech';"
+                    onerror="this.onerror=null; this.style.opacity='0.4';"
                   />
                 </div>
                 <div class="admin-banner-card-body">
