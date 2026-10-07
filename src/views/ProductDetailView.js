@@ -505,95 +505,85 @@ export function renderProductDetailView(productSlug) {
               </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      <!-- Seção Dedicada de Avaliações dos Clientes (Parte Inferior) -->
-      <section class="pdp-reviews-section" style="margin: 48px 0; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 28px 24px;">
-        <!-- Cabeçalho de Avaliações -->
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; border-bottom: 1px solid #f1f5f9; padding-bottom: 20px;">
-          <div>
-            <h2 style="font-size: 1.25rem; font-weight: 800; color: #0f172a; margin: 0 0 6px 0;">
-              Avaliações dos Clientes
-            </h2>
-            ${hasReviews ? `
-              <div style="display: flex; align-items: center; gap: 10px;">
-                <div class="stars">${renderStars(calculatedRating)}</div>
-                <span style="font-weight: 800; font-size: 1rem; color: #0f172a;">${calculatedRating.toFixed(1)} / 5.0</span>
-                <span style="font-size: 0.875rem; color: #64748b;">(${totalReviewsCount} ${totalReviewsCount === 1 ? 'avaliação' : 'avaliações'})</span>
+          <!-- Seção de Avaliações dos Clientes (Integrada na mesma borda dos dados acima) -->
+          <div class="pdp-reviews-section" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #f1f5f9;">
+            <!-- Cabeçalho de Avaliações (sem linha horizontal divisória) -->
+            <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 12px;">
+              <div>
+                <h3 style="font-size: 1.125rem; font-weight: 800; color: #0f172a; margin: 0 0 4px 0;">
+                  Avaliações dos Clientes
+                </h3>
+                ${hasReviews ? `
+                  <div style="display: flex; align-items: center; gap: 10px; margin-top: 4px;">
+                    <div class="stars">${renderStars(calculatedRating)}</div>
+                    <span style="font-weight: 800; font-size: 0.9375rem; color: #0f172a;">${calculatedRating.toFixed(1)} / 5.0</span>
+                    <span style="font-size: 0.8125rem; color: #64748b;">(${totalReviewsCount} ${totalReviewsCount === 1 ? 'avaliação' : 'avaliações'})</span>
+                  </div>
+                ` : `
+                  <p style="font-size: 0.875rem; color: #64748b; margin: 0;">Ainda não há avaliações para este produto.</p>
+                `}
               </div>
-            ` : `
-              <p style="font-size: 0.875rem; color: #64748b; margin: 0;">Ainda não há avaliações para este produto.</p>
-            `}
-          </div>
 
-          ${hasPurchasedProduct ? `
-            <button class="btn btn-primary btn-sm" id="openReviewFormBtn" style="display: flex; align-items: center; gap: 8px; font-weight: 700;">
-              ${Icons.edit(15)}
-              <span>Avaliar Produto</span>
-            </button>
-          ` : ''}
-        </div>
-
-        <!-- Form de Avaliação para Comprador Verificado -->
-        ${hasPurchasedProduct ? `
-          <div id="reviewFormBox" style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px; margin-bottom: 24px;">
-            <h4 style="font-weight: 700; font-size: 0.9375rem; color: #0f172a; margin-bottom: 12px;">Deixe a sua opinião sobre este produto</h4>
-            <div style="display: flex; flex-direction: column; gap: 14px;">
-              <input type="text" id="newReviewName" placeholder="Seu nome completo" class="form-input" value="${(Storage.getUser()?.name || '').replace(/"/g, '&quot;')}" />
-              <div style="display: flex; flex-direction: column; gap: 6px;">
-                <label style="font-size: 0.8125rem; font-weight: 600; color: #0f172a;">Sua nota</label>
-                <div id="reviewStarPicker" style="display: flex; gap: 6px; cursor: pointer;">
-                  ${[1,2,3,4,5].map(s => `
-                    <span class="review-star-pick" data-star="${s}" style="font-size: 1.5rem; color: ${s <= reviewRating ? '#f59e0b' : '#d1d5db'}; transition: color 0.15s; user-select: none;">★</span>
-                  `).join('')}
-                </div>
-                <input type="hidden" id="newReviewRating" value="${reviewRating}" />
-              </div>
-              <textarea id="newReviewComment" rows="3" placeholder="Conte a sua experiência com o produto..." class="form-input" style="height: auto; padding: 12px; font-size: 0.875rem;"></textarea>
-              <button class="btn btn-primary btn-sm" id="submitReviewBtn" style="align-self: flex-start; font-weight: 700;">
-                Publicar Avaliação
-              </button>
-            </div>
-          </div>
-        ` : ''}
-
-        <!-- Lista de Avaliações na Página (Exibe 1 avaliação se houver mais de uma) -->
-        <div style="display: flex; flex-direction: column; gap: 14px;">
-          ${(product.reviews || []).length === 0 ? `
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 32px 20px; text-align: center; color: #64748b;">
-              <p style="font-size: 0.9375rem; margin: 0;">Nenhuma avaliação registrada para este produto no momento.</p>
               ${hasPurchasedProduct ? `
-                <button class="btn btn-primary btn-sm" id="emptyStateReviewBtn" style="margin-top: 14px; font-weight: 700;">
-                  Seja o primeiro a avaliar
+                <button class="btn btn-primary btn-sm" id="openReviewFormBtn" style="display: flex; align-items: center; gap: 8px; font-weight: 700;">
+                  ${Icons.edit(15)}
+                  <span>${hasReviews ? 'Avaliar Produto' : 'Seja o primeiro a avaliar'}</span>
                 </button>
               ` : ''}
             </div>
-          ` : `
-            <!-- Primeira Avaliação em Destaque -->
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px;">
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <strong style="color: #0f172a; font-size: 0.875rem;">${product.reviews[0].author}</strong>
-                  <span style="font-size: 0.6875rem; background: #ecfdf5; color: #047857; padding: 2px 6px; border-radius: 4px; font-weight: 700; border: 1px solid #a7f3d0;">Compra Verificada</span>
-                </div>
-                <span style="font-size: 0.75rem; color: #64748b;">${formatDate(product.reviews[0].date)}</span>
-              </div>
-              <div class="stars" style="margin-bottom: 8px;">${renderStars(product.reviews[0].rating || 5)}</div>
-              <p style="font-size: 0.875rem; color: #334155; line-height: 1.6; margin: 0;">${product.reviews[0].comment}</p>
-            </div>
 
-            <!-- Botão Ver Mais Avaliações (se houver mais de 1) -->
-            ${(product.reviews || []).length > 1 ? `
-              <div style="margin-top: 8px; text-align: center;">
-                <button type="button" class="btn btn-secondary" id="openAllReviewsModalBtn" style="padding: 10px 22px; font-size: 0.875rem; font-weight: 700; border-radius: 8px;">
-                  Ver todas as avaliações (${product.reviews.length})
-                </button>
+            <!-- Form de Avaliação para Comprador Verificado -->
+            ${hasPurchasedProduct ? `
+              <div id="reviewFormBox" style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; padding: 18px; border-radius: 10px; margin-top: 14px; margin-bottom: 16px;">
+                <h4 style="font-weight: 700; font-size: 0.9375rem; color: #0f172a; margin-bottom: 12px;">Deixe a sua opinião sobre este produto</h4>
+                <div style="display: flex; flex-direction: column; gap: 14px;">
+                  <input type="text" id="newReviewName" placeholder="Seu nome completo" class="form-input" value="${(Storage.getUser()?.name || '').replace(/"/g, '&quot;')}" />
+                  <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 0.8125rem; font-weight: 600; color: #0f172a;">Sua nota</label>
+                    <div id="reviewStarPicker" style="display: flex; gap: 6px; cursor: pointer;">
+                      ${[1,2,3,4,5].map(s => `
+                        <span class="review-star-pick" data-star="${s}" style="font-size: 1.5rem; color: ${s <= reviewRating ? '#f59e0b' : '#d1d5db'}; transition: color 0.15s; user-select: none;">★</span>
+                      `).join('')}
+                    </div>
+                    <input type="hidden" id="newReviewRating" value="${reviewRating}" />
+                  </div>
+                  <textarea id="newReviewComment" rows="3" placeholder="Conte a sua experiência com o produto..." class="form-input" style="height: auto; padding: 12px; font-size: 0.875rem;"></textarea>
+                  <button class="btn btn-primary btn-sm" id="submitReviewBtn" style="align-self: flex-start; font-weight: 700;">
+                    Publicar Avaliação
+                  </button>
+                </div>
               </div>
             ` : ''}
-          `}
+
+            <!-- Lista de Avaliações na Página (Exibe 1 avaliação se houver) -->
+            ${hasReviews ? `
+              <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 14px;">
+                <!-- Primeira Avaliação em Destaque -->
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; flex-wrap: wrap; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <strong style="color: #0f172a; font-size: 0.875rem;">${product.reviews[0].author}</strong>
+                      <span style="font-size: 0.6875rem; background: #ecfdf5; color: #047857; padding: 2px 6px; border-radius: 4px; font-weight: 700; border: 1px solid #a7f3d0;">Compra Verificada</span>
+                    </div>
+                    <span style="font-size: 0.75rem; color: #64748b;">${formatDate(product.reviews[0].date)}</span>
+                  </div>
+                  <div class="stars" style="margin-bottom: 6px;">${renderStars(product.reviews[0].rating || 5)}</div>
+                  <p style="font-size: 0.875rem; color: #334155; line-height: 1.6; margin: 0;">${product.reviews[0].comment}</p>
+                </div>
+
+                <!-- Botão Ver Mais Avaliações (se houver mais de 1) -->
+                ${(product.reviews || []).length > 1 ? `
+                  <div style="margin-top: 4px; text-align: center;">
+                    <button type="button" class="btn btn-secondary" id="openAllReviewsModalBtn" style="padding: 10px 20px; font-size: 0.8125rem; font-weight: 700; border-radius: 8px; width: 100%;">
+                      Ver todas as avaliações (${product.reviews.length})
+                    </button>
+                  </div>
+                ` : ''}
+              </div>
+            ` : ''}
+          </div>
         </div>
-      </section>
+      </div>
 
       <!-- Modal com Todas as Avaliações dos Clientes -->
       <div class="pdp-details-modal-overlay" id="pdpAllReviewsModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 99999; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box;">
