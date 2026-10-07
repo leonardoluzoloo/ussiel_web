@@ -4633,15 +4633,13 @@ export function renderAdminView() {
             </div>
           </div>
 
-          <!-- CARD DE CORES E VARIAÇÕES COM FOTO VINCULADA (PADRÃO MERCADO LIVRE) -->
+          <!-- CARD DE CORES DO PRODUTO -->
           <div class="admin-card-panel" style="margin-bottom: 10px;">
             <div class="admin-panel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
               <div>
-                <h4 class="admin-panel-title" style="margin: 0; display: flex; align-items: center; gap: 6px;">
-                  <span>Cores do Produto (Variações com Foto)</span>
-                  <span style="font-size: 0.75rem; font-weight: 600; color: #2563eb; background: #eff6ff; padding: 2px 7px; border-radius: 4px; border: 1px solid #bfdbfe;">Padrão Mercado Livre</span>
+                <h4 class="admin-panel-title" style="margin: 0;">
+                  Cores do Produto
                 </h4>
-                <p style="font-size: 0.75rem; color: #64748b; margin: 2px 0 0 0;">Vincule cada cor à sua foto para sincronizar dinamicamente com a imagem principal do produto.</p>
               </div>
               <button type="button" id="btnAddColorVariant" class="btn btn-secondary btn-sm" style="font-size: 0.75rem; font-weight: 700; padding: 3px 10px; display: inline-flex; align-items: center; gap: 4px;">
                 + Adicionar Cor
@@ -4925,6 +4923,8 @@ export function renderAdminView() {
       
       const currentImg = col.image || '';
       
+      const defaultEmptyIcon = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+
       row.innerHTML = `
         <div style="display: flex; align-items: center; justify-content: center;" title="Seletor de cor">
           <input type="color" class="color-hex" value="${col.hex || '#2563eb'}" style="width: 32px; height: 32px; border: none; border-radius: 6px; cursor: pointer; padding: 0; background: transparent;" />
@@ -4934,7 +4934,7 @@ export function renderAdminView() {
         </div>
         <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
           <div class="color-img-preview-box" style="width: 34px; height: 34px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;">
-            ${currentImg ? `<img src="${currentImg}" style="width: 100%; height: 100%; object-fit: cover;" />` : `<span style="color: #94a3b8; font-size: 13px;">📷</span>`}
+            ${currentImg ? `<img src="${currentImg}" style="width: 100%; height: 100%; object-fit: cover;" />` : defaultEmptyIcon}
           </div>
           <input type="hidden" class="color-img-val" value="${currentImg.replace(/"/g, '&quot;')}" />
           <input type="file" class="color-file-input" accept="image/*" style="display: none;" />
@@ -4981,7 +4981,7 @@ export function renderAdminView() {
               clearBtnNew.textContent = '✕';
               clearBtnNew.addEventListener('click', () => {
                 imgValInput.value = '';
-                previewBox.innerHTML = `<span style="color: #94a3b8; font-size: 13px;">📷</span>`;
+                previewBox.innerHTML = defaultEmptyIcon;
                 uploadBtn.textContent = 'Carregar Foto';
                 clearBtnNew.remove();
               });
@@ -4999,7 +4999,7 @@ export function renderAdminView() {
       const clearBtn = row.querySelector('.btn-clear-color-img');
       clearBtn?.addEventListener('click', () => {
         imgValInput.value = '';
-        previewBox.innerHTML = `<span style="color: #94a3b8; font-size: 13px;">📷</span>`;
+        previewBox.innerHTML = defaultEmptyIcon;
         uploadBtn.textContent = 'Carregar Foto';
         clearBtn.remove();
       });
