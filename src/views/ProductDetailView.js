@@ -425,103 +425,85 @@ export function renderProductDetailView(productSlug) {
             </div>
           </div>
 
-          <!-- Botão Fora da Borda de Entregas: Ver Detalhes do Produto (Abre Modal com Descrição e Ficha Técnica) -->
-          <button type="button" class="btn-pdp-view-details" id="pdpOpenDetailsModalBtn" style="margin-top: 12px; width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.875rem; font-weight: 700; color: #0f172a; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+          <!-- Botão Fora da Borda de Entregas: Ver Detalhes do Produto (Expansível / Recolhível) -->
+          <button type="button" class="btn-pdp-view-details" id="pdpToggleDetailsBtn" aria-expanded="false" style="margin-top: 12px; width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.875rem; font-weight: 700; color: #0f172a; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="display: flex; align-items: center; color: var(--primary-600);">${Icons.fileText(18)}</span>
               <span>Ver Detalhes do Produto</span>
             </div>
-            <span style="display: flex; align-items: center; color: #64748b;">${Icons.chevronRight(16)}</span>
+            <span id="pdpDetailsToggleIcon" style="display: flex; align-items: center; color: #64748b; transition: transform 0.25s ease;">
+              ${Icons.chevronDown(18)}
+            </span>
           </button>
-        </div>
-      </div>
 
-      <!-- Modal de Detalhes do Produto (Abas lado a lado: Descrição e Ficha Técnica) -->
-      <div class="pdp-details-modal-overlay" id="pdpDetailsModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 99999; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box;">
-        <div class="pdp-details-modal-box" style="background: #ffffff; border-radius: 14px; width: 100%; max-width: 760px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.25); border: 1px solid #e2e8f0; overflow: hidden;">
-          <!-- Header do Modal -->
-          <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid #f1f5f9; background: #ffffff;">
-            <div>
-              <h3 style="font-size: 1.125rem; font-weight: 800; color: #0f172a; margin: 0;">Detalhes do Produto</h3>
-              <p style="font-size: 0.8125rem; color: #64748b; margin: 2px 0 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 480px;">${product.name || 'Produto'}</p>
-            </div>
-            <button type="button" id="pdpCloseDetailsModalBtn" aria-label="Fechar" style="background: #f1f5f9; border: none; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; color: #64748b; cursor: pointer; transition: all 0.15s; flex-shrink: 0;">
-              ${Icons.close(16)}
-            </button>
-          </div>
-
-          <!-- Abas Navegáveis lado a lado (Side-by-side tabs) -->
-          <div class="pdp-modal-tabs-bar" style="display: flex; border-bottom: 1px solid #e2e8f0; background: #f8fafc; padding: 0 20px; gap: 8px;">
-            <button type="button" class="pdp-modal-tab-btn active" data-tab-target="desc" id="pdpModalTabBtnDesc" style="padding: 13px 18px; font-size: 0.875rem; font-weight: 700; color: var(--primary-700); background: transparent; border: none; border-bottom: 2.5px solid var(--primary-600); cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.15s; outline: none;">
-              ${Icons.fileText(16)}
-              <span>Descrição</span>
-            </button>
-            <button type="button" class="pdp-modal-tab-btn" data-tab-target="specs" id="pdpModalTabBtnSpecs" style="padding: 13px 18px; font-size: 0.875rem; font-weight: 600; color: #64748b; background: transparent; border: none; border-bottom: 2.5px solid transparent; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.15s; outline: none;">
-              ${Icons.sliders(16)}
-              <span>Ficha Técnica & Especificações</span>
-            </button>
-          </div>
-
-          <!-- Corpo do Modal com Painéis Alternáveis -->
-          <div style="padding: 24px; overflow-y: auto; flex: 1;">
-            <!-- Painel 1: Descrição do Produto -->
-            <div id="pdpModalPanelDesc" style="display: block;">
-              ${productDesc ? `
-                <div style="font-size: 0.9375rem; line-height: 1.8; color: #334155; white-space: pre-line;">
-                  ${productDesc}
-                </div>
-              ` : `
-                <div style="font-size: 0.875rem; color: #94a3b8; font-style: italic; padding: 24px 0; text-align: center;">
-                  Nenhuma descrição detalhada informada para este produto.
-                </div>
-              `}
+          <!-- Painel Expansível Inline de Detalhes do Produto (Descrição & Ficha Técnica) -->
+          <div id="pdpDetailsAccordion" style="display: none; margin-top: 10px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+            <!-- Abas lado a lado no topo do painel -->
+            <div class="pdp-inline-tabs-bar" style="display: flex; border-bottom: 1px solid #e2e8f0; background: #f8fafc; padding: 0 12px; gap: 6px;">
+              <button type="button" class="pdp-inline-tab-btn active" data-inline-tab="desc" id="pdpInlineTabDesc" style="padding: 10px 14px; font-size: 0.8125rem; font-weight: 700; color: var(--primary-700); background: transparent; border: none; border-bottom: 2.5px solid var(--primary-600); cursor: pointer; display: flex; align-items: center; gap: 6px; outline: none; transition: all 0.15s;">
+                ${Icons.fileText(15)}
+                <span>Descrição</span>
+              </button>
+              <button type="button" class="pdp-inline-tab-btn" data-inline-tab="specs" id="pdpInlineTabSpecs" style="padding: 10px 14px; font-size: 0.8125rem; font-weight: 600; color: #64748b; background: transparent; border: none; border-bottom: 2.5px solid transparent; cursor: pointer; display: flex; align-items: center; gap: 6px; outline: none; transition: all 0.15s;">
+                ${Icons.sliders(15)}
+                <span>Ficha Técnica</span>
+              </button>
             </div>
 
-            <!-- Painel 2: Ficha Técnica & Especificações -->
-            <div id="pdpModalPanelSpecs" style="display: none;">
-              ${(() => {
-                const validSpecs = Object.entries(product.specs || {}).filter(([key, val]) => {
-                  const lower = key.toLowerCase().trim();
-                  return !['subcategory', 'subcategoria', 'subcategory_id', 'subcategoria_id', 'subcategory_name', 'subcategoria_nome', 'id', 'category_id', 'catalog_id', '_descricao'].includes(lower) &&
-                         val !== undefined && val !== null && String(val).trim() !== '';
-                });
+            <!-- Conteúdo com Scroll Suave se necessário -->
+            <div style="padding: 16px; max-height: 380px; overflow-y: auto;">
+              <!-- Painel 1: Descrição do Produto -->
+              <div id="pdpInlinePanelDesc" style="display: block;">
+                ${productDesc ? `
+                  <div style="font-size: 0.875rem; line-height: 1.7; color: #334155; white-space: pre-line;">
+                    ${productDesc}
+                  </div>
+                ` : `
+                  <div style="font-size: 0.8125rem; color: #94a3b8; font-style: italic; padding: 12px 0; text-align: center;">
+                    Nenhuma descrição detalhada informada para este produto.
+                  </div>
+                `}
+              </div>
 
-                if (validSpecs.length === 0) {
+              <!-- Painel 2: Ficha Técnica & Especificações -->
+              <div id="pdpInlinePanelSpecs" style="display: none;">
+                ${(() => {
+                  const validSpecs = Object.entries(product.specs || {}).filter(([key, val]) => {
+                    const lower = key.toLowerCase().trim();
+                    return !['subcategory', 'subcategoria', 'subcategory_id', 'subcategoria_id', 'subcategory_name', 'subcategoria_nome', 'id', 'category_id', 'catalog_id', '_descricao'].includes(lower) &&
+                           val !== undefined && val !== null && String(val).trim() !== '';
+                  });
+
+                  if (validSpecs.length === 0) {
+                    return `
+                      <div style="padding: 16px; color: #64748b; text-align: center; font-size: 0.8125rem;">
+                        As especificações técnicas detalhadas deste item estão sendo catalogadas. Para dúvidas técnicas, fale com nossa equipa no WhatsApp.
+                      </div>
+                    `;
+                  }
+
                   return `
-                    <div style="padding: 24px; color: #64748b; text-align: center; font-size: 0.875rem;">
-                      As especificações técnicas detalhadas deste item estão sendo catalogadas. Para cotações empresariais e dúvidas técnicas, fale com nossa equipa no WhatsApp.
+                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                      <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                        <tbody>
+                          ${validSpecs.map(([key, val], idx) => {
+                            const formattedLabel = key
+                              .replace(/_/g, ' ')
+                              .replace(/\b\w/g, l => l.toUpperCase());
+                            return `
+                              <tr style="border-bottom: 1px solid #f1f5f9; background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                                <td style="font-weight: 700; width: 40%; color: #0f172a; padding: 8px 12px; font-size: 0.8125rem; border-right: 1px solid #f1f5f9;">${formattedLabel}</td>
+                                <td style="color: #475569; padding: 8px 12px; font-size: 0.8125rem;">${val}</td>
+                              </tr>
+                            `;
+                          }).join('')}
+                        </tbody>
+                      </table>
                     </div>
                   `;
-                }
-
-                return `
-                  <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
-                    <table style="width: 100%; border-collapse: collapse; text-align: left;">
-                      <tbody>
-                        ${validSpecs.map(([key, val], idx) => {
-                          const formattedLabel = key
-                            .replace(/_/g, ' ')
-                            .replace(/\b\w/g, l => l.toUpperCase());
-                          return `
-                            <tr style="border-bottom: 1px solid #f1f5f9; background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-                              <td style="font-weight: 700; width: 35%; color: #0f172a; padding: 11px 16px; font-size: 0.875rem; border-right: 1px solid #f1f5f9;">${formattedLabel}</td>
-                              <td style="color: #475569; padding: 11px 16px; font-size: 0.875rem;">${val}</td>
-                            </tr>
-                          `;
-                        }).join('')}
-                      </tbody>
-                    </table>
-                  </div>
-                `;
-              })()}
+                })()}
+              </div>
             </div>
-          </div>
-
-          <!-- Rodapé do Modal -->
-          <div style="padding: 12px 24px; border-top: 1px solid #f1f5f9; background: #f8fafc; display: flex; justify-content: flex-end;">
-            <button type="button" id="pdpCloseDetailsModalFooterBtn" class="btn btn-secondary" style="padding: 8px 20px; font-size: 0.875rem; font-weight: 700; border-radius: 8px;">
-              Fechar
-            </button>
           </div>
         </div>
       </div>
@@ -864,70 +846,65 @@ export function renderProductDetailView(productSlug) {
       };
     }
 
-    // Modal Detalhes do Produto (Abertura e Fechamento)
-    const openDetailsModalBtn = container.querySelector('#pdpOpenDetailsModalBtn');
-    const detailsModal = container.querySelector('#pdpDetailsModal');
-    const closeDetailsModalBtn = container.querySelector('#pdpCloseDetailsModalBtn');
-    const closeDetailsModalFooterBtn = container.querySelector('#pdpCloseDetailsModalFooterBtn');
+    // Accordion Expansível / Recolhível de Detalhes do Produto
+    const toggleDetailsBtn = container.querySelector('#pdpToggleDetailsBtn');
+    const detailsAccordion = container.querySelector('#pdpDetailsAccordion');
+    const detailsToggleIcon = container.querySelector('#pdpDetailsToggleIcon');
 
-    const openDetailsModal = () => {
-      if (detailsModal) {
-        detailsModal.style.display = 'flex';
-        document.body.style.overflow = 'hidden';
-      }
-    };
-
-    const closeDetailsModal = () => {
-      if (detailsModal) {
-        detailsModal.style.display = 'none';
-        document.body.style.overflow = '';
-      }
-    };
-
-    if (openDetailsModalBtn) openDetailsModalBtn.onclick = openDetailsModal;
-    if (closeDetailsModalBtn) closeDetailsModalBtn.onclick = closeDetailsModal;
-    if (closeDetailsModalFooterBtn) closeDetailsModalFooterBtn.onclick = closeDetailsModal;
-    if (detailsModal) {
-      detailsModal.onclick = (e) => {
-        if (e.target === detailsModal) closeDetailsModal();
+    if (toggleDetailsBtn && detailsAccordion) {
+      toggleDetailsBtn.onclick = () => {
+        const isCollapsed = detailsAccordion.style.display === 'none' || detailsAccordion.style.display === '';
+        if (isCollapsed) {
+          detailsAccordion.style.display = 'block';
+          toggleDetailsBtn.setAttribute('aria-expanded', 'true');
+          toggleDetailsBtn.style.borderColor = 'var(--primary-500)';
+          toggleDetailsBtn.style.background = '#f8fafc';
+          if (detailsToggleIcon) detailsToggleIcon.style.transform = 'rotate(180deg)';
+        } else {
+          detailsAccordion.style.display = 'none';
+          toggleDetailsBtn.setAttribute('aria-expanded', 'false');
+          toggleDetailsBtn.style.borderColor = '#cbd5e1';
+          toggleDetailsBtn.style.background = '#ffffff';
+          if (detailsToggleIcon) detailsToggleIcon.style.transform = 'rotate(0deg)';
+        }
       };
     }
 
-    // Alternância de abas lado a lado dentro do Modal
-    const tabBtnDesc = container.querySelector('#pdpModalTabBtnDesc');
-    const tabBtnSpecs = container.querySelector('#pdpModalTabBtnSpecs');
-    const panelDesc = container.querySelector('#pdpModalPanelDesc');
-    const panelSpecs = container.querySelector('#pdpModalPanelSpecs');
+    // Alternância de abas lado a lado dentro do painel inline
+    const inlineTabDesc = container.querySelector('#pdpInlineTabDesc');
+    const inlineTabSpecs = container.querySelector('#pdpInlineTabSpecs');
+    const inlinePanelDesc = container.querySelector('#pdpInlinePanelDesc');
+    const inlinePanelSpecs = container.querySelector('#pdpInlinePanelSpecs');
 
-    if (tabBtnDesc && tabBtnSpecs && panelDesc && panelSpecs) {
-      tabBtnDesc.onclick = () => {
-        tabBtnDesc.classList.add('active');
-        tabBtnDesc.style.color = 'var(--primary-700)';
-        tabBtnDesc.style.borderBottomColor = 'var(--primary-600)';
-        tabBtnDesc.style.fontWeight = '700';
+    if (inlineTabDesc && inlineTabSpecs && inlinePanelDesc && inlinePanelSpecs) {
+      inlineTabDesc.onclick = () => {
+        inlineTabDesc.classList.add('active');
+        inlineTabDesc.style.color = 'var(--primary-700)';
+        inlineTabDesc.style.borderBottomColor = 'var(--primary-600)';
+        inlineTabDesc.style.fontWeight = '700';
 
-        tabBtnSpecs.classList.remove('active');
-        tabBtnSpecs.style.color = '#64748b';
-        tabBtnSpecs.style.borderBottomColor = 'transparent';
-        tabBtnSpecs.style.fontWeight = '600';
+        inlineTabSpecs.classList.remove('active');
+        inlineTabSpecs.style.color = '#64748b';
+        inlineTabSpecs.style.borderBottomColor = 'transparent';
+        inlineTabSpecs.style.fontWeight = '600';
 
-        panelDesc.style.display = 'block';
-        panelSpecs.style.display = 'none';
+        inlinePanelDesc.style.display = 'block';
+        inlinePanelSpecs.style.display = 'none';
       };
 
-      tabBtnSpecs.onclick = () => {
-        tabBtnSpecs.classList.add('active');
-        tabBtnSpecs.style.color = 'var(--primary-700)';
-        tabBtnSpecs.style.borderBottomColor = 'var(--primary-600)';
-        tabBtnSpecs.style.fontWeight = '700';
+      inlineTabSpecs.onclick = () => {
+        inlineTabSpecs.classList.add('active');
+        inlineTabSpecs.style.color = 'var(--primary-700)';
+        inlineTabSpecs.style.borderBottomColor = 'var(--primary-600)';
+        inlineTabSpecs.style.fontWeight = '700';
 
-        tabBtnDesc.classList.remove('active');
-        tabBtnDesc.style.color = '#64748b';
-        tabBtnDesc.style.borderBottomColor = 'transparent';
-        tabBtnDesc.style.fontWeight = '600';
+        inlineTabDesc.classList.remove('active');
+        inlineTabDesc.style.color = '#64748b';
+        inlineTabDesc.style.borderBottomColor = 'transparent';
+        inlineTabDesc.style.fontWeight = '600';
 
-        panelSpecs.style.display = 'block';
-        panelDesc.style.display = 'none';
+        inlinePanelSpecs.style.display = 'block';
+        inlinePanelDesc.style.display = 'none';
       };
     }
 
