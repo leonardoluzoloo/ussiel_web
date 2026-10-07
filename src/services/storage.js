@@ -97,7 +97,7 @@ export const Storage = {
         sku: product.sku,
         name: product.name,
         price: product.price,
-        image: product.image,
+        image: (selectedVariant && selectedVariant.image) || product.image,
         variant: selectedVariant,
         quantity: finalQty,
         stock: maxStock

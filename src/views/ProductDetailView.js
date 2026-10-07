@@ -135,9 +135,14 @@ export function renderProductDetailView(productSlug) {
         } catch {
           hasPurchasedProduct = false;
         }
-        if (!selectedColor && product.variants?.colors?.[0]?.name) selectedColor = product.variants.colors[0].name;
+        const availableColors = Array.isArray(product.variants?.colors) ? product.variants.colors : [];
+        if (!selectedColor || !availableColors.some(c => c.name === selectedColor)) {
+          selectedColor = availableColors[0]?.name || '';
+        }
         if (!selectedStorage && product.variants?.storage?.[0]) selectedStorage = product.variants.storage[0];
-        currentImage = product.gallery?.[0] || product.image || '';
+        
+        const activeColorObj = availableColors.find(c => c.name === selectedColor);
+        currentImage = activeColorObj?.image || product.gallery?.[0] || product.image || '';
         // Carregar categorias para breadcrumbs e links
         try {
           const freshCats = await Api.categories.getAll();
@@ -332,21 +337,49 @@ export function renderProductDetailView(productSlug) {
 
           <!-- Variants Selection -->
           <div class="pdp-variants-section">
-            <!-- Colors -->
-            ${product.variants?.colors ? `
-              <div>
-                <div class="variant-group-title">
-                  Cor: <strong>${selectedColor}</strong>
+            <!-- Colors (Variações reais sincronizadas com imagem) -->
+            ${(product.variants?.colors && product.variants.colors.length > 0) ? `
+              <div style="margin-bottom: 16px;">
+                <div class="variant-group-title" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                  <span style="font-size: 0.8125rem; font-weight: 700; color: #0f172a;">Cor: <strong style="color: var(--primary-700);">${selectedColor}</strong></span>
+                  <span style="font-size: 0.75rem; color: #64748b; font-weight: 600;">${product.variants.colors.length} ${product.variants.colors.length === 1 ? 'disponível' : 'disponíveis'}</span>
                 </div>
-                <div class="color-swatches">
-                  ${product.variants.colors.map(c => `
-                    <div 
-                      class="color-swatch ${c.name === selectedColor ? 'active' : ''}" 
-                      style="background-color: ${c.hex};" 
-                      title="${c.name}"
-                      data-color-name="${c.name}"
-                    ></div>
-                  `).join('')}
+                <div class="color-swatches" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                  ${product.variants.colors.map(c => {
+                    const isSelected = c.name === selectedColor;
+                    return `
+                      <button 
+                        type="button"
+                        class="color-swatch-item ${isSelected ? 'active' : ''}" 
+                        title="${c.name}"
+                        data-color-name="${c.name}"
+                        data-color-img="${c.image || ''}"
+                        style="
+                          display: inline-flex;
+                          align-items: center;
+                          gap: 8px;
+                          padding: 5px 12px 5px 6px;
+                          border-radius: 9999px;
+                          border: 2px solid ${isSelected ? 'var(--primary-600)' : '#cbd5e1'};
+                          background: ${isSelected ? '#eff6ff' : '#ffffff'};
+                          cursor: pointer;
+                          transition: all 0.2s ease;
+                          outline: none;
+                          box-shadow: ${isSelected ? '0 0 0 3px rgba(37, 99, 235, 0.15)' : 'none'};
+                        "
+                      >
+                        ${c.image ? `
+                          <span style="width: 24px; height: 24px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid #cbd5e1; background: #fff; flex-shrink: 0;">
+                            <img src="${c.image}" alt="${c.name}" style="width: 100%; height: 100%; object-fit: cover;" />
+                          </span>
+                        ` : `
+                          <span style="width: 18px; height: 18px; border-radius: 50%; background-color: ${c.hex || '#000000'}; border: 1.5px solid #cbd5e1; display: inline-block; flex-shrink: 0; box-shadow: inset 0 1px 2px rgba(0,0,0,0.15);"></span>
+                        `}
+                        <span style="font-size: 0.8125rem; font-weight: ${isSelected ? '800' : '600'}; color: ${isSelected ? '#0f172a' : '#334155'};">${c.name}</span>
+                        ${isSelected ? `<span style="display: flex; align-items: center; color: var(--primary-600);">${Icons.check(14)}</span>` : ''}
+                      </button>
+                    `;
+                  }).join('')}
                 </div>
               </div>
             ` : ''}
@@ -724,11 +757,32 @@ export function renderProductDetailView(productSlug) {
       };
     }
 
-    // Color Swatches
-    container.querySelectorAll('.color-swatch').forEach(sw => {
-      sw.onclick = () => {
-        selectedColor = sw.dataset.colorName;
+    // Color Swatches (Troca dinâmica da foto para a cor correspondente)
+    container.querySelectorAll('.color-swatch-item').forEach(btn => {
+      btn.onclick = () => {
+        const colorName = btn.dataset.colorName;
+        const colorImg = btn.dataset.colorImg;
+        selectedColor = colorName;
+        if (colorImg) {
+          currentImage = colorImg;
+        }
         render();
+      };
+    });
+
+    // Thumbnail Clicks
+    container.querySelectorAll('.pdp-thumb').forEach(thumb => {
+      thumb.onclick = () => {
+        const thumbSrc = thumb.dataset.thumbSrc;
+        if (thumbSrc) {
+          currentImage = thumbSrc;
+          // Se a imagem clicada corresponder a uma cor, seleciona a cor correspondente
+          const matchingColor = (product.variants?.colors || []).find(c => c.image === thumbSrc);
+          if (matchingColor) {
+            selectedColor = matchingColor.name;
+          }
+          render();
+        }
       };
     });
 
@@ -780,10 +834,10 @@ export function renderProductDetailView(productSlug) {
             ...product,
             price: currentPrice
           };
-          Storage.addToCart(itemProduct, currentQty, { color: selectedColor, storage: selectedStorage });
+          Storage.addToCart(itemProduct, currentQty, { color: selectedColor, storage: selectedStorage, image: currentImage });
           Toast.show({
             title: 'Produto adicionado ao carrinho ✓',
-            message: `${currentQty} un. • ${product.name} ${selectedStorage ? `(${selectedStorage})` : ''}`,
+            message: `${currentQty} un. • ${product.name} ${selectedColor ? `(${selectedColor})` : ''}`,
             type: 'success',
             actionLabel: 'Ver Carrinho →',
             onAction: () => window.dispatchEvent(new CustomEvent('open-mini-cart'))
@@ -814,7 +868,7 @@ export function renderProductDetailView(productSlug) {
             ...product,
             price: currentPrice
           };
-          Storage.addToCart(itemProduct, currentQty, { color: selectedColor, storage: selectedStorage }, { overwriteQty: true });
+          Storage.addToCart(itemProduct, currentQty, { color: selectedColor, storage: selectedStorage, image: currentImage }, { overwriteQty: true });
           window.location.hash = '#/checkout';
         } catch (err) {
           Toast.show({ title: 'Erro ao Comprar', message: err.message || 'Não foi possível avançar para o checkout.', type: 'error' });

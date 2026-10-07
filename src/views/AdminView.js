@@ -9,7 +9,7 @@ import { Storage } from '../services/storage.js';
 import { Api } from '../services/api.js';
 import { Toast } from '../components/Toast.js';
 import { isSupabaseConfigured } from '../services/supabaseClient.js';
-import { createImageUploader, createMultiImageUploader } from '../utils/imageUpload.js';
+import { createImageUploader, createMultiImageUploader, compressImageFile } from '../utils/imageUpload.js';
 
 export function renderAdminView() {
   const container = document.createElement('div');
@@ -4633,6 +4633,37 @@ export function renderAdminView() {
             </div>
           </div>
 
+          <!-- CARD DE CORES E VARIAÇÕES COM FOTO VINCULADA (PADRÃO MERCADO LIVRE) -->
+          <div class="admin-card-panel" style="margin-bottom: 10px;">
+            <div class="admin-panel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <div>
+                <h4 class="admin-panel-title" style="margin: 0; display: flex; align-items: center; gap: 6px;">
+                  <span>Cores do Produto (Variações com Foto)</span>
+                  <span style="font-size: 0.75rem; font-weight: 600; color: #2563eb; background: #eff6ff; padding: 2px 7px; border-radius: 4px; border: 1px solid #bfdbfe;">Padrão Mercado Livre</span>
+                </h4>
+                <p style="font-size: 0.75rem; color: #64748b; margin: 2px 0 0 0;">Vincule cada cor à sua foto para sincronizar dinamicamente com a imagem principal do produto.</p>
+              </div>
+              <button type="button" id="btnAddColorVariant" class="btn btn-secondary btn-sm" style="font-size: 0.75rem; font-weight: 700; padding: 3px 10px; display: inline-flex; align-items: center; gap: 4px;">
+                + Adicionar Cor
+              </button>
+            </div>
+
+            <!-- Sugestões Rápidas de Cores -->
+            <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <span style="font-size: 0.6875rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Sugestões:</span>
+              <button type="button" class="admin-quick-color-btn" data-color-name="Branco" data-color-hex="#ffffff" style="font-size: 0.6875rem; padding: 2px 7px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; cursor: pointer;">⚪ Branco</button>
+              <button type="button" class="admin-quick-color-btn" data-color-name="Preto" data-color-hex="#000000" style="font-size: 0.6875rem; padding: 2px 7px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; cursor: pointer;">⚫ Preto</button>
+              <button type="button" class="admin-quick-color-btn" data-color-name="Azul" data-color-hex="#2563eb" style="font-size: 0.6875rem; padding: 2px 7px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; cursor: pointer;">🔵 Azul</button>
+              <button type="button" class="admin-quick-color-btn" data-color-name="Cinza / Titânio" data-color-hex="#64748b" style="font-size: 0.6875rem; padding: 2px 7px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; cursor: pointer;">🔘 Cinza</button>
+              <button type="button" class="admin-quick-color-btn" data-color-name="Dourado" data-color-hex="#d97706" style="font-size: 0.6875rem; padding: 2px 7px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; cursor: pointer;">🟡 Dourado</button>
+              <button type="button" class="admin-quick-color-btn" data-color-name="Verde" data-color-hex="#16a34a" style="font-size: 0.6875rem; padding: 2px 7px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; cursor: pointer;">🟢 Verde</button>
+              <button type="button" class="admin-quick-color-btn" data-color-name="Vermelho" data-color-hex="#dc2626" style="font-size: 0.6875rem; padding: 2px 7px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; cursor: pointer;">🔴 Vermelho</button>
+            </div>
+
+            <!-- Lista de Cores com Foto -->
+            <div id="adminColorsList" style="display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto;"></div>
+          </div>
+
           <!-- SEÇÃO INFERIOR: 2 COLUNAS EQUILIBRADAS (FOTOS + DESTAQUES vs FICHA TÉCNICA) -->
           <div class="admin-product-bottom-grid">
             <!-- COLUNA ESQUERDA: FOTOS & DESTAQUES -->
@@ -4640,7 +4671,7 @@ export function renderAdminView() {
               <!-- Card: Fotos -->
               <div class="admin-card-panel" style="flex: 1; margin-bottom: 0;">
                 <div class="admin-panel-header">
-                  <h4 class="admin-panel-title">Fotos</h4>
+                  <h4 class="admin-panel-title">Fotos Gerais do Produto</h4>
                 </div>
                 <div id="productGalleryUploaderMount"></div>
               </div>
@@ -4883,6 +4914,134 @@ export function renderAdminView() {
     });
     modal.querySelector('#productGalleryUploaderMount').appendChild(multiUploader.element);
 
+    // Gerenciador de Cores e Variações com Foto (Padrão Mercado Livre)
+    const colorsList = modal.querySelector('#adminColorsList');
+    const btnAddColorVariant = modal.querySelector('#btnAddColorVariant');
+
+    function createColorRow(col = { name: '', hex: '#2563eb', image: '' }) {
+      const row = document.createElement('div');
+      row.className = 'admin-color-row';
+      row.style.cssText = 'display: grid; grid-template-columns: 38px minmax(110px, 1.2fr) minmax(170px, 2fr) 34px; gap: 8px; align-items: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 7px 10px;';
+      
+      const currentImg = col.image || '';
+      
+      row.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: center;" title="Seletor de cor">
+          <input type="color" class="color-hex" value="${col.hex || '#2563eb'}" style="width: 32px; height: 32px; border: none; border-radius: 6px; cursor: pointer; padding: 0; background: transparent;" />
+        </div>
+        <div>
+          <input type="text" class="form-input color-name" placeholder="Ex: Branco" value="${(col.name || '').replace(/"/g, '&quot;')}" style="font-size: 0.8125rem; padding: 6px 9px; font-weight: 700; background: #ffffff;" />
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+          <div class="color-img-preview-box" style="width: 34px; height: 34px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;">
+            ${currentImg ? `<img src="${currentImg}" style="width: 100%; height: 100%; object-fit: cover;" />` : `<span style="color: #94a3b8; font-size: 13px;">📷</span>`}
+          </div>
+          <input type="hidden" class="color-img-val" value="${currentImg.replace(/"/g, '&quot;')}" />
+          <input type="file" class="color-file-input" accept="image/*" style="display: none;" />
+          <button type="button" class="btn btn-secondary btn-sm btn-upload-color-img" style="font-size: 0.6875rem; font-weight: 600; padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;">
+            ${currentImg ? 'Trocar Foto' : 'Carregar Foto'}
+          </button>
+          ${currentImg ? `
+            <button type="button" class="btn-clear-color-img" title="Remover foto" style="background: none; border: none; color: #ef4444; font-size: 13px; font-weight: 700; cursor: pointer; padding: 0 4px;">✕</button>
+          ` : ''}
+        </div>
+        <button type="button" class="admin-spec-del-btn btn-remove-color" title="Remover cor">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      `;
+
+      const fileInput = row.querySelector('.color-file-input');
+      const uploadBtn = row.querySelector('.btn-upload-color-img');
+      const previewBox = row.querySelector('.color-img-preview-box');
+      const imgValInput = row.querySelector('.color-img-val');
+      const removeBtn = row.querySelector('.btn-remove-color');
+
+      uploadBtn?.addEventListener('click', () => fileInput?.click());
+
+      fileInput?.addEventListener('change', async () => {
+        const file = fileInput.files?.[0];
+        if (file) {
+          uploadBtn.disabled = true;
+          uploadBtn.textContent = 'Otimizando...';
+          try {
+            const compressed = await compressImageFile(file, { maxWidth: 1200, quality: 0.85 });
+            imgValInput.value = compressed.dataUrl;
+            previewBox.innerHTML = `<img src="${compressed.dataUrl}" style="width: 100%; height: 100%; object-fit: cover;" />`;
+            uploadBtn.textContent = 'Trocar Foto';
+            
+            if (!row.querySelector('.btn-clear-color-img')) {
+              const clearBtnNew = document.createElement('button');
+              clearBtnNew.type = 'button';
+              clearBtnNew.className = 'btn-clear-color-img';
+              clearBtnNew.title = 'Remover foto';
+              clearBtnNew.style.cssText = 'background: none; border: none; color: #ef4444; font-size: 13px; font-weight: 700; cursor: pointer; padding: 0 4px;';
+              clearBtnNew.textContent = '✕';
+              clearBtnNew.addEventListener('click', () => {
+                imgValInput.value = '';
+                previewBox.innerHTML = `<span style="color: #94a3b8; font-size: 13px;">📷</span>`;
+                uploadBtn.textContent = 'Carregar Foto';
+                clearBtnNew.remove();
+              });
+              uploadBtn.after(clearBtnNew);
+            }
+            Toast.show('Foto da cor carregada com sucesso!', 'success');
+          } catch (err) {
+            Toast.show(err.message || 'Erro ao processar imagem.', 'error');
+          } finally {
+            uploadBtn.disabled = false;
+          }
+        }
+      });
+
+      const clearBtn = row.querySelector('.btn-clear-color-img');
+      clearBtn?.addEventListener('click', () => {
+        imgValInput.value = '';
+        previewBox.innerHTML = `<span style="color: #94a3b8; font-size: 13px;">📷</span>`;
+        uploadBtn.textContent = 'Carregar Foto';
+        clearBtn.remove();
+      });
+
+      removeBtn?.addEventListener('click', () => row.remove());
+
+      return row;
+    }
+
+    if (btnAddColorVariant && colorsList) {
+      btnAddColorVariant.addEventListener('click', () => {
+        const row = createColorRow({ name: '', hex: '#2563eb', image: '' });
+        colorsList.appendChild(row);
+        const nameInput = row.querySelector('.color-name');
+        if (nameInput) nameInput.focus();
+      });
+    }
+
+    modal.querySelectorAll('.admin-quick-color-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const name = btn.dataset.colorName;
+        const hex = btn.dataset.colorHex;
+        if (colorsList) {
+          const row = createColorRow({ name, hex, image: '' });
+          colorsList.appendChild(row);
+          const nameInput = row.querySelector('.color-name');
+          if (nameInput) nameInput.focus();
+        }
+      });
+    });
+
+    // Carregar cores existentes do produto
+    const rawVariants = (typeof prod?.variants === 'object' && prod?.variants !== null) ? prod.variants :
+      (typeof prod?.variacoes === 'object' && prod?.variacoes !== null ? (typeof prod.variacoes === 'string' ? JSON.parse(prod.variacoes) : prod.variacoes) : {});
+    const existingColors = Array.isArray(rawVariants?.colors) ? rawVariants.colors : [];
+
+    if (existingColors.length > 0 && colorsList) {
+      existingColors.forEach(c => {
+        colorsList.appendChild(createColorRow(c));
+      });
+    }
+
     // Gerenciador Dinâmico de Especificações Minimalista
     const specsList = modal.querySelector('#adminSpecsList');
     const btnAddCustomSpec = modal.querySelector('#btnAddCustomSpec');
@@ -4984,6 +5143,24 @@ export function renderAdminView() {
       const galleryImages = multiUploader.getImages();
       const coverImage = multiUploader.getCover() || null;
 
+      // Coleta cores com fotos vinculadas (Padrão Mercado Livre)
+      const colorsArray = [];
+      modal.querySelectorAll('.admin-color-row').forEach(row => {
+        const cName = row.querySelector('.color-name')?.value?.trim();
+        const cHex = row.querySelector('.color-hex')?.value?.trim() || '#2563eb';
+        const cImg = row.querySelector('.color-img-val')?.value?.trim() || '';
+        if (cName) {
+          colorsArray.push({
+            name: cName,
+            hex: cHex,
+            image: cImg
+          });
+        }
+      });
+
+      const currentVariants = (typeof prod?.variants === 'object' && prod?.variants !== null) ? { ...prod.variants } : {};
+      currentVariants.colors = colorsArray;
+
       // Coleta especificações dinâmicas
       const specsObj = {};
       modal.querySelectorAll('.admin-spec-row').forEach(row => {
@@ -5009,6 +5186,7 @@ export function renderAdminView() {
         stock_min: Number(modal.querySelector('#pStockMin').value),
         image: coverImage,
         gallery: galleryImages,
+        variants: currentVariants,
         description: modal.querySelector('#pDesc').value.trim(),
         specs: specsObj,
         is_deal: modal.querySelector('#pIsDeal').checked,
