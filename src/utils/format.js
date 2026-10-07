@@ -19,18 +19,19 @@ export function calcDiscountPercent(oldPrice, currentPrice) {
   return pct;
 }
 
-export function renderStars(rating = 5) {
-  const fullStars = Math.floor(rating);
-  const hasHalf = rating - fullStars >= 0.4;
+export function renderStars(rating = 0) {
+  const numRating = Number(rating) || 0;
+  const fullStars = Math.floor(Math.min(5, Math.max(0, numRating)));
+  const hasHalf = (numRating - fullStars) >= 0.4 && fullStars < 5;
   let html = '';
 
   for (let i = 0; i < fullStars; i++) {
     html += Icons.star(14);
   }
-  if (hasHalf && fullStars < 5) {
+  if (hasHalf) {
     html += Icons.starHalf(14);
   }
-  const remaining = 5 - Math.ceil(rating);
+  const remaining = 5 - fullStars - (hasHalf ? 1 : 0);
   for (let i = 0; i < remaining; i++) {
     html += Icons.star(14, '#cbd5e1');
   }
@@ -38,64 +39,71 @@ export function renderStars(rating = 5) {
 }
 
 /**
- * Calcula dados estatísticos e de prova social do produto (vendas, estrelas, média e comentários).
- * Mantém consistência determinística baseada no ID/nome para nunca ficar vazio.
+ * Retorna dados reais de prova social (vendas reais, estrelas reais, média real e total de avaliações reais).
+ * 100% real: sem dados fictícios ou sementes artificiais.
  */
 export function getProductSocialStats(product) {
   if (!product) {
     return {
-      soldFormatted: '150+ vendidos',
-      soldCount: 150,
-      rating: 4.8,
-      reviewsCount: 22
+      soldCount: 0,
+      soldFormatted: '',
+      hasSales: false,
+      rating: 0,
+      reviewsCount: 0,
+      hasReviews: false
     };
   }
 
-  // Gera semente determinística baseada no ID ou nome do produto para consistência absoluta
-  const rawKey = String(product.id || product.uid || product.slug || product.name || 'novatech');
-  let hash = 0;
-  for (let i = 0; i < rawKey.length; i++) {
-    hash = ((hash << 5) - hash) + rawKey.charCodeAt(i);
-    hash |= 0;
-  }
-  const seed = Math.abs(hash);
-
-  // 1. Vendas do produto (ex: 2k+ vendidos ou 450+ vendidos)
-  let sold = product.sold_count ?? product.sales_count ?? product.sold ?? product.total_sold;
-  if (sold === undefined || sold === null || sold === 0) {
-    const baseSold = [140, 260, 480, 750, 1100, 1500, 1900, 2300, 2800, 3500];
-    sold = baseSold[seed % baseSold.length] + (seed % 80);
-  }
+  // 1. Vendas reais (do banco de dados / pedidos)
+  const sold = Number(
+    product.soldCount ??
+    product.total_vendas ??
+    product.vendas ??
+    product.sold_count ??
+    product.sales_count ??
+    product.sold ??
+    product.total_sold ??
+    0
+  );
 
   let soldFormatted = '';
-  if (sold >= 1000) {
-    const kNum = (sold / 1000).toFixed(1).replace('.0', '');
-    soldFormatted = `${kNum}k+ vendidos`;
-  } else {
-    soldFormatted = `${sold}+ vendidos`;
+  if (sold > 0) {
+    if (sold >= 1000) {
+      const kNum = (sold / 1000).toFixed(1).replace('.0', '');
+      soldFormatted = `${kNum}k+ vendidos`;
+    } else {
+      soldFormatted = `${sold} ${sold === 1 ? 'vendido' : 'vendidos'}`;
+    }
   }
 
-  // 2. Avaliação / Rating (4.4 a 5.0)
-  let rating = Number(product.rating);
-  if (!rating || isNaN(rating) || rating <= 0) {
-    const possibleRatings = [4.5, 4.6, 4.7, 4.8, 4.9, 5.0];
-    rating = possibleRatings[seed % possibleRatings.length];
-  } else if (rating > 5.0) {
-    rating = 5.0;
+  // 2. Avaliações reais (tabela avaliacoes do Supabase / reviews)
+  const reviewsArr = Array.isArray(product.reviews) ? product.reviews : (Array.isArray(product.avaliacoes) ? product.avaliacoes : []);
+  
+  let reviewsCount = reviewsArr.length;
+  if (reviewsCount === 0) {
+    reviewsCount = Number(product.reviewsCount ?? product.reviewCount ?? product.total_avaliacoes ?? 0);
   }
 
-  // 3. Contagem de comentários / avaliações (14 a 98)
-  let reviewsCount = Number(product.reviewsCount ?? product.reviewCount ?? (Array.isArray(product.reviews) ? product.reviews.length : 0));
-  if (!reviewsCount || isNaN(reviewsCount) || reviewsCount <= 0) {
-    const baseReviews = [16, 22, 28, 35, 44, 52, 67, 78, 89, 94];
-    reviewsCount = baseReviews[seed % baseReviews.length];
+  let rating = 0;
+  if (reviewsArr.length > 0) {
+    const sum = reviewsArr.reduce((acc, r) => acc + Number(r.rating || r.nota || r.avaliacao || 0), 0);
+    rating = Number((sum / reviewsArr.length).toFixed(1));
+  } else if (product.rating !== undefined && product.rating !== null && Number(product.rating) > 0) {
+    rating = Number(Number(product.rating).toFixed(1));
+  } else if (product.avaliacao_media !== undefined && product.avaliacao_media !== null && Number(product.avaliacao_media) > 0) {
+    rating = Number(Number(product.avaliacao_media).toFixed(1));
   }
+
+  const hasSales = sold > 0;
+  const hasReviews = reviewsCount > 0 && rating > 0;
 
   return {
-    soldFormatted,
     soldCount: sold,
-    rating: Number(rating.toFixed(1)),
-    reviewsCount
+    soldFormatted,
+    hasSales,
+    rating: hasReviews ? rating : 0,
+    reviewsCount: hasReviews ? reviewsCount : 0,
+    hasReviews
   };
 }
 

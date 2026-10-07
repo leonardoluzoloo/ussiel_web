@@ -231,7 +231,7 @@ function initApp() {
       mainContainer.appendChild(renderCatalogView({ subcategorySlug: slug }));
       pageTitle = `${slug.toUpperCase()} | NovaTech Angola`;
     } else if (path.startsWith('/produto/')) {
-      const slug = path.replace('/produto/', '');
+      const slug = decodeURIComponent(path.replace(/^\/produto\/?/, '')).trim();
       mainContainer.appendChild(renderProductDetailView(slug));
       pageTitle = 'Detalhes do Produto | NovaTech Angola';
     } else if (path === '/carrinho') {

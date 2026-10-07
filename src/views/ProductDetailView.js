@@ -18,21 +18,27 @@ export function renderProductDetailView(productSlug) {
   let currentOldPrice = null;
   let discountPct = 0;
 
+  const cleanTargetSlug = decodeURIComponent(String(productSlug || '')).trim();
+
   // Pré-carregamento imediato do cache local para eliminar delay e piscadas
   try {
     const cachedCatsRaw = localStorage.getItem('novatech_admin_categorias_v4_clean') || localStorage.getItem('novatech_categories_v1');
     allCategories = cachedCatsRaw ? JSON.parse(cachedCatsRaw) : [];
     if (!Array.isArray(allCategories)) allCategories = [];
 
-    const mappedId = findIdByStableUid('produtos', productSlug);
+    const mappedId = findIdByStableUid('produtos', cleanTargetSlug);
     const cachedRaw = localStorage.getItem('novatech_admin_produtos_v4_clean') || localStorage.getItem('novatech_products_v1');
     const cachedProds = cachedRaw ? JSON.parse(cachedRaw) : [];
-    const initialCached = (Array.isArray(cachedProds) ? cachedProds : []).find(p => 
-      p.uid === productSlug || 
-      p.slug === productSlug || 
-      String(p.id) === String(productSlug) ||
-      (mappedId && String(p.id) === String(mappedId))
-    );
+    const targetLower = cleanTargetSlug.toLowerCase();
+
+    const initialCached = (Array.isArray(cachedProds) ? cachedProds : []).find(p => {
+      const pId = String(p.id || '').toLowerCase();
+      const pUid = String(p.uid || '').toLowerCase();
+      const pSlug = String(p.slug || '').toLowerCase();
+      const pSku = String(p.sku || '').toLowerCase();
+      return pUid === targetLower || pSlug === targetLower || pId === targetLower || pSku === targetLower || (mappedId && pId === String(mappedId).toLowerCase());
+    });
+
     if (initialCached) {
       const cachedGal = Array.isArray(initialCached.gallery) ? initialCached.gallery.filter(Boolean) : [];
       if (cachedGal.length === 0 && initialCached.image) cachedGal.push(initialCached.image);
@@ -55,18 +61,35 @@ export function renderProductDetailView(productSlug) {
 
   async function syncProduct() {
     try {
-      let realProd = await Api.products.getBySlug(productSlug);
-      if (!realProd) {
-        realProd = await Api.products.getById(productSlug);
+      const target = decodeURIComponent(String(productSlug || '')).trim();
+      const targetLower = target.toLowerCase();
+      let realProd = null;
+
+      // 1. Tenta por getBySlug
+      try {
+        realProd = await Api.products.getBySlug(target);
+      } catch {}
+
+      // 2. Tenta por getById se for número
+      if (!realProd && !isNaN(Number(target))) {
+        try {
+          realProd = await Api.products.getById(Number(target));
+        } catch {}
       }
+
+      // 3. Fallback abrangente com busca local e remota
       if (!realProd) {
-        const all = await Api.products.getAll({ all: true });
-        realProd = (all || []).find(p =>
-          p.uid === productSlug ||
-          p.slug === productSlug ||
-          String(p.id) === String(productSlug) ||
-          p.sku === productSlug
-        );
+        try {
+          const all = await Api.products.getAll({ all: true });
+          realProd = (all || []).find(p => {
+            const pId = String(p.id || '').toLowerCase();
+            const pUid = String(p.uid || '').toLowerCase();
+            const pSlug = String(p.slug || '').toLowerCase();
+            const pSku = String(p.sku || '').toLowerCase();
+            const pName = String(p.name || p.nome || '').toLowerCase();
+            return pUid === targetLower || pSlug === targetLower || pId === targetLower || pSku === targetLower || pName === targetLower;
+          });
+        } catch {}
       }
 
       if (realProd) {
@@ -323,12 +346,18 @@ export function renderProductDetailView(productSlug) {
 
           <h1 class="pdp-title">${product.name}</h1>
 
-          <!-- Prova Social (Vendas, Estrelas, Média e Comentários) -->
+          <!-- Prova Social Real (Vendas Reais, Estrelas, Média e Comentários) -->
           <div class="pdp-social-proof-row" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;">
-            <span class="card-sold-count" style="font-size: 0.75rem; padding: 3px 8px; background: #f1f5f9; color: #334155; font-weight: 700; border-radius: 6px;">${socialStats.soldFormatted}</span>
+            ${socialStats.hasSales ? `
+              <span class="card-sold-count" style="font-size: 0.75rem; padding: 3px 8px; background: #f1f5f9; color: #334155; font-weight: 700; border-radius: 6px;">${socialStats.soldFormatted}</span>
+            ` : ''}
             <div class="stars" style="display: inline-flex; gap: 2px;">${renderStars(calculatedRating)}</div>
-            <span style="font-weight: 700; font-size: 0.84rem; color: #0f172a;">${calculatedRating.toFixed(1)}</span>
-            <span style="font-size: 0.78rem; color: #64748b;">(${totalReviewsCount} comentários)</span>
+            ${hasReviews ? `
+              <span style="font-weight: 700; font-size: 0.84rem; color: #0f172a;">${calculatedRating.toFixed(1)}</span>
+              <span style="font-size: 0.78rem; color: #64748b;">(${totalReviewsCount} ${totalReviewsCount === 1 ? 'comentário' : 'comentários'})</span>
+            ` : `
+              <span style="font-size: 0.78rem; color: #94a3b8;">(0 avaliações)</span>
+            `}
           </div>
 
           <!-- Price Section -->

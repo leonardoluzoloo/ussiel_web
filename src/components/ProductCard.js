@@ -58,12 +58,16 @@ export function createProductCard(product, viewMode = 'grid') {
       ${product.name}
     </h3>
 
-    <!-- Ratings & Vendas Social Proof -->
+    <!-- Ratings & Vendas Reais -->
     <div class="card-rating">
-      <span class="card-sold-count">${socialStats.soldFormatted}</span>
+      ${socialStats.hasSales ? `<span class="card-sold-count">${socialStats.soldFormatted}</span>` : ''}
       <div class="stars">${renderStars(socialStats.rating)}</div>
-      <span class="card-rating-score">${socialStats.rating.toFixed(1)}</span>
-      <span class="rating-count">(${socialStats.reviewsCount})</span>
+      ${socialStats.hasReviews ? `
+        <span class="card-rating-score">${socialStats.rating.toFixed(1)}</span>
+        <span class="rating-count">(${socialStats.reviewsCount})</span>
+      ` : `
+        <span style="font-size: 0.725rem; color: #94a3b8; font-weight: 500;">(0)</span>
+      `}
     </div>
 
     <!-- Price Section -->
@@ -138,15 +142,17 @@ export function createProductCard(product, viewMode = 'grid') {
     });
   });
 
-  // Navigation click
-  card.querySelectorAll('[data-link]').forEach(el => {
-    el.addEventListener('click', () => {
-      window.location.hash = el.dataset.link;
+    // Navigation click (no card inteiro e nos elementos data-link)
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.btn-wishlist') || e.target.closest('.btn-card-add') || e.target.closest('button')) {
+        return;
+      }
+      const prodTarget = product.uid || product.slug || product.id;
+      window.location.hash = `/produto/${encodeURIComponent(prodTarget)}`;
     });
-  });
 
-  return card;
-}
+    return card;
+  }
 
 export function createProductListCard(product) {
   const isWishlisted = Storage.isInWishlist(product.id);
@@ -192,10 +198,14 @@ export function createProductListCard(product) {
       </h3>
 
       <div class="list-meta-row" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-        <span class="card-sold-count">${socialStats.soldFormatted}</span>
+        ${socialStats.hasSales ? `<span class="card-sold-count">${socialStats.soldFormatted}</span>` : ''}
         <div class="stars" style="display:inline-flex; gap:1px;">${renderStars(socialStats.rating)}</div>
-        <span class="card-rating-score">${socialStats.rating.toFixed(1)}</span>
-        <span class="rating-count">(${socialStats.reviewsCount})</span>
+        ${socialStats.hasReviews ? `
+          <span class="card-rating-score">${socialStats.rating.toFixed(1)}</span>
+          <span class="rating-count">(${socialStats.reviewsCount})</span>
+        ` : `
+          <span style="font-size: 0.725rem; color: #94a3b8; font-weight: 500;">(0)</span>
+        `}
         ${product.variants?.storage && product.variants.storage.length > 1 ? `
           <span class="list-variants-badge">
             ${product.variants.storage.length} opções
@@ -280,12 +290,14 @@ export function createProductListCard(product) {
     });
   });
 
-  // Navigation click
-  card.querySelectorAll('[data-link]').forEach(el => {
-    el.addEventListener('click', () => {
-      window.location.hash = el.dataset.link;
+    // Navigation click (no card de lista inteiro)
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.btn-wishlist') || e.target.closest('.btn-card-add') || e.target.closest('button')) {
+        return;
+      }
+      const prodTarget = product.uid || product.slug || product.id;
+      window.location.hash = `/produto/${encodeURIComponent(prodTarget)}`;
     });
-  });
 
-  return card;
-}
+    return card;
+  }
