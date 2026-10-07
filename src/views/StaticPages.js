@@ -68,6 +68,10 @@ export function renderContactView() {
           phone: realSettings.phone || realSettings.telefone || storeSettings.phone,
           whatsapp: realSettings.whatsapp || storeSettings.whatsapp,
           email: realSettings.email || storeSettings.email,
+          provincia: realSettings.provincia || storeSettings.provincia,
+          cidade: realSettings.cidade || realSettings.municipio || storeSettings.cidade,
+          bairro: realSettings.bairro || storeSettings.bairro,
+          rua: realSettings.rua || storeSettings.rua,
           endereco: realSettings.endereco || realSettings.address || storeSettings.endereco,
           ponto_referencia: realSettings.ponto_referencia || storeSettings.ponto_referencia,
           opening_hours: realSettings.opening_hours || realSettings.horario_funcionamento || storeSettings.opening_hours
@@ -84,6 +88,17 @@ export function renderContactView() {
     const user = Storage.getUser();
     const cleanWaNumber = (storeSettings.whatsapp || '+244 923 179 192').replace(/\D/g, '');
     const cleanPhone = (storeSettings.phone || '+244 923 179 192').replace(/\D/g, '');
+
+    // Construção do endereço completo em uma única linha
+    const addressParts = [];
+    if (storeSettings.rua) addressParts.push(storeSettings.rua);
+    if (storeSettings.endereco && storeSettings.endereco !== storeSettings.rua) addressParts.push(storeSettings.endereco);
+    if (storeSettings.bairro) addressParts.push(storeSettings.bairro);
+    if (storeSettings.cidade && storeSettings.cidade !== storeSettings.bairro) addressParts.push(storeSettings.cidade);
+    if (storeSettings.provincia && storeSettings.provincia !== storeSettings.cidade) addressParts.push(storeSettings.provincia);
+    if (storeSettings.ponto_referencia) addressParts.push(`Ponto de ref.: ${storeSettings.ponto_referencia}`);
+
+    const fullAddress = addressParts.filter(Boolean).join(', ') || 'Luanda, Angola';
 
     el.innerHTML = `
       <div style="margin: 28px auto 48px auto; max-width: 1000px;">
@@ -191,22 +206,17 @@ export function renderContactView() {
               </div>
             </a>
 
-            <!-- Localização & Horário -->
+            <!-- Endereço Completo & Horário -->
             <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; display: flex; align-items: flex-start; gap: 14px;">
               <div style="width: 40px; height: 40px; border-radius: 8px; background: #fef2f2; color: #dc2626; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                 ${Icons.mapPin(20, '#dc2626')}
               </div>
               <div style="flex: 1;">
-                <div style="font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase;">Localização</div>
-                <div style="font-size: 0.9375rem; font-weight: 700; color: #0f172a; margin-top: 2px;">
-                  ${storeSettings.endereco || 'Talatona, Luanda - Angola'}
+                <div style="font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase;">Endereço</div>
+                <div style="font-size: 0.9375rem; font-weight: 700; color: #0f172a; margin-top: 2px; line-height: 1.4;">
+                  ${fullAddress}
                 </div>
-                ${storeSettings.ponto_referencia ? `
-                  <div style="font-size: 0.8125rem; color: #64748b; margin-top: 2px;">
-                    ${storeSettings.ponto_referencia}
-                  </div>
-                ` : ''}
-                <div style="font-size: 0.8125rem; color: #475569; margin-top: 6px; padding-top: 6px; border-top: 1px solid #f1f5f9;">
+                <div style="font-size: 0.8125rem; color: #475569; margin-top: 8px; padding-top: 8px; border-top: 1px solid #f1f5f9;">
                   ${storeSettings.opening_hours}
                 </div>
               </div>
