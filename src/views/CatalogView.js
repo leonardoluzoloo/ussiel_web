@@ -222,16 +222,16 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
       id: 'banner-institutional',
       tag: 'LOJA OFICIAL',
       badge_text: 'TECNOLOGIA & INOVAÇÃO',
-      title: 'NovaTech Angola • Smartphones & Eletrônicos',
+      title: 'NovaTech Angola • Loja de Tecnologia e Eletrônicos',
       highlight: 'Tecnologia de Alta Performance com Garantia Oficial',
-      desc: 'Smartphones, computadores e eletrônicos de alto desempenho com garantia oficial, assistência técnica autorizada e pronta entrega em Luanda.',
+      desc: 'Smartphones, computadores e eletrônicos com garantia oficial, assistência técnica e pronta entrega em Luanda.',
       button_text: 'Explorar Catálogo',
       button_link: '#/catalogo',
       tag_badge: 'Garantia NovaTech',
       specs_badge: 'Entregas Rápidas',
       accent_color: '#0071e3',
-      image_url: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=1600&auto=format&fit=crop',
-      image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=1600&auto=format&fit=crop'
+      image_url: '',
+      image: ''
     }
   ];
 
