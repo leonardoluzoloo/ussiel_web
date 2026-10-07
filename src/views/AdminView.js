@@ -2916,34 +2916,16 @@ export function renderAdminView() {
   function renderProfileTab() {
     const user = Storage.getUser() || { name: 'Administrador', email: 'admin@novatech.co.ao', role: 'admin' };
     const rawName = (user?.name || 'Administrador').trim();
-    const firstName = rawName.split(' ')[0] || 'Administrador';
     const initials = rawName.split(' ').map(n => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'AD';
 
     return `
       <div class="admin-profile-wrapper" style="display:flex; flex-direction:column; gap:18px; max-width:1080px; margin:0 auto; width:100%; box-sizing:border-box;">
-        <!-- 1. Header Corporativo de Identificação do Gestor -->
-        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:18px 22px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; box-shadow:0 1px 3px rgba(15,23,42,0.04);">
-          <div style="display:flex; align-items:center; gap:16px;">
-            <div style="width:52px; height:52px; border-radius:10px; background:#0f172a; color:#ffffff; font-size:1.2rem; font-weight:800; display:flex; align-items:center; justify-content:center; letter-spacing:0.05em; flex-shrink:0; border:1px solid #334155;">
-              ${initials}
-            </div>
-            <div>
-              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <h2 style="font-size:1.15rem; font-weight:800; color:#0f172a; margin:0; letter-spacing:-0.01em;">${rawName}</h2>
-                <span class="badge" style="background:#f1f5f9; color:#0f172a; font-size:0.6875rem; font-weight:700; border:1px solid #e2e8f0; padding:2px 8px; border-radius:5px; text-transform:uppercase; letter-spacing:0.04em;">
-                  Gestor Master
-                </span>
-              </div>
-              <div style="font-size:0.8125rem; color:#64748b; margin-top:3px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <span>${user.email || 'admin@novatech.co.ao'}</span>
-                <span style="color:#cbd5e1;">•</span>
-                <span style="display:inline-flex; align-items:center; color:#15803d; font-weight:600; font-size:0.8125rem;">
-                  <span style="width:6px; height:6px; border-radius:50%; background:#16a34a; margin-right:5px; display:inline-block;"></span>
-                  Sessão Autenticada
-                </span>
-              </div>
-            </div>
+        <!-- 1. Header do Administrador -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px 20px; display:flex; align-items:center; gap:16px; box-shadow:0 1px 3px rgba(15,23,42,0.04);">
+          <div style="width:48px; height:48px; border-radius:10px; background:#0f172a; color:#ffffff; font-size:1.1rem; font-weight:800; display:flex; align-items:center; justify-content:center; letter-spacing:0.05em; flex-shrink:0;">
+            ${initials}
           </div>
+          <h2 style="font-size:1.15rem; font-weight:800; color:#0f172a; margin:0; letter-spacing:-0.01em;">${rawName}</h2>
         </div>
 
         <!-- 2. Card Unificado de Perfil com Sub-Abas -->
@@ -3038,13 +3020,9 @@ export function renderAdminView() {
           ` : `
             <!-- ABA 2: SEGURANÇA DE ACESSO -->
             <div class="admin-profile-body">
-              <div style="margin-bottom:8px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
+              <div style="margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
                 <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Atualização de Senha de Acesso</h3>
-                <p style="font-size:0.8125rem; color:#64748b; margin:0;">Para sua proteção, confirme a senha atual antes de cadastrar uma nova chave de acesso.</p>
-              </div>rgba(15,23,42,0.04);">
-              <div style="margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
-                <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0 0 4px 0;">Atualização de Senha de Acesso</h3>
-                <p style="font-size:0.8125rem; color:#64748b; margin:0;">Para sua proteção, confirme a senha atual antes de cadastrar uma nova chave de acesso.</p>
+                <p style="font-size:0.8125rem; color:#64748b; margin:0;">Para sua proteção, confirme a senha atual antes de cadastrar uma nova senha.</p>
               </div>
 
               <form id="adminPasswordChangeForm" style="display:flex; flex-direction:column; gap:16px; max-width:680px;">
