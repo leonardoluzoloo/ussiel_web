@@ -284,11 +284,11 @@ export function renderProductDetailView(productSlug) {
           <div class="pdp-main-image-wrap" id="mainImageWrap">
             ${currentImage ? `
               <img src="${currentImage}" alt="${product.name || 'Produto'}" class="pdp-main-image" id="mainPdpImage" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';" />
-              <div style="display: none; width: 100%; height: 100%; min-height: 280px; background: #f8fafc; align-items: center; justify-content: center; color: var(--text-muted);">
+              <div style="display: none; width: 100%; height: 100%; min-height: 280px; background: #ffffff; align-items: center; justify-content: center; color: var(--text-muted);">
                 ${Icons.package(48)}
               </div>
             ` : `
-              <div style="display: flex; width: 100%; height: 100%; min-height: 280px; background: #f8fafc; align-items: center; justify-content: center; color: var(--text-muted);">
+              <div style="display: flex; width: 100%; height: 100%; min-height: 280px; background: #ffffff; align-items: center; justify-content: center; color: var(--text-muted);">
                 ${Icons.package(48)}
               </div>
             `}
