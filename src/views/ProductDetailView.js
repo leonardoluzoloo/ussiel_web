@@ -1,5 +1,5 @@
 import { Icons } from '../utils/icons.js';
-import { formatPrice, calcDiscountPercent, renderStars, formatDate } from '../utils/format.js';
+import { formatPrice, calcDiscountPercent, renderStars, formatDate, getProductSocialStats } from '../utils/format.js';
 import { Storage } from '../services/storage.js';
 import { Toast } from '../components/Toast.js';
 import { createProductCard } from '../components/ProductCard.js';
@@ -247,10 +247,11 @@ export function renderProductDetailView(productSlug) {
     const catSlug = resolvedCat?.slug || (resolvedCat?.id ? String(resolvedCat.id) : '') || product.category_slug || (typeof product.category === 'string' ? product.category : '') || '';
 
     const productReviews = Array.isArray(product.reviews) ? product.reviews : [];
-    const totalReviewsCount = productReviews.length > 0 ? productReviews.length : Number(product.reviewsCount || 0);
+    const socialStats = getProductSocialStats(product);
+    const totalReviewsCount = productReviews.length > 0 ? productReviews.length : socialStats.reviewsCount;
     const calculatedRating = productReviews.length > 0
       ? Number((productReviews.reduce((sum, r) => sum + Number(r.rating || r.avaliacao || 0), 0) / productReviews.length).toFixed(1))
-      : (product.rating ? Number(product.rating) : 0);
+      : socialStats.rating;
     const hasReviews = totalReviewsCount > 0 && calculatedRating > 0;
 
     const productDesc = (product.description && product.description !== 'undefined' && product.description !== 'null' && product.description.trim() !== '')
@@ -321,6 +322,14 @@ export function renderProductDetailView(productSlug) {
           </div>
 
           <h1 class="pdp-title">${product.name}</h1>
+
+          <!-- Prova Social (Vendas, Estrelas, Média e Comentários) -->
+          <div class="pdp-social-proof-row" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;">
+            <span class="card-sold-count" style="font-size: 0.75rem; padding: 3px 8px; background: #f1f5f9; color: #334155; font-weight: 700; border-radius: 6px;">${socialStats.soldFormatted}</span>
+            <div class="stars" style="display: inline-flex; gap: 2px;">${renderStars(calculatedRating)}</div>
+            <span style="font-weight: 700; font-size: 0.84rem; color: #0f172a;">${calculatedRating.toFixed(1)}</span>
+            <span style="font-size: 0.78rem; color: #64748b;">(${totalReviewsCount} comentários)</span>
+          </div>
 
           <!-- Price Section -->
           <div class="pdp-price-section" style="margin-bottom: 18px;">

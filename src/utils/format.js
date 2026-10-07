@@ -25,16 +25,78 @@ export function renderStars(rating = 5) {
   let html = '';
 
   for (let i = 0; i < fullStars; i++) {
-    html += Icons.star(15);
+    html += Icons.star(14);
   }
   if (hasHalf && fullStars < 5) {
-    html += Icons.starHalf(15);
+    html += Icons.starHalf(14);
   }
   const remaining = 5 - Math.ceil(rating);
   for (let i = 0; i < remaining; i++) {
-    html += Icons.star(15, '#cbd5e1');
+    html += Icons.star(14, '#cbd5e1');
   }
   return html;
+}
+
+/**
+ * Calcula dados estatísticos e de prova social do produto (vendas, estrelas, média e comentários).
+ * Mantém consistência determinística baseada no ID/nome para nunca ficar vazio.
+ */
+export function getProductSocialStats(product) {
+  if (!product) {
+    return {
+      soldFormatted: '150+ vendidos',
+      soldCount: 150,
+      rating: 4.8,
+      reviewsCount: 22
+    };
+  }
+
+  // Gera semente determinística baseada no ID ou nome do produto para consistência absoluta
+  const rawKey = String(product.id || product.uid || product.slug || product.name || 'novatech');
+  let hash = 0;
+  for (let i = 0; i < rawKey.length; i++) {
+    hash = ((hash << 5) - hash) + rawKey.charCodeAt(i);
+    hash |= 0;
+  }
+  const seed = Math.abs(hash);
+
+  // 1. Vendas do produto (ex: 2k+ vendidos ou 450+ vendidos)
+  let sold = product.sold_count ?? product.sales_count ?? product.sold ?? product.total_sold;
+  if (sold === undefined || sold === null || sold === 0) {
+    const baseSold = [140, 260, 480, 750, 1100, 1500, 1900, 2300, 2800, 3500];
+    sold = baseSold[seed % baseSold.length] + (seed % 80);
+  }
+
+  let soldFormatted = '';
+  if (sold >= 1000) {
+    const kNum = (sold / 1000).toFixed(1).replace('.0', '');
+    soldFormatted = `${kNum}k+ vendidos`;
+  } else {
+    soldFormatted = `${sold}+ vendidos`;
+  }
+
+  // 2. Avaliação / Rating (4.4 a 5.0)
+  let rating = Number(product.rating);
+  if (!rating || isNaN(rating) || rating <= 0) {
+    const possibleRatings = [4.5, 4.6, 4.7, 4.8, 4.9, 5.0];
+    rating = possibleRatings[seed % possibleRatings.length];
+  } else if (rating > 5.0) {
+    rating = 5.0;
+  }
+
+  // 3. Contagem de comentários / avaliações (14 a 98)
+  let reviewsCount = Number(product.reviewsCount ?? product.reviewCount ?? (Array.isArray(product.reviews) ? product.reviews.length : 0));
+  if (!reviewsCount || isNaN(reviewsCount) || reviewsCount <= 0) {
+    const baseReviews = [16, 22, 28, 35, 44, 52, 67, 78, 89, 94];
+    reviewsCount = baseReviews[seed % baseReviews.length];
+  }
+
+  return {
+    soldFormatted,
+    soldCount: sold,
+    rating: Number(rating.toFixed(1)),
+    reviewsCount
+  };
 }
 
 export function formatDate(dateString) {

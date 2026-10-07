@@ -2060,23 +2060,50 @@ img {
   color: var(--primary-600);
 }
 
-/* Card Ratings */
+/* Card Ratings & Vendas (Social Proof) */
 .card-rating {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  flex-wrap: wrap;
   margin-bottom: 12px;
+  line-height: 1.2;
+}
+
+.card-sold-count {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #475569;
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
 }
 
 .stars {
-  display: flex;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
   color: var(--accent-amber);
-  font-size: 0.8125rem;
+}
+
+.stars svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+.card-rating-score {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #0f172a;
 }
 
 .rating-count {
-  font-size: 0.75rem;
-  color: var(--text-muted);
+  font-size: 0.71875rem;
+  color: #64748b;
+  font-weight: 500;
 }
 
 /* Card Price */
@@ -9953,6 +9980,30 @@ html, body {
   .products-grid {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 10px !important;
+  }
+
+  /* Prova Social em Cards Mobile */
+  .card-rating {
+    gap: 4px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .card-sold-count {
+    font-size: 0.625rem !important;
+    padding: 1px 4px !important;
+  }
+
+  .stars svg {
+    width: 11px !important;
+    height: 11px !important;
+  }
+
+  .card-rating-score {
+    font-size: 0.6875rem !important;
+  }
+
+  .rating-count {
+    font-size: 0.65625rem !important;
   }
 
   /* Empty State Compacto no Mobile */

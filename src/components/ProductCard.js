@@ -3,7 +3,7 @@
 // ===================================================================
 
 import { Icons } from '../utils/icons.js';
-import { formatPrice, calcDiscountPercent, renderStars } from '../utils/format.js';
+import { formatPrice, calcDiscountPercent, renderStars, getProductSocialStats } from '../utils/format.js';
 import { Storage } from '../services/storage.js';
 import { Toast } from './Toast.js';
 
@@ -14,7 +14,7 @@ export function createProductCard(product, viewMode = 'grid') {
 
   const isWishlisted = Storage.isInWishlist(product.id);
   const discountPct = calcDiscountPercent(product.oldPrice, product.price);
-  const reviewsCount = product.reviewsCount !== undefined ? product.reviewsCount : (product.reviewCount !== undefined ? product.reviewCount : 0);
+  const socialStats = getProductSocialStats(product);
 
   const card = document.createElement('div');
   card.className = 'product-card';
@@ -58,14 +58,12 @@ export function createProductCard(product, viewMode = 'grid') {
       ${product.name}
     </h3>
 
-    <!-- Ratings -->
+    <!-- Ratings & Vendas Social Proof -->
     <div class="card-rating">
-      ${reviewsCount > 0 ? `
-        <div class="stars">${renderStars(Number(product.rating) || 5)}</div>
-        <span class="rating-count">(${reviewsCount})</span>
-      ` : `
-        <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 500;">Sem avaliações</span>
-      `}
+      <span class="card-sold-count">${socialStats.soldFormatted}</span>
+      <div class="stars">${renderStars(socialStats.rating)}</div>
+      <span class="card-rating-score">${socialStats.rating.toFixed(1)}</span>
+      <span class="rating-count">(${socialStats.reviewsCount})</span>
     </div>
 
     <!-- Price Section -->
@@ -153,7 +151,7 @@ export function createProductCard(product, viewMode = 'grid') {
 export function createProductListCard(product) {
   const isWishlisted = Storage.isInWishlist(product.id);
   const discountPct = calcDiscountPercent(product.oldPrice, product.price);
-  const reviewsCount = product.reviewsCount !== undefined ? product.reviewsCount : (product.reviewCount !== undefined ? product.reviewCount : 0);
+  const socialStats = getProductSocialStats(product);
 
   const card = document.createElement('div');
   card.className = 'product-card-list';
@@ -193,13 +191,11 @@ export function createProductListCard(product) {
         ${product.name}
       </h3>
 
-      <div class="list-meta-row">
-        ${reviewsCount > 0 ? `
-          <div class="stars" style="display:inline-flex; gap:2px;">${renderStars(Number(product.rating) || 5)}</div>
-          <span style="font-size:0.75rem; color:#64748b;">(${reviewsCount})</span>
-        ` : `
-          <span style="font-size:0.75rem; color:#94a3b8;">Sem avaliações</span>
-        `}
+      <div class="list-meta-row" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+        <span class="card-sold-count">${socialStats.soldFormatted}</span>
+        <div class="stars" style="display:inline-flex; gap:1px;">${renderStars(socialStats.rating)}</div>
+        <span class="card-rating-score">${socialStats.rating.toFixed(1)}</span>
+        <span class="rating-count">(${socialStats.reviewsCount})</span>
         ${product.variants?.storage && product.variants.storage.length > 1 ? `
           <span class="list-variants-badge">
             ${product.variants.storage.length} opções
