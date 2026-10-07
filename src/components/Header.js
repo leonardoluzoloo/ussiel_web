@@ -223,9 +223,6 @@ export function createHeader() {
               </a>
             </li>
             <li class="nav-item">
-              <a href="#/blog" class="nav-link">BLOG</a>
-            </li>
-            <li class="nav-item">
               <a href="#/contacto" class="nav-link">CONTACTO</a>
             </li>
           </ul>

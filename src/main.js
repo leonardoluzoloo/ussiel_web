@@ -26,8 +26,7 @@ import {
   renderAboutView,
   renderContactView,
   renderFAQView,
-  renderPolicyView,
-  renderBlogView
+  renderPolicyView
 } from './views/StaticPages.js';
 
 function initApp() {
@@ -258,9 +257,6 @@ function initApp() {
     } else if (path === '/novidades') {
       mainContainer.appendChild(renderCatalogView({ isNew: true }));
       pageTitle = 'Lançamentos & Novidades | NovaTech Angola';
-    } else if (path === '/blog') {
-      mainContainer.appendChild(renderBlogView());
-      pageTitle = 'Blog & Notícias de Tecnologia | NovaTech Angola';
     } else if (path === '/sobre') {
       mainContainer.appendChild(renderAboutView());
       pageTitle = 'Sobre a Loja | NovaTech Angola';
