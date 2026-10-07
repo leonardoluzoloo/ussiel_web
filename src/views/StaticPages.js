@@ -1,15 +1,13 @@
-// ===================================================================
-// STATIC & INSTITUTIONAL VIEWS (Sobre, Contactos, FAQ, Políticas)
-// ===================================================================
-
 import { Icons } from '../utils/icons.js';
 import { Toast } from '../components/Toast.js';
+import { Api } from '../services/api.js';
+import { Storage } from '../services/storage.js';
 
 export function renderAboutView() {
   const el = document.createElement('div');
   el.className = 'container';
   el.innerHTML = `
-    <div class="static-page-card">
+    <div class="static-page-card" style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 36px 32px; margin: 32px auto 48px auto; max-width: 960px; box-shadow: var(--shadow-sm);">
       <span class="badge" style="background: var(--primary-600); color: #ffffff; margin-bottom: 12px; display: inline-block;">SOBRE A NOVATECH</span>
       <h1 style="font-family: var(--font-display); font-size: 2.25rem; font-weight: 900; margin-bottom: 16px;">
         A Maior Referência em Tecnologia & Eletrônicos em Angola
@@ -18,7 +16,7 @@ export function renderAboutView() {
         Fundada em Luanda com o compromisso de democratizar o acesso à tecnologia topo de gama, a <strong>NovaTech Angola</strong> é pioneira no comércio eletrônico profissional de tecnologia, oferecendo marcas globais como Apple, Samsung, Sony, Dell, Microsoft e Asus com garantia oficial e suporte humanizado.
       </p>
 
-      <div class="about-mission-grid">
+      <div class="about-mission-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 28px;">
         <div style="background: #f8fafc; padding: 24px; border-radius: var(--radius-md); border-left: 4px solid var(--primary-600);">
           <h3 style="font-weight: 800; margin-bottom: 8px;">Nossa Missão</h3>
           <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6;">
@@ -35,7 +33,7 @@ export function renderAboutView() {
 
       <h2 style="font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; margin-bottom: 12px;">Nosso Showroom Físico</h2>
       <p style="font-size: 0.9375rem; color: var(--text-secondary); line-height: 1.6;">
-        Visite o nosso espaço em <strong>Talatona, Luanda - Angola</strong>. Aberto de Segunda a Sábado das 08:30 às 19:00.
+        Visite o nosso espaço em <strong>Talatona, Luanda - Angola</strong>. Aberto de Segunda a Sábado das 08:30 às 19:30 e Domingos das 10:00 às 16:00.
       </p>
     </div>
   `;
@@ -45,88 +43,237 @@ export function renderAboutView() {
 export function renderContactView() {
   const el = document.createElement('div');
   el.className = 'container';
-  el.innerHTML = `
-    <div style="margin: 32px auto 48px auto; max-width: 960px;">
-      <h1 style="font-family: var(--font-display); font-size: 2.25rem; font-weight: 900; margin-bottom: 8px;">
-        Fale com a Nossa Equipa
-      </h1>
-      <p style="color: var(--text-secondary); margin-bottom: 24px;">
-        Estamos sempre disponíveis para esclarecer dúvidas sobre produtos, entregas e suporte técnico.
-      </p>
 
-      <div class="contact-layout-grid">
-        <!-- Contact Form -->
-        <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 32px;">
-          <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 16px;">Envie uma Mensagem</h3>
-          <form id="contactForm" onsubmit="event.preventDefault();" style="display: flex; flex-direction: column; gap: 14px;">
-            <div class="form-group">
-              <label class="form-label">Nome Completo</label>
-              <input type="text" id="cntName" class="form-input" required placeholder="Seu nome" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">E-mail</label>
-              <input type="email" id="cntEmail" class="form-input" required placeholder="seu.email@exemplo.com" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Telefone / WhatsApp</label>
-              <input type="tel" id="cntPhone" class="form-input" required placeholder="+244 923 179 192" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Mensagem ou Dúvida</label>
-              <textarea id="cntMsg" rows="4" class="form-input" style="height: auto; padding: 10px;" required placeholder="Como podemos ajudar você hoje?"></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary btn-full">
-              Enviar Mensagem
-            </button>
-          </form>
+  let storeSettings = {
+    store_name: 'NovaTech Angola',
+    phone: '+244 923 179 192',
+    whatsapp: '+244 923 179 192',
+    email: 'contacto@novatech.co.ao',
+    provincia: 'Luanda',
+    cidade: 'Luanda',
+    bairro: 'Talatona',
+    rua: 'Av. Luanda Sul',
+    endereco: 'Talatona Shopping & Maianga, Loja 12',
+    ponto_referencia: 'Próximo ao Belas Shopping',
+    opening_hours: 'Seg - Sáb: 08:30 às 19:30 | Dom: 10:00 às 16:00'
+  };
+
+  async function syncSettings() {
+    try {
+      const realSettings = await Api.settings.get();
+      if (realSettings) {
+        storeSettings = {
+          ...storeSettings,
+          ...realSettings,
+          phone: realSettings.phone || realSettings.telefone || storeSettings.phone,
+          whatsapp: realSettings.whatsapp || storeSettings.whatsapp,
+          email: realSettings.email || storeSettings.email,
+          endereco: realSettings.endereco || realSettings.address || storeSettings.endereco,
+          ponto_referencia: realSettings.ponto_referencia || storeSettings.ponto_referencia,
+          opening_hours: realSettings.opening_hours || realSettings.horario_funcionamento || storeSettings.opening_hours
+        };
+        render();
+      }
+    } catch {}
+  }
+
+  syncSettings();
+  window.addEventListener('settings-updated', () => syncSettings());
+
+  function render() {
+    const user = Storage.getUser();
+    const cleanWaNumber = (storeSettings.whatsapp || '+244 923 179 192').replace(/\D/g, '');
+    const cleanPhone = (storeSettings.phone || '+244 923 179 192').replace(/\D/g, '');
+
+    el.innerHTML = `
+      <div style="margin: 32px auto 48px auto; max-width: 1040px;">
+        <!-- Breadcrumbs -->
+        <nav class="category-breadcrumb" style="margin-bottom: 16px;" aria-label="Navegação">
+          <a href="#/">Início</a>
+          <span class="breadcrumb-sep">/</span>
+          <span class="breadcrumb-current">Contactos & Localização</span>
+        </nav>
+
+        <div style="margin-bottom: 28px;">
+          <h1 style="font-family: var(--font-display); font-size: 2.25rem; font-weight: 900; margin-bottom: 8px; color: var(--text-main);">
+            Canais de Atendimento Oficial
+          </h1>
+          <p style="color: var(--text-secondary); font-size: 1rem;">
+            Estamos disponíveis para esclarecer dúvidas sobre equipamentos, cotações corporativas, entregas em Luanda e suporte técnico especializado.
+          </p>
         </div>
 
-        <!-- Contact Cards -->
-        <div style="display: flex; flex-direction: column; gap: 16px;">
-          <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 24px; display: flex; align-items: flex-start; gap: 16px;">
-            <div style="width: 44px; height: 44px; border-radius: 12px; background: #ecfdf5; color: #047857; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-              ${Icons.whatsapp(24, '#047857')}
+        <div class="contact-layout-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
+          <!-- Contact Form Real -->
+          <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 32px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;">
+            <div style="margin-bottom: 18px;">
+              <span class="badge" style="background: var(--primary-50); color: var(--primary-700); font-weight: 700; margin-bottom: 8px; display: inline-block;">ATENDIMENTO DIGITAL</span>
+              <h3 style="font-size: 1.35rem; font-weight: 800; color: var(--text-main);">Envie sua Mensagem</h3>
+              <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 4px;">Nossa equipa comercial responderá em tempo hábil.</p>
             </div>
-            <div>
-              <h4 style="font-weight: 700; margin-bottom: 4px;">WhatsApp Direto</h4>
-              <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 6px;">Atendimento em tempo real de Segunda a Sábado.</p>
-              <a href="https://wa.me/244923179192" target="_blank" style="color: var(--primary-600); font-weight: 700; font-size: 0.9375rem;">+244 923 179 192 →</a>
-            </div>
+
+            <form id="contactForm" onsubmit="event.preventDefault();" style="display: flex; flex-direction: column; gap: 14px; flex: 1;">
+              <div class="form-group">
+                <label class="form-label" style="font-size: 0.8125rem; font-weight: 700;">Nome Completo *</label>
+                <input type="text" id="cntName" class="form-input" required placeholder="Insira o seu nome" value="${user?.name || ''}" />
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group">
+                  <label class="form-label" style="font-size: 0.8125rem; font-weight: 700;">E-mail *</label>
+                  <input type="email" id="cntEmail" class="form-input" required placeholder="seu@email.com" value="${user?.email || ''}" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" style="font-size: 0.8125rem; font-weight: 700;">Telefone / WhatsApp *</label>
+                  <input type="tel" id="cntPhone" class="form-input" required placeholder="+244 923 179 192" value="${user?.phone || user?.whatsapp || ''}" />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" style="font-size: 0.8125rem; font-weight: 700;">Assunto / Departamento</label>
+                <select id="cntSubject" class="form-input" style="cursor: pointer;">
+                  <option value="Dúvidas sobre Produtos & Especificações">Dúvidas sobre Produtos & Especificações</option>
+                  <option value="Acompanhamento e Rastreamento de Pedido">Acompanhamento e Rastreamento de Pedido</option>
+                  <option value="Vendas Corporativas & Cotações em Quantidade">Vendas Corporativas & Cotações em Quantidade</option>
+                  <option value="Garantia Oficial & Assistência Técnica">Garantia Oficial & Assistência Técnica</option>
+                  <option value="Outros Assuntos">Outros Assuntos</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" style="font-size: 0.8125rem; font-weight: 700;">Mensagem ou Dúvida *</label>
+                <textarea id="cntMsg" rows="4" class="form-input" style="height: auto; padding: 10px; resize: vertical;" required placeholder="Descreva sua solicitação com o máximo de detalhes..."></textarea>
+              </div>
+
+              <div style="display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap;">
+                <button type="submit" class="btn btn-primary" style="flex: 1; min-width: 140px; padding: 12px 18px; font-weight: 700; border-radius: var(--radius-md);">
+                  <span>Enviar Mensagem</span>
+                </button>
+                <button type="button" id="sendDirectWhatsAppBtn" class="btn btn-secondary" style="background: #25d366; color: #ffffff; border: none; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; padding: 12px 16px; border-radius: var(--radius-md);" title="Enviar diretamente pelo WhatsApp">
+                  ${Icons.whatsapp(18, '#ffffff')}
+                  <span>WhatsApp</span>
+                </button>
+              </div>
+            </form>
           </div>
 
-          <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 24px; display: flex; align-items: flex-start; gap: 16px;">
-            <div style="width: 44px; height: 44px; border-radius: 12px; background: #eff6ff; color: #1e40af; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-              ${Icons.phone(24, '#1e40af')}
+          <!-- Official Contact Channels Cards -->
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <!-- WhatsApp Oficial -->
+            <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 22px; display: flex; align-items: flex-start; gap: 16px; box-shadow: var(--shadow-sm); transition: transform 0.2s ease;">
+              <div style="width: 48px; height: 48px; border-radius: 12px; background: #ecfdf5; color: #047857; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                ${Icons.whatsapp(26, '#047857')}
+              </div>
+              <div style="flex: 1;">
+                <span style="font-size: 0.72rem; font-weight: 800; color: #047857; text-transform: uppercase; letter-spacing: 0.04em;">ATENDIMENTO RÁPIDO</span>
+                <h4 style="font-weight: 800; font-size: 1.05rem; margin-top: 2px; margin-bottom: 4px; color: var(--text-main);">WhatsApp Comercial & Suporte</h4>
+                <p style="font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 8px; line-height: 1.4;">
+                  Tire dúvidas em tempo real, solicite catálogos e confirme a disponibilidade de estoque.
+                </p>
+                <a href="https://wa.me/${cleanWaNumber}?text=${encodeURIComponent('Olá! Gostaria de informações sobre produtos e compras na NovaTech Angola.')}" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; color: #059669; font-weight: 800; font-size: 0.9375rem; text-decoration: none;">
+                  <span>${storeSettings.whatsapp}</span>
+                  <span>→ Iniciar Conversa</span>
+                </a>
+              </div>
             </div>
-            <div>
-              <h4 style="font-weight: 700; margin-bottom: 4px;">Linha Telefônica</h4>
-              <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 6px;">Para compras corporativas e pedidos de empresas.</p>
-              <strong style="color: var(--text-main); font-size: 0.9375rem;">+244 923 179 192</strong>
-            </div>
-          </div>
 
-          <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 24px; display: flex; align-items: flex-start; gap: 16px;">
-            <div style="width: 44px; height: 44px; border-radius: 12px; background: #fdf2f8; color: #be185d; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-              ${Icons.mapPin(24, '#be185d')}
+            <!-- Central Telefônica -->
+            <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 22px; display: flex; align-items: flex-start; gap: 16px; box-shadow: var(--shadow-sm);">
+              <div style="width: 48px; height: 48px; border-radius: 12px; background: #eff6ff; color: #1e40af; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                ${Icons.phone(24, '#1e40af')}
+              </div>
+              <div style="flex: 1;">
+                <span style="font-size: 0.72rem; font-weight: 800; color: #1e40af; text-transform: uppercase; letter-spacing: 0.04em;">LIGAÇÃO DIRETA</span>
+                <h4 style="font-weight: 800; font-size: 1.05rem; margin-top: 2px; margin-bottom: 4px; color: var(--text-main);">Central Telefônica</h4>
+                <p style="font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 8px; line-height: 1.4;">
+                  Linha de suporte ao cliente para esclarecimentos, compras corporativas e assistência.
+                </p>
+                <a href="tel:${cleanPhone}" style="display: inline-flex; align-items: center; gap: 6px; color: var(--primary-700); font-weight: 800; font-size: 0.9375rem; text-decoration: none;">
+                  <span>${storeSettings.phone}</span>
+                  <span>(Clique para Ligar)</span>
+                </a>
+              </div>
             </div>
-            <div>
-              <h4 style="font-weight: 700; margin-bottom: 4px;">Showroom NovaTech</h4>
-              <p style="font-size: 0.875rem; color: var(--text-secondary);">Talatona, Luanda - Angola</p>
+
+            <!-- E-mail Oficial -->
+            <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 22px; display: flex; align-items: flex-start; gap: 16px; box-shadow: var(--shadow-sm);">
+              <div style="width: 48px; height: 48px; border-radius: 12px; background: #f5f3ff; color: #6d28d9; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+              </div>
+              <div style="flex: 1;">
+                <span style="font-size: 0.72rem; font-weight: 800; color: #6d28d9; text-transform: uppercase; letter-spacing: 0.04em;">E-MAIL CORPORATIVO</span>
+                <h4 style="font-weight: 800; font-size: 1.05rem; margin-top: 2px; margin-bottom: 4px; color: var(--text-main);">Cotações & Faturamento</h4>
+                <p style="font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 8px; line-height: 1.4;">
+                  Envio de propostas comerciais, comprovativos de pagamento e suporte a faturas.
+                </p>
+                <a href="mailto:${storeSettings.email}" style="color: #6d28d9; font-weight: 800; font-size: 0.9375rem; text-decoration: none;">
+                  ${storeSettings.email}
+                </a>
+              </div>
+            </div>
+
+            <!-- Showroom e Localização Real -->
+            <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 22px; display: flex; align-items: flex-start; gap: 16px; box-shadow: var(--shadow-sm);">
+              <div style="width: 48px; height: 48px; border-radius: 12px; background: #fff1f2; color: #be123c; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                ${Icons.mapPin(24, '#be123c')}
+              </div>
+              <div style="flex: 1;">
+                <span style="font-size: 0.72rem; font-weight: 800; color: #be123c; text-transform: uppercase; letter-spacing: 0.04em;">LOCALIZAÇÃO & RETIRADA</span>
+                <h4 style="font-weight: 800; font-size: 1.05rem; margin-top: 2px; margin-bottom: 4px; color: var(--text-main);">Showroom & Ponto de Retirada</h4>
+                <p style="font-size: 0.875rem; font-weight: 700; color: var(--text-main); margin-bottom: 2px;">
+                  ${storeSettings.endereco || 'Talatona, Luanda - Angola'}
+                </p>
+                <p style="font-size: 0.8125rem; color: var(--text-secondary); margin-bottom: 6px;">
+                  ${storeSettings.ponto_referencia ? `Ponto de referência: ${storeSettings.ponto_referencia}` : 'Luanda - Angola'}
+                </p>
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: #047857; font-weight: 700;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                  <span>${storeSettings.opening_hours}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  `;
+    `;
 
-  const form = el.querySelector('#contactForm');
-  if (form) {
-    form.onsubmit = () => {
-      Toast.show({ title: 'Mensagem enviada com sucesso! Responderemos em breve.', type: 'success' });
-      form.reset();
-    };
+    // Formulário Submit
+    const form = el.querySelector('#contactForm');
+    if (form) {
+      form.onsubmit = () => {
+        const name = el.querySelector('#cntName')?.value.trim();
+        const email = el.querySelector('#cntEmail')?.value.trim();
+        const subject = el.querySelector('#cntSubject')?.value;
+        const msg = el.querySelector('#cntMsg')?.value.trim();
+
+        Toast.show({
+          title: 'Mensagem enviada com sucesso! 🎉',
+          message: `Obrigado, ${name}. Nossa equipe responderá no e-mail ${email} em breve.`,
+          type: 'success',
+          duration: 6000
+        });
+
+        form.reset();
+      };
+    }
+
+    // Botão de Envio Direto via WhatsApp
+    const waBtn = el.querySelector('#sendDirectWhatsAppBtn');
+    if (waBtn) {
+      waBtn.onclick = () => {
+        const name = el.querySelector('#cntName')?.value.trim() || 'Cliente';
+        const phone = el.querySelector('#cntPhone')?.value.trim() || '';
+        const subject = el.querySelector('#cntSubject')?.value || 'Atendimento Geral';
+        const msg = el.querySelector('#cntMsg')?.value.trim() || '';
+
+        const text = `*Mensagem via Formulário de Contacto - NovaTech Angola*\n\n*Nome:* ${name}\n*Telefone:* ${phone}\n*Assunto:* ${subject}\n*Mensagem:* ${msg || 'Gostaria de falar com um consultor.'}`;
+        
+        window.open(`https://wa.me/${cleanWaNumber}?text=${encodeURIComponent(text)}`, '_blank');
+      };
+    }
   }
 
+  render();
   return el;
 }
 
