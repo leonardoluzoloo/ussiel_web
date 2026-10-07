@@ -2713,31 +2713,7 @@ export function renderAdminView() {
     const s = storeSettings || {};
     return `
       <div class="admin-settings-wrapper" style="display:flex; flex-direction:column; gap:14px; max-width:1080px; margin:0 auto; width:100%; box-sizing:border-box;">
-        <!-- 1. Header Compacto da Loja -->
-        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; box-shadow:0 1px 3px rgba(15,23,42,0.04);">
-          <div style="display:flex; align-items:center; gap:12px; min-width:180px; flex:1;">
-            <div style="width:40px; height:40px; border-radius:8px; background:#0f172a; color:#ffffff; font-size:1rem; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-            </div>
-            <div>
-              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <h2 style="font-size:1.05rem; font-weight:800; color:#0f172a; margin:0;">${s.store_name || 'NovaTech Angola'}</h2>
-                <span class="badge" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; font-size:0.6875rem; font-weight:700; padding:1px 6px; border-radius:4px;">
-                  ● Operacional
-                </span>
-              </div>
-              <div style="font-size:0.775rem; color:#64748b; margin-top:2px;">
-                ${s.slogan || 'Loja de Tecnologia'} • <strong>Kwanza (Kz)</strong>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <span class="badge" style="background:#f8fafc; color:#475569; border:1px solid #e2e8f0; font-size:0.75rem; font-weight:600; padding:3px 8px; border-radius:5px;">
-              ${s.provincia || 'Luanda'}, Angola
-            </span>
-          </div>
-        </div>
+        <h1 style="font-size:1.25rem; font-weight:800; color:#0f172a; margin:0;">Configuração da Loja</h1>
 
         <!-- 2. Card Unificado com Sub-Abas e Formulário -->
         <div class="admin-settings-card">
@@ -3967,6 +3943,8 @@ export function renderAdminView() {
           await Api.settings.save('general', payload);
           storeSettings = { ...storeSettings, ...payload };
           Toast.show('Configurações salvas com sucesso!', 'success');
+          currentTab = 'dashboard';
+          window.history.replaceState(null, '', window.location.pathname + '#/admin/dashboard');
           await loadAllData();
           render();
         } catch (err) {
