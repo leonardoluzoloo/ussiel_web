@@ -341,46 +341,96 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
         searchQuery ? `Busca por "${searchQuery}"` :
           selectedCatNames.length > 0 ? selectedCatNames.join(', ') : 'Catálogo Completo';
 
-    container.innerHTML = `
-      <!-- Header Hero Banner (Banner Limpo Oficial: Imagem integral com link) -->
-      <section class="hero-clean-banner-section" style="margin-top: 16px; margin-bottom: 20px;">
-        <div class="hero-clean-banner-box" id="heroCommercialBox">
-          ${f ? `
-            <a href="${bannerLink}" class="hero-clean-banner-link" id="heroLink" title="${bannerTitle}" aria-label="${bannerTitle}">
-              ${bannerImg ? `
-                <img src="${bannerImg}" alt="${bannerTitle}" class="hero-clean-banner-img" id="heroProductImage" />
-              ` : `
-                <div class="hero-clean-fallback-banner">
-                  <div class="hero-fallback-brand-badge">TECNOLOGIA & INOVAÇÃO</div>
-                  <h2 class="hero-fallback-title">${bannerTitle}</h2>
-                  <p class="hero-fallback-sub">Equipamentos e eletrônicos de alto desempenho com garantia oficial e entrega rápida.</p>
-                  <span class="btn btn-primary" style="margin-top: 14px; padding: 10px 24px; font-weight: 700; border-radius: 8px;">Explorar Catálogo →</span>
-                </div>
-              `}
-            </a>
-          ` : `
-            <div class="hero-clean-banner-skeleton" style="width: 100%; height: 320px; background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%); background-size: 200% 100%; animation: adminShimmer 1.5s infinite; border-radius: 16px;"></div>
-          `}
+    const isSingleCategory = selectedCategories.length === 1;
+    const currentCategoryObj = isSingleCategory ? activeCategories.find(item => 
+      String(item.id) === String(selectedCategories[0]).toLowerCase().trim() ||
+      (item.slug && item.slug.toLowerCase() === String(selectedCategories[0]).toLowerCase().trim()) ||
+      (item.uid && item.uid.toLowerCase() === String(selectedCategories[0]).toLowerCase().trim()) ||
+      (item.name && item.name.toLowerCase() === String(selectedCategories[0]).toLowerCase().trim())
+    ) : null;
 
-          <!-- Setas e Dots condicionais -->
-          ${currentBannerList.length > 1 ? `
-            <button class="hero-nav-arrow hero-nav-prev" id="heroPrevBtn" aria-label="Voltar para o banner anterior" title="Banner Anterior">
-              ${Icons.chevronLeft(26, '#ffffff')}
-            </button>
-            <button class="hero-nav-arrow hero-nav-next" id="heroNextBtn" aria-label="Avançar para o próximo banner" title="Próximo Banner">
-              ${Icons.chevronRight(26, '#ffffff')}
-            </button>
-            <div class="hero-dots-indicator" id="heroDotsIndicator">
-              ${currentBannerList.map((_, idx) => `
-                <button class="hero-dot ${(idx === (activeFlagshipIndex % currentBannerList.length)) ? 'active' : ''}" data-dot-idx="${idx}" aria-label="Slide ${idx + 1}"></button>
-              `).join('')}
+    const categorySubs = currentCategoryObj ? (Array.isArray(currentCategoryObj.subcategories) ? currentCategoryObj.subcategories : (Array.isArray(currentCategoryObj.subcategorias) ? currentCategoryObj.subcategorias : [])) : [];
+
+    container.innerHTML = `
+      ${isSingleCategory && currentCategoryObj ? `
+        <!-- Category Specific Header -->
+        <section class="category-page-header">
+          <nav class="category-breadcrumb" aria-label="Navegação estrutural">
+            <a href="#/">Início</a>
+            <span class="breadcrumb-sep">/</span>
+            <span class="breadcrumb-current">${currentCategoryObj.name}</span>
+          </nav>
+
+          <div class="category-title-wrap">
+            <h1 class="category-main-heading">${currentCategoryObj.name.toUpperCase()}</h1>
+            <p class="category-desc-text">Encontre os melhores produtos em ${currentCategoryObj.name} com pronta entrega e garantia oficial.</p>
+          </div>
+
+          ${categorySubs.length > 0 ? `
+            <div class="category-subchips-container">
+              <div class="category-subchips-bar">
+                <button type="button" class="cat-subchip ${selectedSubcategories.length === 0 ? 'active' : ''}" data-sub-val="">
+                  Todos
+                </button>
+                ${categorySubs.map(sub => {
+                  const subName = typeof sub === 'string' ? sub : (sub.name || sub.nome || '');
+                  const subSlug = typeof sub === 'string' ? sub : (sub.slug || sub.uid || sub.name || '');
+                  if (!subName) return '';
+                  const isSubActive = selectedSubcategories.some(s => 
+                    String(s).toLowerCase() === subSlug.toLowerCase() || 
+                    String(s).toLowerCase() === subName.toLowerCase()
+                  );
+                  return `
+                    <button type="button" class="cat-subchip ${isSubActive ? 'active' : ''}" data-sub-val="${subSlug}">
+                      ${subName}
+                    </button>
+                  `;
+                }).join('')}
+              </div>
             </div>
           ` : ''}
-        </div>
-      </section>
+        </section>
+      ` : `
+        <!-- Header Hero Banner (Home / Catálogo Geral) -->
+        <section class="hero-clean-banner-section" style="margin-top: 16px; margin-bottom: 20px;">
+          <div class="hero-clean-banner-box" id="heroCommercialBox">
+            ${f ? `
+              <a href="${bannerLink}" class="hero-clean-banner-link" id="heroLink" title="${bannerTitle}" aria-label="${bannerTitle}">
+                ${bannerImg ? `
+                  <img src="${bannerImg}" alt="${bannerTitle}" class="hero-clean-banner-img" id="heroProductImage" />
+                ` : `
+                  <div class="hero-clean-fallback-banner">
+                    <div class="hero-fallback-brand-badge">TECNOLOGIA & INOVAÇÃO</div>
+                    <h2 class="hero-fallback-title">${bannerTitle}</h2>
+                    <p class="hero-fallback-sub">Equipamentos e eletrônicos de alto desempenho com garantia oficial e entrega rápida.</p>
+                    <span class="btn btn-primary" style="margin-top: 14px; padding: 10px 24px; font-weight: 700; border-radius: 8px;">Explorar Catálogo →</span>
+                  </div>
+                `}
+              </a>
+            ` : `
+              <div class="hero-clean-banner-skeleton" style="width: 100%; height: 320px; background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%); background-size: 200% 100%; animation: adminShimmer 1.5s infinite; border-radius: 16px;"></div>
+            `}
 
-      ${hasFiltersActive ? `
-        <!-- Sleek Active Filter Strip -->
+            <!-- Setas e Dots condicionais -->
+            ${currentBannerList.length > 1 ? `
+              <button class="hero-nav-arrow hero-nav-prev" id="heroPrevBtn" aria-label="Voltar para o banner anterior" title="Banner Anterior">
+                ${Icons.chevronLeft(26, '#ffffff')}
+              </button>
+              <button class="hero-nav-arrow hero-nav-next" id="heroNextBtn" aria-label="Avançar para o próximo banner" title="Próximo Banner">
+                ${Icons.chevronRight(26, '#ffffff')}
+              </button>
+              <div class="hero-dots-indicator" id="heroDotsIndicator">
+                ${currentBannerList.map((_, idx) => `
+                  <button class="hero-dot ${(idx === (activeFlagshipIndex % currentBannerList.length)) ? 'active' : ''}" data-dot-idx="${idx}" aria-label="Slide ${idx + 1}"></button>
+                `).join('')}
+              </div>
+            ` : ''}
+          </div>
+        </section>
+      `}
+
+      ${hasFiltersActive && !isSingleCategory ? `
+        <!-- Sleek Active Filter Strip (quando filtros múltiplos ou busca estiverem ativos sem ser página única de categoria) -->
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; padding: 10px 16px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; flex-wrap: wrap;">
           <div style="display: flex; align-items: center; gap: 8px;">
             <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Exibindo:</span>
@@ -832,12 +882,25 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
       };
     }
 
+    // Category Subchips Quick Filter
+    container.querySelectorAll('.cat-subchip').forEach(btn => {
+      btn.onclick = () => {
+        const subVal = btn.dataset.subVal;
+        if (!subVal) {
+          selectedSubcategories = [];
+        } else {
+          selectedSubcategories = [subVal];
+        }
+        render();
+      };
+    });
+
     const clearCatBtn = container.querySelector('#catalogClearCategoryBtn');
     if (clearCatBtn) {
       clearCatBtn.onclick = () => {
         selectedCategories = [];
         selectedSubcategories = [];
-        render();
+        window.location.hash = '#/catalogo';
       };
     }
 

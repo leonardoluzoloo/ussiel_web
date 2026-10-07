@@ -50,7 +50,7 @@ export function createHeader() {
         <div class="container top-bar-inner">
           <div class="top-bar-left">
             <span class="top-badge">ENTREGAS RÁPIDAS</span>
-            <span>Entregas expressas em Luanda em 24h-48h | Todo território nacional</span>
+            <span>Entregas em Luanda em 24–48h • Enviamos para todo o país</span>
           </div>
           <div class="top-bar-right">
             <a href="https://wa.me/244923179192" target="_blank" class="top-link">
@@ -167,36 +167,51 @@ export function createHeader() {
 
               <!-- Mega Menu Dropdown -->
               <div class="mega-menu" id="megaMenu">
-                <div class="container">
+                <div class="container mega-menu-container">
                   <div class="mega-menu-grid">
                     ${dynamicCategories.length === 0 ? `
-                      <div class="mega-col" style="grid-column: span 3; padding: 20px 0;">
-                        <div style="color: var(--text-secondary); font-size: 0.875rem;">
+                      <div class="mega-col mega-empty-col">
+                        <div class="mega-empty-text">
                           Nenhuma categoria disponível no momento. Novidades em breve!
                         </div>
                       </div>
-                    ` : dynamicCategories.map(cat => `
+                    ` : dynamicCategories.map(cat => {
+                      const subs = cat.subcategories || [];
+                      const catSlug = cat.slug || cat.uid || cat.id;
+                      return `
                       <div class="mega-col">
-                        <div class="mega-col-title">
-                          <span class="mega-icon">${Icons[cat.iconName] ? Icons[cat.iconName](18) : Icons.package(18)}</span>
-                          <a href="#/categoria/${cat.uid || cat.slug}">${cat.name}</a>
+                        <div class="mega-col-header">
+                          <a href="#/categoria/${catSlug}" class="mega-col-title-link">
+                            <span class="mega-icon">${Icons[cat.iconName] ? Icons[cat.iconName](16) : Icons.package(16)}</span>
+                            <span class="mega-title-text">${cat.name.toUpperCase()}</span>
+                          </a>
                         </div>
-                        <ul class="mega-sublist">
-                          ${(cat.subcategories || []).map(sub => {
-                            const subName = typeof sub === 'string' ? sub : (sub.name || sub.nome || '');
-                            const subSlug = typeof sub === 'string' ? sub : (sub.uid || sub.slug || sub.name || '');
-                            if (!subName) return '';
-                            return `
-                            <li>
-                              <a href="#/?cat=${cat.uid || cat.slug}&sub=${encodeURIComponent(subSlug)}" class="mega-sublink">
-                                <span>${subName}</span>
-                              </a>
-                            </li>
-                          `;
-                          }).join('')}
-                        </ul>
+                        ${subs.length > 0 ? `
+                          <ul class="mega-sublist">
+                            ${subs.map(sub => {
+                              const subName = typeof sub === 'string' ? sub : (sub.name || sub.nome || '');
+                              const subSlug = typeof sub === 'string' ? sub : (sub.slug || sub.uid || sub.name || '');
+                              if (!subName) return '';
+                              return `
+                              <li class="mega-subitem">
+                                <a href="#/categoria/${catSlug}?sub=${encodeURIComponent(subSlug)}" class="mega-sublink">
+                                  ${subName}
+                                </a>
+                              </li>
+                            `;
+                            }).join('')}
+                          </ul>
+                        ` : ''}
                       </div>
-                    `).join('')}
+                    `;
+                    }).join('')}
+                  </div>
+                  
+                  <div class="mega-menu-footer">
+                    <a href="#/catalogo" class="mega-view-all-link">
+                      <span>Ver todas as categorias</span>
+                      <span>→</span>
+                    </a>
                   </div>
                 </div>
               </div>
@@ -246,12 +261,23 @@ export function createHeader() {
       };
     }
 
-    // Mega Menu Hover / Toggle
+    // Mega Menu Hover / Toggle / Close on click
     const navCategoriesItem = header.querySelector('#navCategoriesItem');
     const megaMenu = header.querySelector('#megaMenu');
     if (navCategoriesItem && megaMenu) {
-      navCategoriesItem.onmouseenter = () => megaMenu.classList.add('active');
-      navCategoriesItem.onmouseleave = () => megaMenu.classList.remove('active');
+      let closeTimeout = null;
+
+      navCategoriesItem.onmouseenter = () => {
+        if (closeTimeout) clearTimeout(closeTimeout);
+        megaMenu.classList.add('active');
+      };
+
+      navCategoriesItem.onmouseleave = () => {
+        closeTimeout = setTimeout(() => {
+          megaMenu.classList.remove('active');
+        }, 150);
+      };
+
       const toggle = header.querySelector('#navCategoriesToggle');
       if (toggle) {
         toggle.onclick = (e) => {
@@ -259,6 +285,20 @@ export function createHeader() {
           megaMenu.classList.toggle('active');
         };
       }
+
+      // Close when clicking any link inside the mega menu
+      megaMenu.querySelectorAll('a').forEach(a => {
+        a.addEventListener('click', () => {
+          megaMenu.classList.remove('active');
+        });
+      });
+
+      // Close when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!navCategoriesItem.contains(e.target)) {
+          megaMenu.classList.remove('active');
+        }
+      });
     }
 
     // Search Autocomplete functionality

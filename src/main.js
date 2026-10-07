@@ -157,9 +157,9 @@ function initApp() {
 
     // Parse URL query params
     const queryParams = new URLSearchParams(queryPart || '');
-    const searchQuery = queryParams.get('q');
-    const categoryQuery = queryParams.get('cat');
-    const subcategoryQuery = queryParams.get('subcat');
+    const searchQuery = queryParams.get('q') || queryParams.get('search');
+    const categoryQuery = queryParams.get('cat') || queryParams.get('category');
+    const subcategoryQuery = queryParams.get('sub') || queryParams.get('subcat') || queryParams.get('subcategory');
 
     mainContainer.innerHTML = '';
     window.scrollTo({ top: 0, behavior: 'smooth' });
