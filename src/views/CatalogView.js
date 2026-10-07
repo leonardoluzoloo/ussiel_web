@@ -550,9 +550,9 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
               <strong>${filtered.length}</strong> ${filtered.length === 1 ? 'produto encontrado' : 'produtos encontrados'}
             </div>
 
-            <div class="catalog-controls" style="display:flex; align-items:center; gap:12px;">
-              <div style="display:flex; align-items:center; gap:6px;">
-                <label style="font-size: 0.8125rem; color: var(--text-secondary); font-weight: 600;">Ordenar por:</label>
+            <div class="catalog-controls">
+              <div class="catalog-sort-wrapper">
+                <label for="catalogSortSelect" class="catalog-sort-label">Ordenar por:</label>
                 <select class="sort-select" id="catalogSortSelect">
                   <option value="relevant" ${sortBy === 'relevant' ? 'selected' : ''}>Mais Relevantes</option>
                   <option value="newest" ${sortBy === 'newest' ? 'selected' : ''}>Mais Recentes</option>
@@ -563,8 +563,8 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
                 </select>
               </div>
 
-              <div class="catalog-view-toggle">
-                <button type="button" class="catalog-view-btn ${viewMode === 'grid' ? 'active' : ''}" id="viewGridBtn" title="Grade">
+              <div class="catalog-view-toggle" role="group" aria-label="Modo de exibição">
+                <button type="button" class="catalog-view-btn ${viewMode === 'grid' ? 'active' : ''}" id="viewGridBtn" title="Visualização em Grade" aria-label="Grade">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                     <rect x="3" y="3" width="7" height="7"></rect>
                     <rect x="14" y="3" width="7" height="7"></rect>
@@ -572,7 +572,7 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
                     <rect x="3" y="14" width="7" height="7"></rect>
                   </svg>
                 </button>
-                <button type="button" class="catalog-view-btn ${viewMode === 'list' ? 'active' : ''}" id="viewListBtn" title="Lista">
+                <button type="button" class="catalog-view-btn ${viewMode === 'list' ? 'active' : ''}" id="viewListBtn" title="Visualização em Lista Horizontal" aria-label="Horizontal">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                     <line x1="8" y1="6" x2="21" y2="6"></line>
                     <line x1="8" y1="12" x2="21" y2="12"></line>
