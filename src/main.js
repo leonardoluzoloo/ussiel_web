@@ -17,6 +17,7 @@ import { Toast } from './components/Toast.js';
 
 // Views
 import { renderCatalogView } from './views/CatalogView.js';
+import { renderCategoriesView } from './views/CategoriesView.js';
 import { renderProductDetailView } from './views/ProductDetailView.js';
 import { renderCartView } from './views/CartView.js';
 import { renderCheckoutView } from './views/CheckoutView.js';
@@ -215,12 +216,16 @@ function initApp() {
       }));
       pageTitle = searchQuery ? `Busca por "${searchQuery}" | NovaTech Angola` : 'NovaTech Angola | Loja de Tecnologia e Eletrônicos Premium';
     } else if (path === '/categorias') {
-      mainContainer.appendChild(renderCatalogView());
+      mainContainer.appendChild(renderCategoriesView());
       pageTitle = 'Todas as Categorias | NovaTech Angola';
     } else if (path.startsWith('/categoria/')) {
-      const slug = path.replace('/categoria/', '');
-      mainContainer.appendChild(renderCatalogView({ categorySlug: slug, subcategorySlug: subcategoryQuery }));
-      pageTitle = `${slug.toUpperCase()} | NovaTech Angola`;
+      const cleanPath = path.replace(/^\/categoria\/?/, '');
+      const parts = cleanPath.split('/').filter(Boolean);
+      const catSlug = parts[0] || '';
+      const subSlug = parts[1] || subcategoryQuery;
+      mainContainer.appendChild(renderCatalogView({ categorySlug: catSlug, subcategorySlug: subSlug }));
+      const displayTitle = subSlug ? `${subSlug.toUpperCase()} - ${catSlug.toUpperCase()}` : catSlug.toUpperCase();
+      pageTitle = `${displayTitle} | NovaTech Angola`;
     } else if (path.startsWith('/subcategoria/')) {
       const slug = path.replace('/subcategoria/', '');
       mainContainer.appendChild(renderCatalogView({ subcategorySlug: slug }));

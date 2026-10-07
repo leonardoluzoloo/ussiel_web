@@ -157,12 +157,12 @@ export function setupMobileNav() {
                   const subSlug = typeof sub === 'string' ? sub : (sub.uid || sub.slug || sub.name || '');
                   if (!subName) return '';
                   return `
-                  <a href="#/?cat=${cat.uid || cat.slug}&sub=${encodeURIComponent(subSlug)}" class="mobile-cat-sub-item">
+                  <a href="#/categoria/${cat.slug || cat.uid}/${encodeURIComponent(subSlug)}" class="mobile-cat-sub-item">
                     <span>${subName}</span>
                   </a>
                   `;
                 }).join('')}
-                <a href="#/categoria/${cat.uid || cat.slug}" class="mobile-cat-view-all">
+                <a href="#/categoria/${cat.slug || cat.uid}" class="mobile-cat-view-all">
                   <span>Ver todos em ${cat.name}</span>
                   <span>→</span>
                 </a>
@@ -170,6 +170,13 @@ export function setupMobileNav() {
             </div>
             `;
           }).join('')}
+        </div>
+
+        <div style="padding: 12px 0 6px 0;">
+          <a href="#/categorias" class="btn btn-secondary btn-full" style="justify-content: center; gap: 6px; font-weight: 700; font-size: 0.84rem; text-decoration: none;">
+            <span>Ver todas as categorias</span>
+            <span>→</span>
+          </a>
         </div>
       </div>
 

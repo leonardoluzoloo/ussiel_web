@@ -1,5 +1,6 @@
 // ===================================================================
 // SITE HEADER COMPONENT (Desktop & Mobile)
+// 100% Dinâmico • Dados Reais do Supabase • Alta Performance
 // ===================================================================
 
 import { Icons } from '../utils/icons.js';
@@ -11,8 +12,28 @@ export function createHeader() {
   const header = document.createElement('header');
   header.className = 'site-header';
 
-  let dynamicCategories = [];
-  let dynamicProducts = [];
+  const getCachedList = (key) => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      }
+    } catch {}
+    return [];
+  };
+
+  const initialDbCats = getCachedList('novatech_admin_categorias_v4_clean').filter(c => c.is_active !== false && c.ativo !== false);
+  
+  let dynamicCategories = initialDbCats.map(c => ({
+    id: c.id,
+    name: c.name || c.nome || '',
+    slug: c.slug || (c.name ? c.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : ''),
+    iconName: c.iconName || c.icon_name || c.icone || 'package',
+    subcategories: (Array.isArray(c.subcategories) ? c.subcategories : (c.subcategorias ? (typeof c.subcategorias === 'string' ? JSON.parse(c.subcategorias) : c.subcategorias) : [])).filter(s => s && s.is_active !== false && s.ativo !== false)
+  }));
+  
+  let dynamicProducts = getCachedList('novatech_admin_produtos_v4_clean').filter(p => p.is_active !== false && p.ativo !== false);
 
   async function syncHeaderDynamicData() {
     try {
@@ -21,18 +42,21 @@ export function createHeader() {
         Api.products.getAll({ all: true }).catch(() => [])
       ]);
 
-      dynamicCategories = (cats || [])
-        .filter(c => c.is_active !== false && c.ativo !== false)
-        .map(c => ({
-          ...c,
-          iconName: c.icon_name || c.iconName || 'package',
-          subcategories: Array.isArray(c.subcategories) ? c.subcategories : (c.subcategories ? (typeof c.subcategories === 'string' ? JSON.parse(c.subcategories) : c.subcategories) : [])
-        }));
+      const activeCats = (cats || []).filter(c => c.is_active !== false && c.ativo !== false);
+      dynamicCategories = activeCats.map(c => ({
+        id: c.id,
+        name: c.name || c.nome || '',
+        slug: c.slug || (c.name ? c.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : ''),
+        iconName: c.iconName || c.icon_name || c.icone || 'package',
+        subcategories: (Array.isArray(c.subcategories) ? c.subcategories : (c.subcategorias ? (typeof c.subcategorias === 'string' ? JSON.parse(c.subcategorias) : c.subcategorias) : [])).filter(s => s && s.is_active !== false && s.ativo !== false)
+      }));
       dynamicProducts = (prods || []).filter(p => p.is_active !== false && p.ativo !== false);
       render();
     } catch {}
   }
 
+  // Render inicial imediato e sincronização em segundo plano
+  render();
   syncHeaderDynamicData();
 
   window.addEventListener('categories-updated', () => syncHeaderDynamicData());
@@ -103,9 +127,7 @@ export function createHeader() {
             </form>
 
             <!-- Autocomplete Dropdown -->
-            <div class="search-dropdown" id="searchDropdown">
-              <!-- Content rendered dynamically -->
-            </div>
+            <div class="search-dropdown" id="searchDropdown"></div>
           </div>
 
           <!-- Header Actions -->
@@ -127,13 +149,9 @@ export function createHeader() {
                 ${Icons.heart(22)}
                 <span class="action-badge" id="headerWishlistBadge">${wishlistCount}</span>
               </div>
-              <div class="action-text-group" style="display: none;">
-                <span class="action-label-small">Favoritos</span>
-                <span class="action-label-strong">${wishlistCount} itens</span>
-              </div>
             </a>
 
-            <!-- Cart (Super Visível) -->
+            <!-- Cart -->
             <div class="header-action-btn header-cart-highlight" id="headerCartBtn" style="cursor: pointer;" title="Abrir Meu Carrinho">
               <div class="action-icon-wrap">
                 ${Icons.cart(22, 'currentColor')}
@@ -159,56 +177,54 @@ export function createHeader() {
               <a href="#/novidades" class="nav-link">NOVIDADES</a>
             </li>
             <li class="nav-item" id="navCategoriesItem">
-              <div class="nav-link nav-link-special" id="navCategoriesToggle">
+              <a href="#/categorias" class="nav-link nav-link-special" id="navCategoriesToggle">
                 ${Icons.grid(18)}
                 <span>CATEGORIAS</span>
                 ${Icons.chevronDown(14)}
-              </div>
+              </a>
 
-              <!-- Mega Menu Dropdown -->
+              <!-- Dropdown com Categorias Reais do Supabase -->
               <div class="mega-menu" id="megaMenu">
-                <div class="container mega-menu-container">
-                  <div class="mega-menu-grid">
+                <div class="container mega-menu-container" style="max-width: 900px; padding: 20px 24px;">
+                  <div class="mega-menu-grid" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px 28px;">
                     ${dynamicCategories.length === 0 ? `
-                      <div class="mega-col mega-empty-col">
-                        <div class="mega-empty-text">
-                          Nenhuma categoria disponível no momento. Novidades em breve!
-                        </div>
+                      <div class="mega-col" style="grid-column: 1 / -1; padding: 12px 0; color: #64748b;">
+                        Nenhuma categoria cadastrada no momento.
                       </div>
                     ` : dynamicCategories.map(cat => {
                       const subs = cat.subcategories || [];
-                      const catSlug = cat.slug || cat.uid || cat.id;
+                      const catSlug = cat.slug || cat.id;
                       return `
-                      <div class="mega-col">
-                        <div class="mega-col-header">
-                          <a href="#/categoria/${catSlug}" class="mega-col-title-link">
-                            <span class="mega-icon">${Icons[cat.iconName] ? Icons[cat.iconName](16) : Icons.package(16)}</span>
-                            <span class="mega-title-text">${cat.name.toUpperCase()}</span>
-                          </a>
+                        <div class="mega-col">
+                          <div class="mega-col-header" style="margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1.5px solid #e2e8f0;">
+                            <a href="#/categoria/${catSlug}" class="mega-col-title-link" style="font-weight: 800; font-size: 0.85rem; color: #0f172a;">
+                              <span class="mega-icon">${Icons[cat.iconName] ? Icons[cat.iconName](16) : Icons.package(16)}</span>
+                              <span class="mega-title-text">${cat.name.toUpperCase()}</span>
+                            </a>
+                          </div>
+                          ${subs.length > 0 ? `
+                            <ul class="mega-sublist" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px;">
+                              ${subs.map(sub => {
+                                const subName = typeof sub === 'string' ? sub : (sub.name || sub.nome || '');
+                                const subSlug = typeof sub === 'string' ? sub : (sub.slug || sub.uid || sub.name || '');
+                                if (!subName) return '';
+                                return `
+                                  <li class="mega-subitem">
+                                    <a href="#/categoria/${catSlug}/${encodeURIComponent(subSlug)}" class="mega-sublink" style="font-size: 0.825rem; color: #475569; padding: 2px 0; display: block;">
+                                      ${subName}
+                                    </a>
+                                  </li>
+                                `;
+                              }).join('')}
+                            </ul>
+                          ` : ''}
                         </div>
-                        ${subs.length > 0 ? `
-                          <ul class="mega-sublist">
-                            ${subs.map(sub => {
-                              const subName = typeof sub === 'string' ? sub : (sub.name || sub.nome || '');
-                              const subSlug = typeof sub === 'string' ? sub : (sub.slug || sub.uid || sub.name || '');
-                              if (!subName) return '';
-                              return `
-                              <li class="mega-subitem">
-                                <a href="#/categoria/${catSlug}?sub=${encodeURIComponent(subSlug)}" class="mega-sublink">
-                                  ${subName}
-                                </a>
-                              </li>
-                            `;
-                            }).join('')}
-                          </ul>
-                        ` : ''}
-                      </div>
-                    `;
+                      `;
                     }).join('')}
                   </div>
                   
-                  <div class="mega-menu-footer">
-                    <a href="#/catalogo" class="mega-view-all-link">
+                  <div class="mega-menu-footer" style="margin-top: 16px; padding-top: 10px; border-top: 1px solid #f1f5f9; display: flex; justify-content: flex-end;">
+                    <a href="#/categorias" class="mega-view-all-link" style="font-size: 0.825rem; font-weight: 700; color: #2563eb;">
                       <span>Ver todas as categorias</span>
                       <span>→</span>
                     </a>
@@ -272,25 +288,17 @@ export function createHeader() {
       navCategoriesItem.onmouseleave = () => {
         closeTimeout = setTimeout(() => {
           megaMenu.classList.remove('active');
-        }, 150);
+        }, 120);
       };
 
-      const toggle = header.querySelector('#navCategoriesToggle');
-      if (toggle) {
-        toggle.onclick = (e) => {
-          e.stopPropagation();
-          megaMenu.classList.toggle('active');
-        };
-      }
-
-      // Close when clicking any link inside the mega menu
-      megaMenu.querySelectorAll('a').forEach(a => {
+      // Fecha imediatamente ao clicar em qualquer link
+      navCategoriesItem.querySelectorAll('a').forEach(a => {
         a.addEventListener('click', () => {
           megaMenu.classList.remove('active');
         });
       });
 
-      // Close when clicking outside
+      // Fecha ao clicar fora
       document.addEventListener('click', (e) => {
         if (!navCategoriesItem.contains(e.target)) {
           megaMenu.classList.remove('active');
@@ -298,7 +306,7 @@ export function createHeader() {
       });
     }
 
-    // Search Autocomplete functionality
+    // Search Autocomplete
     setupSearchAutocomplete();
 
     // Mobile menu open
@@ -320,152 +328,150 @@ export function createHeader() {
       const q = query.trim().toLowerCase();
 
       if (!q) {
-        // Show recent searches and popular categories
+        if (recent.length === 0) {
+          dropdown.classList.remove('active');
+          return;
+        }
+
         dropdown.innerHTML = `
-          <div class="search-dropdown-section">
-            <div class="search-dropdown-title">
-              <span>Pesquisas Recentes</span>
-            </div>
-            <div class="search-chips">
-              ${recent.map(term => `<span class="search-chip" data-search-term="${term}">${term}</span>`).join('')}
-            </div>
+          <div class="search-section-title">
+            <span>Buscas Recentes</span>
+            <button type="button" class="search-clear-recent" id="clearRecentSearchesBtn">Limpar</button>
           </div>
-          <div class="search-dropdown-section">
-            <div class="search-dropdown-title">
-              <span>Categorias Populares</span>
-            </div>
-            <div class="search-chips">
-              ${dynamicCategories.slice(0, 6).map(c => `<span class="search-chip" data-cat-slug="${c.slug}">${c.name}</span>`).join('')}
-            </div>
+          <div class="search-recent-list">
+            ${recent.map(term => `
+              <div class="search-recent-item" data-search="${term}">
+                <div class="recent-left">
+                  ${Icons.clock(14)}
+                  <span>${term}</span>
+                </div>
+                <button type="button" class="recent-remove-btn" data-remove="${term}">
+                  ${Icons.close(12)}
+                </button>
+              </div>
+            `).join('')}
           </div>
         `;
-      } else {
-        // Find matching products
-        const matches = dynamicProducts.filter(p =>
-          (p.name && p.name.toLowerCase().includes(q)) ||
-          (p.brand && p.brand.toLowerCase().includes(q)) ||
-          (p.category && String(p.category).toLowerCase().includes(q)) ||
-          (p.sku && p.sku.toLowerCase().includes(q))
-        ).slice(0, 5);
-
-        if (matches.length === 0) {
-          dropdown.innerHTML = `
-            <div class="search-dropdown-section" style="text-align: center; color: var(--text-muted); padding: 24px 16px;">
-              <p>Nenhum produto encontrado para "<strong>${query}</strong>"</p>
-              <button class="btn btn-secondary" style="margin-top: 10px; font-size: 0.8125rem;" id="seeAllCatalogBtn">
-                Ver Todo o Catálogo
-              </button>
-            </div>
-          `;
-          const allBtn = dropdown.querySelector('#seeAllCatalogBtn');
-          if (allBtn) {
-            allBtn.onclick = () => {
-              dropdown.classList.remove('active');
-              window.location.hash = '/';
-            };
-          }
-        } else {
-          dropdown.innerHTML = `
-            <div class="search-dropdown-section">
-              <div class="search-dropdown-title">
-                <span>Produtos Encontrados (${matches.length})</span>
-              </div>
-              <div class="search-results-list">
-                ${matches.map(p => `
-                  <div class="search-result-item" data-product-slug="${p.slug}">
-                    <img src="${p.image}" alt="${p.name}" class="search-result-img" />
-                    <div class="search-result-info">
-                      <div class="search-result-name">${p.name}</div>
-                      <div class="search-result-price">${formatPrice(p.price)}</div>
-                    </div>
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-            <div class="search-dropdown-section" style="background: #f8fafc; text-align: center;">
-              <span class="search-chip" id="seeAllSearchMatches" style="background: #ffffff; border: 1px solid var(--border-light); font-weight: 600;">
-                Ver todos os resultados para "${query}" →
-              </span>
-            </div>
-          `;
-
-          dropdown.querySelectorAll('[data-product-slug]').forEach(item => {
-            item.onclick = () => {
-              Storage.addRecentSearch(query);
-              dropdown.classList.remove('active');
-              input.value = '';
-              window.location.hash = `/produto/${item.dataset.productSlug}`;
-            };
-          });
-
-          const seeAllBtn = dropdown.querySelector('#seeAllSearchMatches');
-          if (seeAllBtn) {
-            seeAllBtn.onclick = () => {
-              Storage.addRecentSearch(query);
-              dropdown.classList.remove('active');
-              window.location.hash = `/?q=${encodeURIComponent(query)}`;
-            };
-          }
-        }
+        dropdown.classList.add('active');
+        attachDropdownEvents();
+        return;
       }
 
-      dropdown.querySelectorAll('[data-search-term]').forEach(chip => {
-        chip.onclick = () => {
-          input.value = chip.dataset.searchTerm;
-          dropdown.classList.remove('active');
-          window.location.hash = `/?q=${encodeURIComponent(chip.dataset.searchTerm)}`;
-        };
-      });
+      // Filter products & categories
+      const matchedProducts = dynamicProducts.filter(p =>
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.brand || '').toLowerCase().includes(q)
+      ).slice(0, 4);
 
-      dropdown.querySelectorAll('[data-cat-slug]').forEach(chip => {
-        chip.onclick = () => {
-          dropdown.classList.remove('active');
-          window.location.hash = `/categoria/${chip.dataset.catSlug}`;
-        };
-      });
+      const matchedCategories = dynamicCategories.filter(c =>
+        (c.name || '').toLowerCase().includes(q)
+      ).slice(0, 2);
 
+      if (matchedProducts.length === 0 && matchedCategories.length === 0) {
+        dropdown.innerHTML = `
+          <div class="search-empty-state">
+            <p>Nenhum produto encontrado para "<strong>${query}</strong>"</p>
+          </div>
+        `;
+        dropdown.classList.add('active');
+        return;
+      }
+
+      let html = '';
+
+      if (matchedCategories.length > 0) {
+        html += `
+          <div class="search-section-title">Categorias</div>
+          <div class="search-cats-list">
+            ${matchedCategories.map(c => `
+              <a href="#/categoria/${c.slug}" class="search-cat-item">
+                ${Icons.grid(14)}
+                <span>${c.name}</span>
+              </a>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      if (matchedProducts.length > 0) {
+        html += `
+          <div class="search-section-title">Produtos Sugeridos</div>
+          <div class="search-prods-list">
+            ${matchedProducts.map(p => `
+              <a href="#/produto/${p.slug || p.id}" class="search-prod-item">
+                <img src="${p.image || (Array.isArray(p.gallery) ? p.gallery[0] : '')}" alt="${p.name}" class="search-prod-thumb" onerror="this.style.display='none'" />
+                <div class="search-prod-info">
+                  <span class="search-prod-name">${p.name}</span>
+                  <span class="search-prod-price">${formatPrice(p.price)}</span>
+                </div>
+              </a>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      html += `
+        <a href="#/catalogo?q=${encodeURIComponent(query)}" class="search-view-all-link">
+          Ver todos os resultados para "${query}" →
+        </a>
+      `;
+
+      dropdown.innerHTML = html;
       dropdown.classList.add('active');
+      attachDropdownEvents();
     }
 
-    input.onfocus = () => renderDropdown(input.value);
-    input.oninput = () => renderDropdown(input.value);
+    function attachDropdownEvents() {
+      dropdown.querySelectorAll('.search-recent-item').forEach(item => {
+        item.onclick = (e) => {
+          if (e.target.closest('.recent-remove-btn')) return;
+          const term = item.dataset.search;
+          input.value = term;
+          dropdown.classList.remove('active');
+          window.location.hash = `#/catalogo?q=${encodeURIComponent(term)}`;
+        };
+      });
 
-    // Form submit
-    form.onsubmit = (e) => {
-      e.preventDefault();
-      const val = input.value.trim();
-      if (val) {
-        Storage.addRecentSearch(val);
-        dropdown.classList.remove('active');
-        window.location.hash = `/?q=${encodeURIComponent(val)}`;
+      dropdown.querySelectorAll('.recent-remove-btn').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          const term = btn.dataset.remove;
+          Storage.removeRecentSearch(term);
+          renderDropdown(input.value);
+        };
+      });
+
+      const clearBtn = dropdown.querySelector('#clearRecentSearchesBtn');
+      if (clearBtn) {
+        clearBtn.onclick = (e) => {
+          e.stopPropagation();
+          Storage.clearRecentSearches();
+          dropdown.classList.remove('active');
+        };
       }
-    };
+    }
 
-    // Close on click outside
+    input.oninput = () => renderDropdown(input.value);
+    input.onfocus = () => renderDropdown(input.value);
+
     document.addEventListener('click', (e) => {
       if (!input.contains(e.target) && !dropdown.contains(e.target)) {
         dropdown.classList.remove('active');
       }
     });
+
+    if (form) {
+      form.onsubmit = (e) => {
+        e.preventDefault();
+        const query = input.value.trim();
+        if (query) {
+          Storage.addRecentSearch(query);
+          dropdown.classList.remove('active');
+          window.location.hash = `#/catalogo?q=${encodeURIComponent(query)}`;
+        }
+      };
+    }
   }
 
-  // Reactive listeners
-  window.addEventListener('cart-updated', () => {
-    const badge = header.querySelector('#headerCartBadge');
-    const total = header.querySelector('#headerCartTotal');
-    if (badge) badge.textContent = Storage.getCartCount();
-    if (total) total.textContent = formatPrice(Storage.getCartSubtotal());
-  });
-
-  window.addEventListener('wishlist-updated', () => {
-    const badge = header.querySelector('#headerWishlistBadge');
-    if (badge) badge.textContent = Storage.getWishlist().length;
-  });
-
-  window.addEventListener('user-updated', () => {
-    render();
-  });
-
-  render();
   return header;
 }

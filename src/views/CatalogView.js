@@ -1,5 +1,6 @@
 // ===================================================================
 // CATALOG & CATEGORY VIEW (Dynamic Filters, Sort, Search, Grid/List)
+// 100% Dinâmico • Dados Reais do Supabase • Design Executivo & Limpo
 // ===================================================================
 
 import { Icons } from '../utils/icons.js';
@@ -9,9 +10,10 @@ import { formatPrice } from '../utils/format.js';
 
 export function renderCatalogView({ categorySlug = null, subcategorySlug = null, searchQuery = null, isDeals = false, isNew = false } = {}) {
   const container = document.createElement('div');
-  container.className = 'container';
+  container.className = 'container catalog-view-page';
+  container.style.minHeight = '650px';
 
-  // Pré-carregamento imediato do cache local persistente para eliminar qualquer flash ou layout shift no F5
+  // Pré-carregamento imediato do cache local persistente para eliminar qualquer flash no F5
   const getCachedList = (key) => {
     try {
       const raw = localStorage.getItem(key);
@@ -41,14 +43,16 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
 
   let selectedCategories = categorySlug ? [categorySlug] : [];
   let selectedSubcategories = subcategorySlug ? [subcategorySlug] : [];
-  let expandedCategoryIds = new Set(); // Controle de categorias expandidas/recolhidas
+  let expandedCategoryIds = new Set();
   let selectedBrands = [];
+  let minPrice = 0;
   let maxPrice = 6000000;
   let onlyInStock = false;
   let onlyDeals = isDeals;
   let minRating = 0;
   let sortBy = 'relevant';
   let viewMode = 'grid'; // 'grid' | 'list'
+  let activeFlagshipIndex = 0;
 
   async function syncFromDatabase() {
     try {
@@ -62,10 +66,10 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
       activeCategories = realCats || [];
 
       if (categorySlug && !selectedCategories.includes(categorySlug)) {
-        selectedCategories.push(categorySlug);
+        selectedCategories = [categorySlug];
       }
       if (subcategorySlug && !selectedSubcategories.includes(subcategorySlug)) {
-        selectedSubcategories.push(subcategorySlug);
+        selectedSubcategories = [subcategorySlug];
       }
 
       activeBanners = (realBanners && realBanners.length > 0) ? realBanners : activeBanners;
@@ -91,14 +95,50 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
 
   syncFromDatabase();
 
-  // Sincronização em tempo real com alterações do Admin (Produtos, Categorias, Banners e Estoque)
-  const onCatalogUpdated = () => {
-    syncFromDatabase();
-  };
+  // Sincronização em tempo real com eventos do sistema
+  const onCatalogUpdated = () => syncFromDatabase();
   window.addEventListener('products-updated', onCatalogUpdated);
   window.addEventListener('categories-updated', onCatalogUpdated);
   window.addEventListener('banners-updated', onCatalogUpdated);
   window.addEventListener('stock-updated', onCatalogUpdated);
+
+  // Helper de correspondência de categoria real
+  function matchesCategory(product, catObj) {
+    if (!catObj) return false;
+    const prodCatId = String(product.category_id || product.categoria_id || '');
+    const prodCatSlug = String(product.category || product.category_slug || '').toLowerCase().trim();
+    const prodCatName = String(product.category_name || '').toLowerCase().trim();
+    const targetId = String(catObj.id || '');
+    const targetUid = String(catObj.uid || '').toLowerCase().trim();
+    const targetSlug = String(catObj.slug || '').toLowerCase().trim();
+    const targetName = String(catObj.name || '').toLowerCase().trim();
+
+    if (targetId && prodCatId === targetId) return true;
+    if (targetSlug && prodCatSlug === targetSlug) return true;
+    if (targetName && prodCatSlug === targetName) return true;
+    if (targetUid && prodCatSlug === targetUid) return true;
+    if (targetUid && String(product.category_uid || '').toLowerCase().trim() === targetUid) return true;
+    if (targetName && prodCatName === targetName) return true;
+
+    return false;
+  }
+
+  // Helper de correspondência de subcategoria real
+  function matchesSubcategory(product, subVal, subName = '') {
+    if (!subVal) return false;
+    const cleanSub = String(subVal).toLowerCase().trim();
+    const cleanName = String(subName || subVal).toLowerCase().trim();
+
+    const prodSubId = String(product.subcategory_id || product.subcategoria_id || product.specs?.subcategory_id || '').trim();
+    const prodSubSlug = String(product.subcategory || product.subcategory_slug || product.specs?.subcategory || '').toLowerCase().trim();
+    const prodSubName = String(product.subcategory_name || '').toLowerCase().trim();
+    const prodBrand = String(product.brand || '').toLowerCase().trim();
+
+    if (cleanSub === prodSubSlug || cleanSub === prodSubId || cleanName === prodSubSlug || cleanName === prodSubName) return true;
+    if (cleanSub === prodBrand || cleanName === prodBrand) return true;
+
+    return false;
+  }
 
   function getFilteredProducts() {
     return activeProducts.filter(product => {
@@ -107,67 +147,35 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
         return false;
       }
 
-      // Category & Subcategory Filter via Checkboxes
-      const prodCatId = String(product.category_id || product.categoria_id || '');
-      const prodCatSlug = String(product.category || product.category_slug || '');
-      const prodSubId = String(product.subcategory_id || product.subcategoria_id || product.specs?.subcategory_id || '');
-      const prodSubSlug = String(product.subcategory || product.subcategory_slug || product.specs?.subcategory || '');
-
+      // 1. Filtro de Categoria
       const hasCategoryFilter = selectedCategories.length > 0;
-      const hasSubcategoryFilter = selectedSubcategories.length > 0;
-
-      if (hasCategoryFilter || hasSubcategoryFilter) {
-        let matchesCat = false;
-        let matchesSub = false;
-
-        if (hasCategoryFilter) {
-          matchesCat = selectedCategories.some(catVal => {
-            if (!catVal) return false;
-            const cleanVal = String(catVal).toLowerCase().trim();
-            const matchedCatObj = activeCategories.find(c => 
-              String(c.id) === cleanVal || 
-              (c.uid && c.uid.toLowerCase() === cleanVal) || 
-              (c.slug && c.slug.toLowerCase() === cleanVal) ||
-              (c.name && c.name.toLowerCase() === cleanVal)
-            );
-            const targetCatId = matchedCatObj ? String(matchedCatObj.id) : null;
-            const targetCatName = matchedCatObj ? (matchedCatObj.name || '').toLowerCase() : null;
-            const targetCatSlug = matchedCatObj ? (matchedCatObj.slug || '').toLowerCase() : null;
-
-            return cleanVal === prodCatSlug.toLowerCase() ||
-                   cleanVal === prodCatId ||
-                   cleanVal === String(product.category_uid || '').toLowerCase() ||
-                   cleanVal === String(product.category || '').toLowerCase() ||
-                   (targetCatId && prodCatId === targetCatId) ||
-                   (targetCatName && String(product.category || '').toLowerCase() === targetCatName) ||
-                   (targetCatSlug && prodCatSlug.toLowerCase() === targetCatSlug);
-          });
-        }
-
-        if (hasSubcategoryFilter) {
-          matchesSub = selectedSubcategories.some(subVal => {
-            if (!subVal) return false;
-            const cleanSub = String(subVal).toLowerCase().trim();
-            return cleanSub === prodSubSlug.toLowerCase() ||
-                   cleanSub === prodSubId ||
-                   cleanSub === String(product.subcategory_uid || '').toLowerCase() ||
-                   cleanSub === String(product.subcategory_name || '').toLowerCase() ||
-                   cleanSub === String(product.subcategory || '').toLowerCase();
-          });
-        }
-
-        if (hasCategoryFilter && hasSubcategoryFilter) {
-          if (!matchesCat && !matchesSub) return false;
-        } else if (hasCategoryFilter) {
-          if (!matchesCat) return false;
-        } else if (hasSubcategoryFilter) {
-          if (!matchesSub) return false;
-        }
+      if (hasCategoryFilter) {
+        const matchesAnyCat = selectedCategories.some(catVal => {
+          if (!catVal) return false;
+          const cleanVal = String(catVal).toLowerCase().trim();
+          const targetCatObj = activeCategories.find(c => 
+            String(c.id) === cleanVal || 
+            (c.uid && c.uid.toLowerCase() === cleanVal) || 
+            (c.slug && c.slug.toLowerCase() === cleanVal) ||
+            (c.name && c.name.toLowerCase() === cleanVal)
+          );
+          return matchesCategory(product, targetCatObj || { slug: cleanVal, name: cleanVal, id: cleanVal });
+        });
+        if (!matchesAnyCat) return false;
       }
 
-      // Search query
+      // 2. Filtro de Subcategoria
+      const hasSubcategoryFilter = selectedSubcategories.length > 0;
+      if (hasSubcategoryFilter) {
+        const matchesAnySub = selectedSubcategories.some(subVal => {
+          return matchesSubcategory(product, subVal);
+        });
+        if (!matchesAnySub) return false;
+      }
+
+      // 3. Busca por texto
       if (searchQuery) {
-        const q = searchQuery.toLowerCase();
+        const q = searchQuery.toLowerCase().trim();
         const match =
           (product.name || '').toLowerCase().includes(q) ||
           (product.brand || '').toLowerCase().includes(q) ||
@@ -175,33 +183,41 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
           (product.sku || '').toLowerCase().includes(q);
         if (!match) return false;
       }
-      // Deals filter
-      if (onlyDeals && (!product.oldPrice || product.oldPrice <= product.price)) {
-        return false;
+
+      // 4. Promoções & Ofertas
+      if (onlyDeals) {
+        const isPromo = (product.oldPrice && Number(product.oldPrice) > Number(product.price)) ||
+                        Boolean(product.is_deal || product.oferta) ||
+                        (Array.isArray(product.badges) && product.badges.includes('OFERTA'));
+        if (!isPromo) return false;
       }
-      // New filter (Novidades)
-      const isProductNew = Boolean(product.is_new || product.novo || (product.badges && product.badges.includes('NOVO')));
-      if (isNew && !isProductNew) {
-        return false;
+
+      // 5. Novidades (se houver marcados com 'novo' filtra por eles, senão exibe os produtos mais recentes)
+      if (isNew) {
+        const hasAnyExplicitNew = activeProducts.some(p => Boolean(p.is_new || p.novo || (Array.isArray(p.badges) && p.badges.includes('NOVO'))));
+        if (hasAnyExplicitNew) {
+          const isProductNew = Boolean(product.is_new || product.novo || (Array.isArray(product.badges) && product.badges.includes('NOVO')));
+          if (!isProductNew) return false;
+        }
       }
-      // Brand filter (100% Real Brands from Database)
+
+      // 6. Marcas selecionadas
       if (selectedBrands.length > 0) {
         const prodBrand = (product.brand || '').trim().toLowerCase();
         const matchBrand = selectedBrands.some(b => b.trim().toLowerCase() === prodBrand);
         if (!matchBrand) return false;
       }
-      // Price filter
-      if (product.price > maxPrice) {
-        return false;
-      }
-      // In stock
-      if (onlyInStock && product.stock <= 0) {
-        return false;
-      }
-      // Rating
-      if (minRating > 0 && product.rating < minRating) {
-        return false;
-      }
+
+      // 7. Faixa de Preço (Mínimo e Máximo)
+      const prodPrice = Number(product.price || 0);
+      if (minPrice > 0 && prodPrice < minPrice) return false;
+      if (maxPrice > 0 && prodPrice > maxPrice) return false;
+
+      // 8. Disponibilidade em Estoque
+      if (onlyInStock && Number(product.stock || 0) <= 0) return false;
+
+      // 9. Avaliação
+      if (minRating > 0 && Number(product.rating || 0) < minRating) return false;
 
       return true;
     }).sort((a, b) => {
@@ -209,257 +225,185 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
       const bIsNew = Boolean(b.is_new || b.novo || (b.badges && b.badges.includes('NOVO')));
       if (sortBy === 'price_asc') return a.price - b.price;
       if (sortBy === 'price_desc') return b.price - a.price;
-      if (sortBy === 'rating') return b.rating - a.rating;
+      if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
       if (sortBy === 'newest') return (bIsNew ? 1 : 0) - (aIsNew ? 1 : 0);
-      return 0; // relevant
-    });
-  }
-
-
-  // Banner institucional oficial quando o admin ainda não cadastrou banners
-  const defaultInstitutionalBanner = [
-    {
-      id: 'banner-institutional',
-      tag: 'LOJA OFICIAL',
-      badge_text: 'TECNOLOGIA & INOVAÇÃO',
-      title: 'NovaTech Angola • Loja de Tecnologia e Eletrônicos',
-      highlight: 'Tecnologia de Alta Performance com Garantia Oficial',
-      desc: 'Smartphones, computadores e eletrônicos com garantia oficial, assistência técnica e pronta entrega em Luanda.',
-      button_text: 'Explorar Catálogo',
-      button_link: '#/catalogo',
-      tag_badge: 'Garantia NovaTech',
-      specs_badge: 'Entregas Rápidas',
-      accent_color: '#0071e3',
-      image_url: '',
-      image: ''
-    }
-  ];
-
-  let activeFlagshipIndex = 0;
-  let autoplayTimer = null;
-  const AUTOPLAY_INTERVAL = 5000; // 5 segundos por banner
-
-  function stopAutoplay() {
-    if (autoplayTimer) {
-      clearInterval(autoplayTimer);
-      autoplayTimer = null;
-    }
-  }
-
-  function startAutoplay() {
-    stopAutoplay();
-    const list = (activeBanners && activeBanners.length > 0) ? activeBanners : defaultInstitutionalBanner;
-    if (list.length <= 1) return;
-
-    autoplayTimer = setInterval(() => {
-      if (!container.isConnected) {
-        stopAutoplay();
-        return;
+      if (sortBy === 'discount') {
+        const discA = a.oldPrice ? (a.oldPrice - a.price) : 0;
+        const discB = b.oldPrice ? (b.oldPrice - b.price) : 0;
+        return discB - discA;
       }
-      const hasActiveBanners = activeBanners && activeBanners.length > 0;
-      const currentList = hasActiveBanners ? activeBanners : (isDatabaseLoaded ? defaultInstitutionalBanner : []);
-      if (currentList.length <= 1) return;
-      goToSlide(activeFlagshipIndex + 1);
-    }, AUTOPLAY_INTERVAL);
-  }
-
-  function goToSlide(newIndex) {
-    const hasActiveBanners = activeBanners && activeBanners.length > 0;
-    const list = hasActiveBanners ? activeBanners : (isDatabaseLoaded ? defaultInstitutionalBanner : []);
-    if (!list || list.length === 0) return;
-
-    activeFlagshipIndex = ((newIndex % list.length) + list.length) % list.length;
-    const f = list[activeFlagshipIndex];
-
-    const heroBox = container.querySelector('#heroCommercialBox');
-    if (!heroBox) return;
-
-    const bannerTitle = f.title || 'NovaTech Angola';
-    const bannerImg = f.image_url || f.image || '';
-    const bannerLink = f.button_link || (f.slug ? `#/produto/${f.slug}` : '#/catalogo');
-
-    const heroLink = container.querySelector('#heroLink');
-    if (heroLink) {
-      heroLink.href = bannerLink;
-      heroLink.title = bannerTitle;
-      heroLink.setAttribute('aria-label', bannerTitle);
-      if (bannerImg) {
-        heroLink.innerHTML = `<img src="${bannerImg}" alt="${bannerTitle}" class="hero-clean-banner-img" id="heroProductImage" />`;
-      } else {
-        heroLink.innerHTML = `
-          <div class="hero-clean-fallback-banner">
-            <div class="hero-fallback-brand-badge">NOVATECH ANGOLA</div>
-            <h2 class="hero-fallback-title">${bannerTitle}</h2>
-            <p class="hero-fallback-sub">Tecnologia de Ponta, Smartphones e Acessórios com Entrega em Luanda</p>
-            <span class="btn btn-primary" style="margin-top: 12px; padding: 10px 24px; font-weight: 700;">Conferir Novidades →</span>
-          </div>
-        `;
-      }
-    }
-
-    // Atualiza indicadores de bolinhas
-    const dots = container.querySelectorAll('.hero-dot');
-    dots.forEach((dot, idx) => {
-      dot.classList.toggle('active', idx === activeFlagshipIndex);
+      return 0;
     });
   }
 
   function render() {
     const filtered = getFilteredProducts();
-    const isHomePage = selectedCategories.length === 0 && selectedSubcategories.length === 0 && !searchQuery && !isDeals && !isNew;
-    const hasActiveBanners = activeBanners && activeBanners.length > 0;
-    const currentBannerList = hasActiveBanners ? activeBanners : defaultInstitutionalBanner;
-    const f = currentBannerList.length > 0 ? currentBannerList[activeFlagshipIndex % currentBannerList.length] : null;
+    const isSingleCategory = selectedCategories.length === 1;
 
-    const bannerTitle = f?.title || 'NovaTech Angola';
-    const bannerImg = f ? (f.image_url || f.imagem_url || f.image) : '';
-    const bannerLink = f ? (f.button_link || (f.slug ? `#/produto/${f.slug}` : '#/catalogo')) : '#/catalogo';
+    // Identificação precisa do objeto de categoria atual no banco
+    const cleanCat = isSingleCategory ? String(selectedCategories[0]).toLowerCase().trim() : '';
+    const currentCategoryObj = isSingleCategory ? activeCategories.find(c => 
+      String(c.id) === cleanCat ||
+      (c.slug && c.slug.toLowerCase() === cleanCat) ||
+      (c.uid && c.uid.toLowerCase() === cleanCat) ||
+      (c.name && c.name.toLowerCase() === cleanCat)
+    ) : null;
+
+    const rawSubs = currentCategoryObj ? (Array.isArray(currentCategoryObj.subcategories) ? currentCategoryObj.subcategories : (Array.isArray(currentCategoryObj.subcategorias) ? currentCategoryObj.subcategorias : [])) : [];
+    const categorySubs = rawSubs.filter(s => s && s.is_active !== false && s.ativo !== false);
+
+    // Identificação da subcategoria atual
+    const currentSubcategoryObj = (selectedSubcategories.length > 0 && categorySubs.length > 0) ? categorySubs.find(s => {
+      const target = String(selectedSubcategories[0]).toLowerCase().trim();
+      return String(s.id) === target || (s.slug && s.slug.toLowerCase() === target) || (s.name && s.name.toLowerCase() === target);
+    }) : null;
+
+    // Base de produtos desta categoria para filtros de marca
+    const baseCategoryProducts = activeProducts.filter(p => {
+      if (p.is_active === false || p.ativo === false) return false;
+      if (isSingleCategory && currentCategoryObj) {
+        return matchesCategory(p, currentCategoryObj);
+      }
+      return true;
+    });
 
     const existingBrands = Array.from(new Set(
-      activeProducts
+      baseCategoryProducts
         .map(p => (p.brand || '').trim())
         .filter(Boolean)
     )).sort((a, b) => a.localeCompare(b, 'pt', { sensitivity: 'base' }));
 
-    const selectedCatNames = selectedCategories.map(catVal => {
-      if (!catVal) return '';
-      const clean = String(catVal).toLowerCase().trim();
-      const c = activeCategories.find(item => 
-        String(item.id) === clean ||
-        (item.slug && item.slug.toLowerCase() === clean) ||
-        (item.uid && item.uid.toLowerCase() === clean) ||
-        (item.uuid && item.uuid.toLowerCase() === clean) ||
-        (item.name && item.name.toLowerCase() === clean)
-      );
-      return c ? c.name : (clean.length > 20 ? 'Categoria' : catVal);
-    }).filter(Boolean);
-
-    const hasFiltersActive = selectedCategories.length > 0 || selectedSubcategories.length > 0 || searchQuery || isDeals || isNew;
-
-    const titleText = isDeals ? 'Ofertas & Promoções' :
-      isNew ? 'Lançamentos' :
-        searchQuery ? `Busca por "${searchQuery}"` :
-          selectedCatNames.length > 0 ? selectedCatNames.join(', ') : 'Catálogo Completo';
-
-    const isSingleCategory = selectedCategories.length === 1;
-    const currentCategoryObj = isSingleCategory ? activeCategories.find(item => 
-      String(item.id) === String(selectedCategories[0]).toLowerCase().trim() ||
-      (item.slug && item.slug.toLowerCase() === String(selectedCategories[0]).toLowerCase().trim()) ||
-      (item.uid && item.uid.toLowerCase() === String(selectedCategories[0]).toLowerCase().trim()) ||
-      (item.name && item.name.toLowerCase() === String(selectedCategories[0]).toLowerCase().trim())
-    ) : null;
-
-    const categorySubs = currentCategoryObj ? (Array.isArray(currentCategoryObj.subcategories) ? currentCategoryObj.subcategories : (Array.isArray(currentCategoryObj.subcategorias) ? currentCategoryObj.subcategorias : [])) : [];
+    // Define qual cabeçalho estruturado renderizar
+    const isCategoryPage = Boolean(isSingleCategory && currentCategoryObj);
+    const isNewPage = Boolean(isNew);
+    const isDealsPage = Boolean(isDeals);
+    const isSearchPage = Boolean(searchQuery);
+    const isHomePage = !isCategoryPage && !isNewPage && !isDealsPage && !isSearchPage && selectedCategories.length === 0;
 
     container.innerHTML = `
-      ${isSingleCategory && currentCategoryObj ? `
-        <!-- Category Specific Header -->
-        <section class="category-page-header">
-          <nav class="category-breadcrumb" aria-label="Navegação estrutural">
+      ${isCategoryPage ? `
+        <!-- Cabeçalho de Categoria Real -->
+        <section class="category-page-header" style="background: transparent; border: none; padding: 14px 0 16px 0; margin: 0; box-shadow: none;">
+          <nav class="category-breadcrumb" aria-label="Navegação estrutural" style="margin-bottom: 12px;">
             <a href="#/">Início</a>
             <span class="breadcrumb-sep">/</span>
-            <span class="breadcrumb-current">${currentCategoryObj.name}</span>
+            <a href="#/categorias">Categorias</a>
+            <span class="breadcrumb-sep">/</span>
+            ${currentSubcategoryObj ? `
+              <a href="#/categoria/${currentCategoryObj.slug || currentCategoryObj.id}">${currentCategoryObj.name}</a>
+              <span class="breadcrumb-sep">/</span>
+              <span class="breadcrumb-current">${currentSubcategoryObj.name}</span>
+            ` : `
+              <span class="breadcrumb-current">${currentCategoryObj.name}</span>
+            `}
           </nav>
 
-          <div class="category-title-wrap">
-            <h1 class="category-main-heading">${currentCategoryObj.name.toUpperCase()}</h1>
-            <p class="category-desc-text">Encontre os melhores produtos em ${currentCategoryObj.name} com pronta entrega e garantia oficial.</p>
+          <div class="category-title-wrap" style="margin-bottom: 16px;">
+            <h1 class="category-main-heading" style="font-size: 1.85rem; font-weight: 800; color: #0f172a; margin: 0 0 4px 0; letter-spacing: -0.02em;">
+              ${currentCategoryObj.name.toUpperCase()}
+            </h1>
+            <p class="category-desc-text" style="font-size: 0.95rem; color: #475569; margin: 0;">
+              Encontre o ${currentCategoryObj.name.toLowerCase()} ideal para si.
+            </p>
           </div>
 
           ${categorySubs.length > 0 ? `
-            <div class="category-subchips-container">
-              <div class="category-subchips-bar">
-                <button type="button" class="cat-subchip ${selectedSubcategories.length === 0 ? 'active' : ''}" data-sub-val="">
-                  Todos
-                </button>
-                ${categorySubs.map(sub => {
-                  const subName = typeof sub === 'string' ? sub : (sub.name || sub.nome || '');
-                  const subSlug = typeof sub === 'string' ? sub : (sub.slug || sub.uid || sub.name || '');
-                  if (!subName) return '';
-                  const isSubActive = selectedSubcategories.some(s => 
-                    String(s).toLowerCase() === subSlug.toLowerCase() || 
-                    String(s).toLowerCase() === subName.toLowerCase()
-                  );
-                  return `
-                    <button type="button" class="cat-subchip ${isSubActive ? 'active' : ''}" data-sub-val="${subSlug}">
-                      ${subName}
-                    </button>
-                  `;
-                }).join('')}
-              </div>
+            <div class="category-subchips-bar" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
+              <button type="button" class="cat-subchip ${selectedSubcategories.length === 0 ? 'active' : ''}" data-sub-val="">
+                Todos
+              </button>
+              ${categorySubs.map(sub => {
+                const subName = typeof sub === 'string' ? sub : (sub.name || sub.nome || '');
+                const subSlug = typeof sub === 'string' ? sub : (sub.slug || sub.uid || sub.name || '');
+                if (!subName) return '';
+                const isSubActive = selectedSubcategories.some(s => 
+                  String(s).toLowerCase() === subSlug.toLowerCase() || 
+                  String(s).toLowerCase() === subName.toLowerCase()
+                );
+                return `
+                  <button type="button" class="cat-subchip ${isSubActive ? 'active' : ''}" data-sub-val="${subSlug}">
+                    ${subName}
+                  </button>
+                `;
+              }).join('')}
             </div>
           ` : ''}
         </section>
-      ` : `
-        <!-- Header Hero Banner (Home / Catálogo Geral) -->
-        <section class="hero-clean-banner-section" style="margin-top: 16px; margin-bottom: 20px;">
-          <div class="hero-clean-banner-box" id="heroCommercialBox">
-            ${f ? `
-              <a href="${bannerLink}" class="hero-clean-banner-link" id="heroLink" title="${bannerTitle}" aria-label="${bannerTitle}">
-                ${bannerImg ? `
-                  <img src="${bannerImg}" alt="${bannerTitle}" class="hero-clean-banner-img" id="heroProductImage" />
-                ` : `
-                  <div class="hero-clean-fallback-banner">
-                    <div class="hero-fallback-brand-badge">TECNOLOGIA & INOVAÇÃO</div>
-                    <h2 class="hero-fallback-title">${bannerTitle}</h2>
-                    <p class="hero-fallback-sub">Equipamentos e eletrônicos de alto desempenho com garantia oficial e entrega rápida.</p>
-                    <span class="btn btn-primary" style="margin-top: 14px; padding: 10px 24px; font-weight: 700; border-radius: 8px;">Explorar Catálogo →</span>
-                  </div>
-                `}
-              </a>
-            ` : `
-              <div class="hero-clean-banner-skeleton" style="width: 100%; height: 320px; background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%); background-size: 200% 100%; animation: adminShimmer 1.5s infinite; border-radius: 16px;"></div>
-            `}
-
-            <!-- Setas e Dots condicionais -->
-            ${currentBannerList.length > 1 ? `
-              <button class="hero-nav-arrow hero-nav-prev" id="heroPrevBtn" aria-label="Voltar para o banner anterior" title="Banner Anterior">
-                ${Icons.chevronLeft(26, '#ffffff')}
-              </button>
-              <button class="hero-nav-arrow hero-nav-next" id="heroNextBtn" aria-label="Avançar para o próximo banner" title="Próximo Banner">
-                ${Icons.chevronRight(26, '#ffffff')}
-              </button>
-              <div class="hero-dots-indicator" id="heroDotsIndicator">
-                ${currentBannerList.map((_, idx) => `
-                  <button class="hero-dot ${(idx === (activeFlagshipIndex % currentBannerList.length)) ? 'active' : ''}" data-dot-idx="${idx}" aria-label="Slide ${idx + 1}"></button>
-                `).join('')}
-              </div>
-            ` : ''}
+      ` : isNewPage ? `
+        <!-- Cabeçalho de Novidades -->
+        <section class="category-page-header" style="background: transparent; border: none; padding: 14px 0 16px 0; margin: 0; box-shadow: none;">
+          <nav class="category-breadcrumb" aria-label="Navegação estrutural" style="margin-bottom: 12px;">
+            <a href="#/">Início</a>
+            <span class="breadcrumb-sep">/</span>
+            <span class="breadcrumb-current">Novidades</span>
+          </nav>
+          <div class="category-title-wrap" style="margin-bottom: 16px;">
+            <h1 class="category-main-heading" style="font-size: 1.85rem; font-weight: 800; color: #0f172a; margin: 0 0 4px 0; letter-spacing: -0.02em;">
+              LANÇAMENTOS & NOVIDADES
+            </h1>
+            <p class="category-desc-text" style="font-size: 0.95rem; color: #475569; margin: 0;">
+              Confira os produtos recém-adicionados ao catálogo.
+            </p>
           </div>
         </section>
+      ` : isDealsPage ? `
+        <!-- Cabeçalho de Ofertas -->
+        <section class="category-page-header" style="background: transparent; border: none; padding: 14px 0 16px 0; margin: 0; box-shadow: none;">
+          <nav class="category-breadcrumb" aria-label="Navegação estrutural" style="margin-bottom: 12px;">
+            <a href="#/">Início</a>
+            <span class="breadcrumb-sep">/</span>
+            <span class="breadcrumb-current">Ofertas</span>
+          </nav>
+          <div class="category-title-wrap" style="margin-bottom: 16px;">
+            <h1 class="category-main-heading" style="font-size: 1.85rem; font-weight: 800; color: #0f172a; margin: 0 0 4px 0; letter-spacing: -0.02em;">
+              OFERTAS & PROMOÇÕES
+            </h1>
+            <p class="category-desc-text" style="font-size: 0.95rem; color: #475569; margin: 0;">
+              Aproveite os melhores preços com garantia e entrega rápida.
+            </p>
+          </div>
+        </section>
+      ` : isSearchPage ? `
+        <!-- Cabeçalho de Busca -->
+        <section class="category-page-header" style="background: transparent; border: none; padding: 14px 0 16px 0; margin: 0; box-shadow: none;">
+          <nav class="category-breadcrumb" aria-label="Navegação estrutural" style="margin-bottom: 12px;">
+            <a href="#/">Início</a>
+            <span class="breadcrumb-sep">/</span>
+            <span class="breadcrumb-current">Busca</span>
+          </nav>
+          <div class="category-title-wrap" style="margin-bottom: 16px;">
+            <h1 class="category-main-heading" style="font-size: 1.85rem; font-weight: 800; color: #0f172a; margin: 0 0 4px 0; letter-spacing: -0.02em;">
+              RESULTADOS PARA "${searchQuery.toUpperCase()}"
+            </h1>
+            <p class="category-desc-text" style="font-size: 0.95rem; color: #475569; margin: 0;">
+              Exibindo produtos correspondentes à pesquisa.
+            </p>
+          </div>
+        </section>
+      ` : `
+        <!-- Página Inicial: Hero Banner (apenas se houver banners reais cadastrados no admin) -->
+        ${activeBanners && activeBanners.length > 0 ? `
+          <section class="hero-clean-banner-section" style="margin-top: 16px; margin-bottom: 20px;">
+            <div class="hero-clean-banner-box" id="heroCommercialBox">
+              <a href="${activeBanners[0].button_link || '#/catalogo'}" class="hero-clean-banner-link">
+                <img src="${activeBanners[0].image_url || activeBanners[0].image}" alt="${activeBanners[0].title || 'Banner'}" class="hero-clean-banner-img" />
+              </a>
+            </div>
+          </section>
+        ` : `
+          <div style="height: 16px;"></div>
+        `}
       `}
 
-      ${hasFiltersActive && !isSingleCategory ? `
-        <!-- Sleek Active Filter Strip (quando filtros múltiplos ou busca estiverem ativos sem ser página única de categoria) -->
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; padding: 10px 16px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; flex-wrap: wrap;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Exibindo:</span>
-            <span style="font-size: 0.875rem; font-weight: 800; color: #0f172a;">${titleText}</span>
-            <span style="font-size: 0.75rem; color: #64748b; font-weight: 600;">(${filtered.length} ${filtered.length === 1 ? 'produto' : 'produtos'})</span>
-          </div>
-          <button type="button" id="catalogClearCategoryBtn" style="background: none; border: none; color: #2563eb; font-size: 0.8125rem; font-weight: 700; cursor: pointer; text-decoration: underline;">
-            Ver todos os produtos
-          </button>
-        </div>
-      ` : ''}
-
-      <!-- Mobile Filter Trigger Button -->
-      <div class="mobile-filter-bar">
-        <button id="mobileFilterToggleBtn" class="btn btn-secondary btn-full" style="gap: 8px;">
-          ${Icons.sliders(18)}
-          <span>Filtrar Produtos (${filtered.length})</span>
-        </button>
-      </div>
-
-      <!-- Catalog Main Layout -->
+      <!-- Layout Principal do Catálogo -->
       <div class="catalog-layout">
-        <!-- Sidebar Filters (Design Minimalista Apple / World-Class E-Commerce) -->
+        <!-- Sidebar de Filtros -->
         <aside class="catalog-sidebar" id="catalogSidebar">
           <div class="catalog-sidebar-header">
             <span class="catalog-sidebar-title">Filtros</span>
             <div style="display: flex; align-items: center; gap: 8px;">
               <button type="button" id="clearFiltersBtn" class="catalog-clear-btn" title="Limpar todos os filtros">
-                Limpar tudo
+                Limpar filtros
               </button>
               <button type="button" id="closeMobileFiltersBtn" class="mobile-sidebar-close" aria-label="Fechar Filtros">
                 ${Icons.close(18)}
@@ -467,83 +411,36 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
             </div>
           </div>
 
-          <!-- Category and Subcategory Selector (Checkboxes with Expand/Collapse) -->
-          <div class="filter-group">
-            <div class="filter-group-header">
-              <span>Categorias</span>
-            </div>
-            <div class="filter-group-content" style="max-height: 340px; overflow-y: auto; padding-right: 2px;">
-              ${activeCategories.map(c => {
-                const isChecked = selectedCategories.includes(c.slug) || selectedCategories.includes(String(c.id));
-                const catProdCount = activeProducts.filter(p => String(p.category_id || p.categoria_id) === String(c.id) || p.category === c.slug).length;
-                const subs = (Array.isArray(c.subcategories) ? c.subcategories : (Array.isArray(c.subcategorias) ? c.subcategorias : [])).filter(s => s.is_active !== false);
-                const isExpanded = expandedCategoryIds.has(String(c.id));
-
-                return `
-                  <div class="filter-cat-tree-node" style="margin-bottom: 6px;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 6px; padding: 2px 0;">
-                      <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
+          <!-- Filtro de Categorias Reais -->
+          ${activeCategories.length > 0 ? `
+            <div class="filter-group">
+              <div class="filter-group-header">
+                <span>Categorias</span>
+              </div>
+              <div class="filter-group-content" style="max-height: 280px; overflow-y: auto; padding-right: 2px;">
+                ${activeCategories.map(c => {
+                  const isChecked = selectedCategories.includes(c.slug) || selectedCategories.includes(String(c.id));
+                  const catProdCount = activeProducts.filter(p => matchesCategory(p, c)).length;
+                  return `
+                    <div class="filter-cat-tree-node" style="margin-bottom: 6px;">
+                      <label style="display: flex; align-items: center; gap: 8px; width: 100%; cursor: pointer;">
                         <input 
                           type="checkbox" 
                           class="apple-checkbox category-check" 
                           value="${c.slug || c.id}" 
-                          data-cat-id="${c.id}"
                           ${isChecked ? 'checked' : ''} 
                         />
-                        <div class="cat-expand-trigger" data-cat-id="${c.id}" style="display: flex; align-items: center; justify-content: space-between; flex: 1; cursor: pointer; user-select: none;">
-                          <span class="filter-checkbox-label" style="font-weight: ${isChecked ? '700' : '500'};">${c.name}</span>
-                          <span class="filter-checkbox-count">(${catProdCount})</span>
-                        </div>
-                      </div>
-
-                      ${subs.length > 0 ? `
-                        <button 
-                          type="button" 
-                          class="btn-toggle-subcat" 
-                          data-cat-id="${c.id}" 
-                          aria-label="Expandir ou recolher subcategorias" 
-                          title="${isExpanded ? 'Recolher subcategorias' : 'Expandir subcategorias'}"
-                          style="background: none; border: none; padding: 6px; cursor: pointer; color: #86868b; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s ease;"
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="transform: rotate(${isExpanded ? '180deg' : '0deg'}); transition: transform 0.25s ease;">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                          </svg>
-                        </button>
-                      ` : ''}
+                        <span class="filter-checkbox-label" style="font-weight: ${isChecked ? '700' : '500'}; flex: 1;">${c.name}</span>
+                        <span class="filter-checkbox-count">(${catProdCount})</span>
+                      </label>
                     </div>
-
-                    ${(subs.length > 0 && isExpanded) ? `
-                      <div class="filter-subcat-list" style="margin-left: 20px; padding-left: 10px; border-left: 1.5px solid #e5e5e7; margin-top: 4px; display: flex; flex-direction: column; gap: 4px;">
-                        ${subs.map(s => {
-                          const isSubChecked = selectedSubcategories.includes(s.slug) || selectedSubcategories.includes(String(s.id));
-                          const subProdCount = activeProducts.filter(p => 
-                            String(p.subcategory_id || p.subcategoria_id || p.specs?.subcategory_id) === String(s.id) || 
-                            p.subcategory === s.slug
-                          ).length;
-
-                          return `
-                            <label class="filter-checkbox-row" style="font-size: 0.8125rem;">
-                              <input 
-                                type="checkbox" 
-                                class="apple-checkbox subcategory-check" 
-                                value="${s.slug || s.id}" 
-                                data-parent-cat="${c.slug || c.id}"
-                                ${isSubChecked ? 'checked' : ''} 
-                              />
-                              <span class="filter-checkbox-label" style="color: #424245;">${s.name || s.nome}</span>
-                              <span class="filter-checkbox-count">(${subProdCount})</span>
-                            </label>
-                          `;
-                        }).join('')}
-                      </div>
-                    ` : ''}
-                  </div>
-                `;
-              }).join('')}
+                  `;
+                }).join('')}
+              </div>
             </div>
-          </div>
+          ` : ''}
 
-          <!-- Brand Checkbox Filter (100% Real Brands Read From Database) -->
+          <!-- Filtro de Marcas -->
           ${existingBrands.length > 0 ? `
             <div class="filter-group">
               <div class="filter-group-header">
@@ -551,9 +448,8 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
               </div>
               <div class="filter-group-content" style="max-height: 220px; overflow-y: auto; padding-right: 2px;">
                 ${existingBrands.map(b => {
-                  const count = activeProducts.filter(p => (p.brand || '').trim().toLowerCase() === b.toLowerCase()).length;
+                  const count = baseCategoryProducts.filter(p => (p.brand || '').trim().toLowerCase() === b.toLowerCase()).length;
                   const isChecked = selectedBrands.map(x => x.toLowerCase()).includes(b.toLowerCase());
-
                   return `
                     <label class="filter-checkbox-row">
                       <input 
@@ -571,33 +467,56 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
             </div>
           ` : ''}
 
-          <!-- Price Filter -->
+          <!-- Faixa de Preço -->
           <div class="filter-group">
             <div class="filter-group-header">
               <span>Faixa de Preço</span>
             </div>
             <div class="filter-group-content">
-              <div class="filter-price-summary">
-                <span class="price-val-label">Até</span>
+              <div class="filter-price-inputs-grid">
+                <div class="filter-price-field">
+                  <label class="filter-price-label" for="priceMinInput">Mínimo</label>
+                  <input 
+                    type="number" 
+                    id="priceMinInput" 
+                    class="filter-price-input" 
+                    placeholder="0 Kz" 
+                    min="0"
+                    step="10000"
+                    value="${minPrice > 0 ? minPrice : ''}" 
+                  />
+                </div>
+                <div class="filter-price-field">
+                  <label class="filter-price-label" for="priceMaxInput">Máximo</label>
+                  <input 
+                    type="number" 
+                    id="priceMaxInput" 
+                    class="filter-price-input" 
+                    placeholder="6.000.000 Kz" 
+                    min="0"
+                    step="10000"
+                    value="${maxPrice < 6000000 ? maxPrice : ''}" 
+                  />
+                </div>
+              </div>
+
+              <div class="filter-price-summary" style="margin-bottom: 6px;">
+                <span class="price-val-label">Até:</span>
                 <span class="price-val-amount" id="priceDisplay">${formatPrice(maxPrice)}</span>
               </div>
               <input 
                 type="range" 
                 id="priceRangeSlider" 
                 class="apple-range-slider"
-                min="100000" 
+                min="0" 
                 max="6000000" 
                 step="50000" 
                 value="${maxPrice}" 
               />
-              <div class="price-range-limits">
-                <span>Kz 100.000</span>
-                <span>Kz 6.000.000</span>
-              </div>
             </div>
           </div>
 
-          <!-- Availability & Deals -->
+          <!-- Disponibilidade -->
           <div class="filter-group">
             <div class="filter-group-header">
               <span>Disponibilidade</span>
@@ -605,13 +524,13 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
             <div class="filter-group-content">
               <label class="filter-checkbox-row">
                 <input type="checkbox" class="apple-checkbox" id="checkInStock" ${onlyInStock ? 'checked' : ''} />
-                <span class="filter-checkbox-label">Apenas em estoque</span>
-                <span class="filter-checkbox-count">(${activeProducts.filter(p => p.stock > 0).length})</span>
+                <span class="filter-checkbox-label">Em stock</span>
+                <span class="filter-checkbox-count">(${baseCategoryProducts.filter(p => p.stock > 0).length})</span>
               </label>
               <label class="filter-checkbox-row">
                 <input type="checkbox" class="apple-checkbox" id="checkDeals" ${onlyDeals ? 'checked' : ''} />
-                <span class="filter-checkbox-label">Apenas com desconto</span>
-                <span class="filter-checkbox-count">(${activeProducts.filter(p => p.oldPrice && p.oldPrice > p.price).length})</span>
+                <span class="filter-checkbox-label">Em promoção</span>
+                <span class="filter-checkbox-count">(${baseCategoryProducts.filter(p => (p.oldPrice && p.oldPrice > p.price) || p.is_deal).length})</span>
               </label>
             </div>
           </div>
@@ -623,12 +542,12 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
           </div>
         </aside>
 
-        <!-- Catalog Products Area -->
+        <!-- Área de Produtos -->
         <main>
-          <!-- Controls Bar -->
+          <!-- Controles de Ordenação & Quantidade -->
           <div class="catalog-header">
-            <div class="catalog-results-count">
-              Mostrando <strong>${filtered.length}</strong> ${filtered.length === 1 ? 'produto' : 'produtos'}
+            <div class="catalog-results-count" id="catalogResultsCount">
+              <strong>${filtered.length}</strong> ${filtered.length === 1 ? 'produto encontrado' : 'produtos encontrados'}
             </div>
 
             <div class="catalog-controls" style="display:flex; align-items:center; gap:12px;">
@@ -636,25 +555,25 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
                 <label style="font-size: 0.8125rem; color: var(--text-secondary); font-weight: 600;">Ordenar por:</label>
                 <select class="sort-select" id="catalogSortSelect">
                   <option value="relevant" ${sortBy === 'relevant' ? 'selected' : ''}>Mais Relevantes</option>
+                  <option value="newest" ${sortBy === 'newest' ? 'selected' : ''}>Mais Recentes</option>
                   <option value="price_asc" ${sortBy === 'price_asc' ? 'selected' : ''}>Menor Preço</option>
                   <option value="price_desc" ${sortBy === 'price_desc' ? 'selected' : ''}>Maior Preço</option>
+                  <option value="discount" ${sortBy === 'discount' ? 'selected' : ''}>Maior Desconto</option>
                   <option value="rating" ${sortBy === 'rating' ? 'selected' : ''}>Melhor Avaliados</option>
-                  <option value="newest" ${sortBy === 'newest' ? 'selected' : ''}>Novidades</option>
                 </select>
               </div>
 
-              <!-- View Mode Toggle: Grid ou Lista -->
               <div class="catalog-view-toggle">
-                <button type="button" class="catalog-view-btn ${viewMode === 'grid' ? 'active' : ''}" id="viewGridBtn" title="Visualização em Grade">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <button type="button" class="catalog-view-btn ${viewMode === 'grid' ? 'active' : ''}" id="viewGridBtn" title="Grade">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                     <rect x="3" y="3" width="7" height="7"></rect>
                     <rect x="14" y="3" width="7" height="7"></rect>
                     <rect x="14" y="14" width="7" height="7"></rect>
                     <rect x="3" y="14" width="7" height="7"></rect>
                   </svg>
                 </button>
-                <button type="button" class="catalog-view-btn ${viewMode === 'list' ? 'active' : ''}" id="viewListBtn" title="Visualização em Lista">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <button type="button" class="catalog-view-btn ${viewMode === 'list' ? 'active' : ''}" id="viewListBtn" title="Lista">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                     <line x1="8" y1="6" x2="21" y2="6"></line>
                     <line x1="8" y1="12" x2="21" y2="12"></line>
                     <line x1="8" y1="18" x2="21" y2="18"></line>
@@ -667,49 +586,37 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
             </div>
           </div>
 
-          <!-- Products Grid / Empty state Premium -->
+          <!-- Grade de Produtos / Empty State Ampliado -->
           ${filtered.length === 0 ? `
             <div class="catalog-empty-container">
               <div class="catalog-empty-icon-wrap">
                 <div class="catalog-empty-icon-bg">
-                  ${Icons.package(36, '#2563eb')}
+                  ${Icons.package(44, '#2563eb')}
                 </div>
-                <span class="catalog-empty-badge">CATÁLOGO EM ATUALIZAÇÃO</span>
               </div>
 
               <h3 class="catalog-empty-title">
-                ${activeProducts.length === 0 ? 'Novidades Tecnológicas Chegando' : 'Nenhum produto com esses filtros'}
+                Nenhum produto encontrado
               </h3>
 
               <p class="catalog-empty-desc">
-                ${activeProducts.length === 0
-                  ? 'Estamos atualizando o estoque com lançamentos e ofertas exclusivas de tecnologia com garantia oficial. Volte a consultar em breve.'
-                  : 'Não encontramos nenhum produto que coincida com a pesquisa ou os filtros selecionados.'}
+                Não encontramos produtos que correspondam aos filtros selecionados.
               </p>
 
               <div class="catalog-empty-actions">
-                ${activeProducts.length === 0 ? `
-                  <a href="#/" class="btn btn-primary" style="padding: 11px 24px; font-weight: 700; border-radius: 10px; display: inline-flex; align-items: center; gap: 8px;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-                    Voltar ao Início
-                  </a>
-                ` : `
-                  <button class="btn btn-primary" id="emptyClearFiltersBtn" style="padding: 11px 24px; font-weight: 700; border-radius: 10px;">
-                    Limpar Filtros e Ver Todos
-                  </button>
-                `}
+                <button class="btn btn-primary" id="emptyClearFiltersBtn" style="padding: 13px 36px; font-size: 0.95rem; font-weight: 700; border-radius: 8px;">
+                  Limpar filtros
+                </button>
               </div>
             </div>
           ` : `
-            <div class="${viewMode === 'list' ? 'products-list' : 'products-grid'}" id="catalogProductsGrid">
-              <!-- Appended via JS -->
-            </div>
+            <div class="${viewMode === 'list' ? 'products-list' : 'products-grid'}" id="catalogProductsGrid"></div>
           `}
         </main>
       </div>
     `;
 
-    // Append Product Cards
+    // Renderiza os Cards de Produtos Reais
     const grid = container.querySelector('#catalogProductsGrid');
     if (grid) {
       filtered.forEach(p => grid.appendChild(createProductCard(p, viewMode)));
@@ -719,74 +626,33 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
   }
 
   function attachFilterEvents() {
-    // View Mode Toggle (Grid vs Lista)
+    // Alternância Grade / Lista
     const gridBtn = container.querySelector('#viewGridBtn');
     const listBtn = container.querySelector('#viewListBtn');
+
     if (gridBtn) {
       gridBtn.onclick = () => {
-        if (viewMode !== 'grid') {
-          viewMode = 'grid';
-          render();
-        }
+        viewMode = 'grid';
+        render();
       };
     }
     if (listBtn) {
       listBtn.onclick = () => {
-        if (viewMode !== 'list') {
-          viewMode = 'list';
-          render();
-        }
-      };
-    }
-
-    // Sort Select
-    const sortSelect = container.querySelector('#catalogSortSelect');
-    if (sortSelect) {
-      sortSelect.onchange = () => {
-        sortBy = sortSelect.value;
+        viewMode = 'list';
         render();
       };
     }
 
-    // Toggle Expand/Collapse Subcategories (Chevron + Category Text Click)
-    const toggleCatExpand = (catId) => {
-      const idStr = String(catId);
-      if (expandedCategoryIds.has(idStr)) {
-        expandedCategoryIds.delete(idStr);
-      } else {
-        expandedCategoryIds.add(idStr);
-      }
-      render();
-    };
-
-    container.querySelectorAll('.btn-toggle-subcat').forEach(btn => {
-      btn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        toggleCatExpand(btn.dataset.catId);
+    // Ordenação
+    const sortSelect = container.querySelector('#catalogSortSelect');
+    if (sortSelect) {
+      sortSelect.onchange = (e) => {
+        sortBy = e.target.value;
+        render();
       };
-    });
+    }
 
-    container.querySelectorAll('.cat-expand-trigger').forEach(trigger => {
-      trigger.onclick = (e) => {
-        const catId = trigger.dataset.catId;
-        const cat = activeCategories.find(c => String(c.id) === String(catId));
-        const subs = cat ? (Array.isArray(cat.subcategories) ? cat.subcategories : (Array.isArray(cat.subcategorias) ? cat.subcategorias : [])).filter(s => s.is_active !== false) : [];
-        if (subs.length > 0) {
-          e.preventDefault();
-          e.stopPropagation();
-          toggleCatExpand(catId);
-        } else {
-          const cb = trigger.closest('.filter-cat-tree-node')?.querySelector('.category-check');
-          if (cb) {
-            cb.checked = !cb.checked;
-            cb.dispatchEvent(new Event('change'));
-          }
-        }
-      };
-    });
-
-    // Category Checkboxes
+    // Checkboxes de Categoria na Sidebar
     container.querySelectorAll('.category-check').forEach(cb => {
       cb.onchange = () => {
         const val = cb.value;
@@ -799,31 +665,41 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
       };
     });
 
-    // Subcategory Checkboxes
-    container.querySelectorAll('.subcategory-check').forEach(cb => {
-      cb.onchange = () => {
-        const val = cb.value;
-        if (cb.checked) {
-          if (!selectedSubcategories.includes(val)) selectedSubcategories.push(val);
-        } else {
-          selectedSubcategories = selectedSubcategories.filter(s => s !== val);
-        }
-        render();
-      };
-    });
-
-    // Price Slider (Apple Range Slider)
+    // Filtros de Preço
+    const minInput = container.querySelector('#priceMinInput');
+    const maxInput = container.querySelector('#priceMaxInput');
     const priceSlider = container.querySelector('#priceRangeSlider');
+
+    if (minInput) {
+      minInput.oninput = () => {
+        const val = minInput.value.trim();
+        minPrice = val === '' ? 0 : Math.max(0, Number(val));
+      };
+      minInput.onchange = () => render();
+    }
+
+    if (maxInput) {
+      maxInput.oninput = () => {
+        const val = maxInput.value.trim();
+        maxPrice = val === '' ? 6000000 : Math.max(minPrice, Number(val));
+        if (priceSlider) priceSlider.value = maxPrice;
+        const display = container.querySelector('#priceDisplay');
+        if (display) display.textContent = formatPrice(maxPrice);
+      };
+      maxInput.onchange = () => render();
+    }
+
     if (priceSlider) {
       priceSlider.oninput = () => {
         maxPrice = Number(priceSlider.value);
+        if (maxInput) maxInput.value = maxPrice;
         const display = container.querySelector('#priceDisplay');
         if (display) display.textContent = formatPrice(maxPrice);
       };
       priceSlider.onchange = () => render();
     }
 
-    // Brand Checkboxes (100% Real Brands)
+    // Checkboxes de Marca
     container.querySelectorAll('.brand-check').forEach(cb => {
       cb.onchange = () => {
         const val = cb.value;
@@ -836,7 +712,7 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
       };
     });
 
-    // In Stock & Deals Checkboxes
+    // Em estoque & Em promoção
     const stockCb = container.querySelector('#checkInStock');
     if (stockCb) {
       stockCb.onchange = () => {
@@ -853,62 +729,56 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
       };
     }
 
-    // Clear Filters
-    const clearBtn = container.querySelector('#clearFiltersBtn');
-    if (clearBtn) {
-      clearBtn.onclick = () => {
+    // Reset Filters
+    const resetFilters = () => {
+      selectedBrands = [];
+      minPrice = 0;
+      maxPrice = 6000000;
+      onlyInStock = false;
+      onlyDeals = false;
+      minRating = 0;
+      selectedSubcategories = [];
+      if (categorySlug) {
+        selectedCategories = [categorySlug];
+        window.history.replaceState(null, '', window.location.pathname + `#/categoria/${categorySlug}`);
+      } else {
         selectedCategories = [];
-        selectedSubcategories = [];
-        selectedBrands = [];
-        maxPrice = 6000000;
-        onlyInStock = false;
-        onlyDeals = false;
-        minRating = 0;
-        render();
-      };
-    }
+        window.history.replaceState(null, '', window.location.pathname + '#/catalogo');
+      }
+      render();
+    };
+
+    const clearBtn = container.querySelector('#clearFiltersBtn');
+    if (clearBtn) clearBtn.onclick = resetFilters;
 
     const emptyClearBtn = container.querySelector('#emptyClearFiltersBtn');
-    if (emptyClearBtn) {
-      emptyClearBtn.onclick = () => {
-        selectedCategories = [];
-        selectedSubcategories = [];
-        selectedBrands = [];
-        maxPrice = 6000000;
-        onlyInStock = false;
-        onlyDeals = false;
-        minRating = 0;
-        render();
-      };
-    }
+    if (emptyClearBtn) emptyClearBtn.onclick = resetFilters;
 
-    // Category Subchips Quick Filter
+    // Subchips
     container.querySelectorAll('.cat-subchip').forEach(btn => {
       btn.onclick = () => {
         const subVal = btn.dataset.subVal;
         if (!subVal) {
           selectedSubcategories = [];
+          if (categorySlug) {
+            window.location.hash = `#/categoria/${categorySlug}`;
+          }
         } else {
           selectedSubcategories = [subVal];
+          if (categorySlug) {
+            window.location.hash = `#/categoria/${categorySlug}/${encodeURIComponent(subVal)}`;
+          }
         }
         render();
       };
     });
 
-    const clearCatBtn = container.querySelector('#catalogClearCategoryBtn');
-    if (clearCatBtn) {
-      clearCatBtn.onclick = () => {
-        selectedCategories = [];
-        selectedSubcategories = [];
-        window.location.hash = '#/catalogo';
-      };
-    }
-
-    // Mobile filter toggle & close handlers
+    // Mobile Drawer
     const mobileToggle = container.querySelector('#mobileFilterToggleBtn');
     const closeMobileFilterBtn = container.querySelector('#closeMobileFiltersBtn');
     const applyMobileFilterBtn = container.querySelector('#applyMobileFiltersBtn');
     const sidebar = container.querySelector('#catalogSidebar');
+
     if (mobileToggle && sidebar) {
       mobileToggle.onclick = () => {
         sidebar.classList.add('mobile-open');
@@ -926,73 +796,6 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
         sidebar.classList.remove('mobile-open');
         document.body.style.overflow = '';
       };
-    }
-
-    // Hero Banner navigation & Interações do Carrossel Automático
-    const isHomePageNow = selectedCategories.length === 0 && selectedSubcategories.length === 0 && !searchQuery && !isDeals && !isNew;
-    const heroBox = container.querySelector('#heroCommercialBox');
-    if (heroBox && isHomePageNow) {
-      // Pausa durante o hover do mouse e retoma ao sair
-      heroBox.addEventListener('mouseenter', () => stopAutoplay());
-      heroBox.addEventListener('mouseleave', () => startAutoplay());
-
-      // Setas Anterior / Próximo
-      const prevBtn = container.querySelector('#heroPrevBtn');
-      if (prevBtn) {
-        prevBtn.onclick = (e) => {
-          e.preventDefault();
-          const list = (activeBanners && activeBanners.length > 0) ? activeBanners : defaultInstitutionalBanner;
-          goToSlide(activeFlagshipIndex - 1);
-          startAutoplay();
-        };
-      }
-
-      const nextBtn = container.querySelector('#heroNextBtn');
-      if (nextBtn) {
-        nextBtn.onclick = (e) => {
-          e.preventDefault();
-          goToSlide(activeFlagshipIndex + 1);
-          startAutoplay();
-        };
-      }
-
-      // Indicadores de bolinhas (Dots)
-      container.querySelectorAll('.hero-dot').forEach(dot => {
-        dot.onclick = (e) => {
-          e.preventDefault();
-          goToSlide(Number(dot.dataset.dotIdx));
-          startAutoplay();
-        };
-      });
-
-      // Suporte a Touch Swipe no celular
-      let touchStartX = 0;
-      let touchEndX = 0;
-      heroBox.addEventListener('touchstart', (e) => {
-        stopAutoplay();
-        touchStartX = e.changedTouches[0].screenX;
-      }, { passive: true });
-
-      heroBox.addEventListener('touchend', (e) => {
-        touchEndX = e.changedTouches[0].screenX;
-        const diffX = touchEndX - touchStartX;
-        if (Math.abs(diffX) > 40) {
-          if (diffX > 0) {
-            // Arrastou para a direita -> banner anterior
-            goToSlide(activeFlagshipIndex - 1);
-          } else {
-            // Arrastou para a esquerda -> próximo banner
-            goToSlide(activeFlagshipIndex + 1);
-          }
-        }
-        startAutoplay();
-      }, { passive: true });
-
-      // Inicia a passagem automática de slides
-      startAutoplay();
-
-      // Cancela o timer se a rota mudar para outra página
-      window.addEventListener('hashchange', () => stopAutoplay(), { once: true });
     }
   }
 
