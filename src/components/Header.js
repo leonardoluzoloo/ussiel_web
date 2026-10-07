@@ -175,7 +175,7 @@ export function createHeader() {
                           Nenhuma categoria disponível no momento. Novidades em breve!
                         </div>
                       </div>
-                    ` : dynamicCategories.slice(0, 4).map(cat => `
+                    ` : dynamicCategories.map(cat => `
                       <div class="mega-col">
                         <div class="mega-col-title">
                           <span class="mega-icon">${Icons[cat.iconName] ? Icons[cat.iconName](18) : Icons.package(18)}</span>
@@ -197,18 +197,6 @@ export function createHeader() {
                         </ul>
                       </div>
                     `).join('')}
-
-                    <!-- Mega Menu Info Box -->
-                    <div class="mega-promo-box">
-                      <div>
-                        <span class="mega-promo-badge">ATENDIMENTO DEDICADO</span>
-                        <h4 class="mega-promo-title">Suporte ao Cliente Luanda</h4>
-                        <p class="mega-promo-desc">Tire dúvidas sobre especificações técnicas, garantias ou cotações empresariais diretamente com nossos consultores.</p>
-                      </div>
-                      <a href="https://wa.me/244923179192" target="_blank" class="btn-mega-promo">
-                        Falar no WhatsApp
-                      </a>
-                    </div>
                   </div>
                 </div>
               </div>

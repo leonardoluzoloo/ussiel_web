@@ -698,9 +698,9 @@ img {
 
 .mega-menu-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr) 280px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 28px;
-  padding: 32px 0;
+  padding: 28px 0;
 }
 
 .mega-col-title {
