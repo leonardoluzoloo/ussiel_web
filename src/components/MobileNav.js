@@ -61,7 +61,7 @@ export function setupMobileNav() {
       </a>
       <a href="#/carrinho" class="mobile-nav-item" id="mobileBottomCartBtn">
         ${Icons.cart(22)}
-        ${cartCount > 0 ? `<span class="mobile-nav-badge">${cartCount}</span>` : ''}
+        <span class="mobile-nav-badge" id="mobileCartBadge">${cartCount}</span>
         <span>Carrinho</span>
       </a>
       <div class="mobile-nav-item" id="mobileBottomUserBtn">

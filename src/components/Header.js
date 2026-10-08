@@ -174,10 +174,6 @@ export function createHeader() {
                 ${Icons.cart(22, 'currentColor')}
                 <span class="action-badge badge-cart" id="headerCartBadge">${cartCount}</span>
               </div>
-              <div class="action-text-group">
-                <span class="action-label-small">Meu Carrinho</span>
-                <span class="action-label-strong" id="headerCartTotal">${formatPrice(cartSubtotal)}</span>
-              </div>
             </a>
           </div>
         </div>

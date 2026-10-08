@@ -30,6 +30,7 @@ export function renderProductDetailView(productSlug) {
   let currentImage = product?.gallery?.[0] || product?.image || '';
   let reviewRating = 5; // estrelas selecionadas pelo usuário no form
   let hasPurchasedProduct = false; // apenas quem comprou o produto pode avaliar
+  let alsoBoughtProducts = []; // compras conjuntas 100% reais do Supabase (itens_pedido)
 
   async function syncProduct() {
     try {
@@ -149,6 +150,13 @@ export function renderProductDetailView(productSlug) {
           allProducts = await Api.products.getAll({ all: false });
         } catch {
           allProducts = [];
+        }
+
+        // Carregar compras conjuntas 100% reais do Supabase (itens_pedido)
+        try {
+          alsoBoughtProducts = await Api.products.getAlsoBought(product.id);
+        } catch {
+          alsoBoughtProducts = [];
         }
         render();
       } else {
@@ -703,32 +711,34 @@ export function renderProductDetailView(productSlug) {
       </section>
     `;
 
-    // Render related products (dinâmico via Supabase)
+    // Render related products (estritamente da mesma categoria, sem fallback para categorias incompatíveis)
     const relatedSection = container.querySelector('#relatedSection');
     const relatedGrid = container.querySelector('#relatedProductsGrid');
     if (relatedGrid && relatedSection) {
+      const prodCatId = String(product.category_id || product.categoria_id || product.category || '').trim();
       const related = allProducts
-        .filter(p => p.is_active !== false && p.ativo !== false &&
-          (String(p.category_id) === String(product.category_id) || p.category === product.category) &&
-          String(p.id) !== String(product.id))
+        .filter(p => {
+          if (p.is_active === false || p.ativo === false) return false;
+          if (String(p.id) === String(product.id)) return false;
+          const pCatId = String(p.category_id || p.categoria_id || p.category || '').trim();
+          return prodCatId && pCatId === prodCatId;
+        })
         .slice(0, 4);
-      const relatedToShow = related.length > 0 ? related : allProducts.filter(p => p.is_active !== false && p.ativo !== false && String(p.id) !== String(product.id)).slice(0, 4);
-      if (relatedToShow.length > 0) {
-        relatedToShow.forEach(p => relatedGrid.appendChild(createProductCard(p)));
+
+      if (related.length > 0) {
+        related.forEach(p => relatedGrid.appendChild(createProductCard(p)));
         relatedSection.style.display = 'block';
       } else {
         relatedSection.style.display = 'none';
       }
     }
 
+    // Render "Quem Comprou Este, Também Comprou" (100% Real baseado em histórico de pedidos no Supabase: itens_pedido)
     const alsoBoughtSection = container.querySelector('#alsoBoughtSection');
     const alsoBoughtGrid = container.querySelector('#alsoBoughtProductsGrid');
     if (alsoBoughtGrid && alsoBoughtSection) {
-      const alsoBought = allProducts
-        .filter(p => p.is_active !== false && p.ativo !== false && String(p.id) !== String(product.id))
-        .slice(0, 4);
-      if (alsoBought.length > 0) {
-        alsoBought.forEach(p => alsoBoughtGrid.appendChild(createProductCard(p)));
+      if (alsoBoughtProducts && alsoBoughtProducts.length > 0) {
+        alsoBoughtProducts.forEach(p => alsoBoughtGrid.appendChild(createProductCard(p)));
         alsoBoughtSection.style.display = 'block';
       } else {
         alsoBoughtSection.style.display = 'none';

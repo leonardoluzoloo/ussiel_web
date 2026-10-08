@@ -1838,6 +1838,59 @@ export const Api = {
       return this.getBySlug(id);
     },
 
+    /**
+     * Busca produtos realmente comprados juntos no histórico da tabela 'itens_pedido' do Supabase.
+     * Retorna apenas compras conjuntas 100% reais (nada fictício).
+     */
+    async getAlsoBought(productId) {
+      const prodId = Number(productId);
+      if (!prodId || !isSupabaseConfigured() || !supabase) return [];
+      try {
+        // 1. Busca os IDs dos pedidos onde este produto foi comprado
+        const { data: myItems, error: e1 } = await supabase
+          .from('itens_pedido')
+          .select('pedido_id')
+          .eq('produto_id', prodId);
+
+        if (e1 || !myItems || myItems.length === 0) return [];
+
+        const orderIds = Array.from(new Set(myItems.map(i => i.pedido_id).filter(Boolean)));
+        if (orderIds.length === 0) return [];
+
+        // 2. Busca outros produtos comprados nesses mesmos pedidos
+        const { data: coItems, error: e2 } = await supabase
+          .from('itens_pedido')
+          .select('produto_id')
+          .in('pedido_id', orderIds)
+          .neq('produto_id', prodId);
+
+        if (e2 || !coItems || coItems.length === 0) return [];
+
+        // 3. Frequência de compra conjunta (os mais comprados juntos primeiro)
+        const counts = {};
+        coItems.forEach(i => {
+          const pid = Number(i.produto_id);
+          if (pid) counts[pid] = (counts[pid] || 0) + 1;
+        });
+
+        const sortedProductIds = Object.keys(counts)
+          .sort((a, b) => counts[b] - counts[a])
+          .map(Number)
+          .slice(0, 4);
+
+        if (sortedProductIds.length === 0) return [];
+
+        // 4. Carrega os dados desses produtos reais
+        const all = await this.getAll({ all: false });
+        return sortedProductIds
+          .map(id => all.find(p => Number(p.id) === id))
+          .filter(Boolean);
+      } catch (err) {
+        console.warn('[AlsoBought] Erro ao buscar compras conjuntas reais:', err.message);
+        return [];
+      }
+    },
+
     async create(productData) {
       if (!productData.name && !productData.nome) {
         throw new Error('O nome do produto é obrigatório.');
