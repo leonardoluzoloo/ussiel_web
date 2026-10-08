@@ -55,10 +55,6 @@ export function renderCartView() {
             </span>
           ` : ''}
         </div>
-        <a href="#/catalogo" style="font-size: 0.875rem; color: var(--primary-600); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
-          ${Icons.arrowLeft(14)}
-          <span>${cart.length > 0 ? 'Continuar comprando' : 'Voltar à loja'}</span>
-        </a>
       </div>
 
       ${cart.length === 0 ? `

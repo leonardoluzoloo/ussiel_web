@@ -88,7 +88,7 @@ export function renderAccountView(initialTab = 'orders') {
     // Se a aba for Favoritos e o usuário não estiver logado, exibe os favoritos com banner convidativo
     if (!user && currentTab === 'wishlist') {
       container.innerHTML = `
-        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 24px; margin-bottom: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--border-light);">
+        <div style="margin-top: 24px; margin-bottom: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--border-light);">
           <div>
             <div style="display: flex; align-items: baseline; gap: 10px;">
               <h1 style="font-family: var(--font-display); font-size: clamp(1.5rem, 4vw, 1.85rem); font-weight: 800; color: var(--text-main); margin: 0; letter-spacing: -0.02em;">
@@ -104,10 +104,6 @@ export function renderAccountView(initialTab = 'orders') {
               Itens salvos no seu navegador. <a href="#/login" style="color: var(--primary-600); font-weight: 700; text-decoration: underline;">Entre na sua conta</a> para sincronizar em qualquer dispositivo.
             </p>
           </div>
-          <a href="#/catalogo" style="font-size: 0.875rem; color: var(--primary-600); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
-            ${Icons.arrowLeft(14)}
-            <span>${wishlistedProducts.length > 0 ? 'Continuar comprando' : 'Voltar à loja'}</span>
-          </a>
         </div>
 
         ${wishlistedProducts.length === 0 ? `
@@ -382,7 +378,7 @@ export function renderAccountView(initialTab = 'orders') {
             </div>
           ` : currentTab === 'wishlist' ? `
             <div>
-              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border-light);">
+              <div style="margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border-light);">
                 <div style="display: flex; align-items: baseline; gap: 10px;">
                   <h2 style="font-family: var(--font-display); font-size: clamp(1.3rem, 3.5vw, 1.55rem); font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -0.02em;">
                     Meus Produtos Favoritos
@@ -393,10 +389,6 @@ export function renderAccountView(initialTab = 'orders') {
                     </span>
                   ` : ''}
                 </div>
-                <a href="#/catalogo" style="font-size: 0.875rem; color: var(--primary-600); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
-                  ${Icons.arrowLeft(14)}
-                  <span>${wishlistedProducts.length > 0 ? 'Continuar comprando' : 'Voltar à loja'}</span>
-                </a>
               </div>
 
               ${wishlistedProducts.length === 0 ? `
