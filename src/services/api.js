@@ -427,6 +427,16 @@ function mapPedidoFromDb(o) {
   }));
 
   const canonicalStatus = normalizeOrderStatus(o.status_pedido || o.status || 'received');
+  const rawPayment = String(o.status_pagamento || o.payment_status || '').toLowerCase().trim();
+  let paymentStatus = 'pendente';
+  if (rawPayment === 'pago' || rawPayment === 'paid' || rawPayment === 'concluido' || rawPayment === 'concluído') {
+    paymentStatus = 'pago';
+  } else if (rawPayment === 'cancelado' || rawPayment === 'cancelled' || rawPayment === 'recusado' || rawPayment === 'failed') {
+    paymentStatus = 'cancelado';
+  } else if (canonicalStatus === 'delivered' || canonicalStatus === 'confirmed') {
+    // Regra de negócio: Se o pedido está entregue ou confirmado, pela lógica o pagamento está concluído
+    paymentStatus = 'pago';
+  }
 
   return {
     id: o.id,
@@ -442,7 +452,8 @@ function mapPedidoFromDb(o) {
     shipping_method: o.metodo_entrega || 'normal',
     shipping_price: Number(o.preco_entrega || 0),
     payment_method: o.metodo_pagamento,
-    payment_status: o.status_pagamento || 'pendente',
+    payment_status: paymentStatus,
+    status_pagamento: paymentStatus,
     payment_details: o.detalhes_pagamento || {},
     subtotal: Number(o.subtotal || 0),
     discount: Number(o.desconto || 0),
@@ -1288,10 +1299,20 @@ export const Api = {
     },
 
     async create(categoryData) {
-      if (!categoryData.name && !categoryData.nome) {
+      const rawName = (categoryData.name || categoryData.nome || '').trim();
+      if (!rawName) {
         throw new Error('O nome da categoria é obrigatório.');
       }
-      const payload = mapCategoriaToDb(categoryData);
+      const upperName = rawName.toUpperCase();
+
+      // 1. Validação de duplicidade na aplicação (ignora maiúsculas/minúsculas)
+      const allCats = await this.getAll();
+      const duplicate = allCats.find(c => (c.name || c.nome || '').trim().toUpperCase() === upperName);
+      if (duplicate) {
+        throw new Error(`A categoria "${upperName}" já está cadastrada no sistema.`);
+      }
+
+      const payload = mapCategoriaToDb({ ...categoryData, name: upperName });
 
       if (isSupabaseConfigured() && supabase) {
         let { data, error } = await supabase.from('categorias').insert(payload).select().single();
@@ -1305,6 +1326,9 @@ export const Api = {
 
         if (error) {
           console.error('Erro ao gravar categoria no Supabase:', error);
+          if (error.code === '23505' || (error.message && error.message.toLowerCase().includes('unique'))) {
+            throw new Error(`A categoria "${upperName}" já está cadastrada no banco de dados.`);
+          }
           throw new Error('Falha ao gravar categoria no banco de dados: ' + (error.message || 'Erro desconhecido'));
         }
 
@@ -1328,9 +1352,20 @@ export const Api = {
       const currentCats = await this.getAll();
       const existing = currentCats.find(c => c.id === id);
 
+      const rawName = (categoryData.name !== undefined ? categoryData.name : (categoryData.nome !== undefined ? categoryData.nome : existing?.name)) || '';
+      const upperName = rawName.trim().toUpperCase();
+
+      if (upperName) {
+        const duplicate = currentCats.find(c => c.id !== id && (c.name || c.nome || '').trim().toUpperCase() === upperName);
+        if (duplicate) {
+          throw new Error(`Já existe outra categoria com o nome "${upperName}".`);
+        }
+      }
+
       const merged = {
         ...(existing || {}),
         ...categoryData,
+        name: upperName || existing?.name,
         subcategories: categoryData.subcategories !== undefined
           ? categoryData.subcategories
           : (existing?.subcategories || [])
@@ -1347,6 +1382,9 @@ export const Api = {
 
       if (error) {
         console.error('Erro ao atualizar categoria no Supabase:', error);
+        if (error.code === '23505' || (error.message && error.message.toLowerCase().includes('unique'))) {
+          throw new Error(`Já existe outra categoria cadastrada com o nome "${upperName}".`);
+        }
         throw new Error('Falha ao atualizar categoria no banco de dados: ' + (error.message || 'Erro desconhecido'));
       }
 
@@ -1378,14 +1416,23 @@ export const Api = {
     // --- MÉTODOS DE SUBCATEGORIAS (VINCULADAS À TABELA RELACIONAL 'subcategorias') ---
     async createSubcategory({ parent_id, name, description = '', display_order = 1, is_active = true }) {
       if (!parent_id) throw new Error('Selecione a categoria pai para vincular a subcategoria.');
-      if (!name || !name.trim()) throw new Error('O nome da subcategoria é obrigatório.');
+      const rawName = (name || '').trim();
+      if (!rawName) throw new Error('O nome da subcategoria é obrigatório.');
+      const upperName = rawName.toUpperCase();
 
       const currentCats = await this.getAll();
       const parent = currentCats.find(c => c.id === Number(parent_id));
       if (!parent) throw new Error('Categoria pai não encontrada no sistema.');
 
       const existingSubs = Array.isArray(parent.subcategories) ? parent.subcategories : [];
-      const cleanName = name.trim();
+
+      // 1. Validação de duplicidade na aplicação para esta categoria pai (ignora maiúsculas/minúsculas)
+      const duplicateSub = existingSubs.find(s => (s.name || s.nome || '').trim().toUpperCase() === upperName);
+      if (duplicateSub) {
+        throw new Error(`A subcategoria/marca "${upperName}" já está cadastrada nesta categoria.`);
+      }
+
+      const cleanName = upperName;
       const slug = cleanName
         .toLowerCase()
         .normalize('NFD')
@@ -1412,6 +1459,9 @@ export const Api = {
 
         if (subErr) {
           console.error('Erro ao inserir subcategoria no Supabase:', subErr);
+          if (subErr.code === '23505' || (subErr.message && subErr.message.toLowerCase().includes('unique'))) {
+            throw new Error(`A subcategoria/marca "${upperName}" já está cadastrada para esta categoria no banco de dados.`);
+          }
           throw new Error('Falha ao cadastrar subcategoria no banco: ' + (subErr.message || 'Erro desconhecido'));
         }
 
@@ -1442,18 +1492,27 @@ export const Api = {
     async updateSubcategory({ category_id, subcategory_id, name, description, display_order, is_active }) {
       if (!category_id) throw new Error('Categoria pai não informada.');
       if (!subcategory_id) throw new Error('Subcategoria não informada.');
-      if (!name || !name.trim()) throw new Error('O nome da subcategoria é obrigatório.');
+      const rawName = (name || '').trim();
+      if (!rawName) throw new Error('O nome da subcategoria é obrigatório.');
+      const upperName = rawName.toUpperCase();
 
       const currentCats = await this.getAll();
       const parent = currentCats.find(c => c.id === Number(category_id));
       if (!parent) throw new Error('Categoria pai não encontrada.');
+
+      const existingSubs = Array.isArray(parent.subcategories) ? parent.subcategories : [];
+      // Validação de duplicidade ignorando a própria subcategoria sendo editada
+      const duplicateSub = existingSubs.find(s => String(s.id) !== String(subcategory_id) && (s.name || s.nome || '').trim().toUpperCase() === upperName);
+      if (duplicateSub) {
+        throw new Error(`Já existe outra subcategoria/marca com o nome "${upperName}" nesta categoria.`);
+      }
 
       // 1. Atualizar na tabela oficial 'subcategorias'
       if (isSupabaseConfigured() && supabase && !isNaN(Number(subcategory_id))) {
         const { error: sbSubErr } = await supabase
           .from('subcategorias')
           .update({
-            nome: name.trim(),
+            nome: upperName,
             descricao: description !== undefined ? description.trim() : '',
             ordem_exibicao: display_order !== undefined ? Number(display_order) : 1,
             ativo: is_active !== undefined ? Boolean(is_active) : true
@@ -1462,16 +1521,18 @@ export const Api = {
 
         if (sbSubErr) {
           console.error('Erro ao atualizar subcategoria no Supabase:', sbSubErr);
+          if (sbSubErr.code === '23505' || (sbSubErr.message && sbSubErr.message.toLowerCase().includes('unique'))) {
+            throw new Error(`A subcategoria/marca "${upperName}" já existe nesta categoria no banco de dados.`);
+          }
           throw new Error('Falha ao atualizar subcategoria no banco: ' + (sbSubErr.message || 'Erro desconhecido'));
         }
       }
 
-      const existingSubs = Array.isArray(parent.subcategories) ? parent.subcategories : [];
       const updatedSubs = existingSubs.map(s => {
         if (String(s.id) === String(subcategory_id)) {
           return {
             ...s,
-            name: name.trim(),
+            name: upperName,
             description: description !== undefined ? description.trim() : (s.description || ''),
             display_order: display_order !== undefined ? Number(display_order) : (s.display_order || 1),
             is_active: is_active !== undefined ? Boolean(is_active) : (s.is_active !== false)
@@ -2848,7 +2909,7 @@ export const Api = {
       throw new Error('Serviço de processamento de pedidos indisponível. Conecte o banco de dados Supabase.');
     },
 
-    async updateStatus(orderId, newStatus, notes = '') {
+    async updateStatus(orderId, newStatus, notes = '', explicitPaymentStatus = null) {
       const canonicalStatus = normalizeOrderStatus(newStatus);
       const VALID_STATUSES = ['received', 'confirmed', 'preparing', 'shipped', 'delivered', 'cancelled'];
       if (!VALID_STATUSES.includes(canonicalStatus)) {
@@ -2856,8 +2917,21 @@ export const Api = {
       }
 
       const updateData = { status_pedido: canonicalStatus };
-      if (canonicalStatus === 'confirmed') updateData.status_pagamento = 'pago';
-      else if (canonicalStatus === 'cancelled') updateData.status_pagamento = 'cancelado';
+      
+      // Regra de Negócio: Se o pedido está entregue ou confirmado, o pagamento é concluído/pago.
+      // Se cancelado, pagamento é cancelado. Ou se fornecido explicitamente pelo admin, usa o valor escolhido.
+      let finalPaymentStatus = explicitPaymentStatus;
+      if (!finalPaymentStatus) {
+        if (canonicalStatus === 'delivered' || canonicalStatus === 'confirmed') {
+          finalPaymentStatus = 'pago';
+        } else if (canonicalStatus === 'cancelled') {
+          finalPaymentStatus = 'cancelado';
+        }
+      }
+
+      if (finalPaymentStatus) {
+        updateData.status_pagamento = finalPaymentStatus;
+      }
       if (notes) updateData.notas_admin = notes;
 
       let updatedOrder = null;
@@ -2902,8 +2976,10 @@ export const Api = {
           status_history: history,
           updated_at: nowIso
         };
-        if (canonicalStatus === 'confirmed') merged.payment_status = 'pago';
-        else if (canonicalStatus === 'cancelled') merged.payment_status = 'cancelado';
+        if (finalPaymentStatus) {
+          merged.payment_status = finalPaymentStatus;
+          merged.status_pagamento = finalPaymentStatus;
+        }
 
         updatedOrder = merged;
         return merged;
@@ -2911,14 +2987,33 @@ export const Api = {
 
       setLocalData(LOCAL_STORAGE_KEYS.ORDERS, updatedList);
 
-      // Sincroniza via Storage unificado e emite evento para todo o sistema (Admin, Loja e Área do Cliente)
-      // Sincroniza via Storage unificado e emite evento para todo o sistema (Admin, Loja e Área do Cliente)
-
       window.dispatchEvent(new CustomEvent('orders-updated', {
-        detail: { orderId, status: canonicalStatus, notes, timestamp: nowIso, order: updatedOrder }
+        detail: { orderId, status: canonicalStatus, paymentStatus: finalPaymentStatus, notes, timestamp: nowIso, order: updatedOrder }
       }));
 
-      return updatedOrder || { id: orderId, status: canonicalStatus };
+      return updatedOrder || { id: orderId, status: canonicalStatus, payment_status: finalPaymentStatus };
+    },
+
+    async updatePaymentStatus(orderId, paymentStatus) {
+      const validPayStatuses = ['pendente', 'pending', 'pago', 'paid', 'cancelado', 'cancelled', 'recusado', 'failed'];
+      const clean = String(paymentStatus || '').toLowerCase();
+      const canonical = (clean === 'pago' || clean === 'paid' || clean === 'concluido' || clean === 'concluído') ? 'pago'
+        : (clean === 'cancelado' || clean === 'cancelled' || clean === 'recusado' || clean === 'failed') ? 'cancelado'
+        : 'pendente';
+
+      if (isSupabaseConfigured() && supabase) {
+        try {
+          await supabase.from('pedidos').update({ status_pagamento: canonical }).eq('id', orderId);
+        } catch (e) {
+          console.warn('Erro ao alterar status de pagamento no Supabase:', e.message);
+        }
+      }
+
+      const list = await this.getAll();
+      const updated = list.map(o => (o.id === orderId || String(o.id) === String(orderId) || o.order_code === orderId) ? { ...o, payment_status: canonical, status_pagamento: canonical } : o);
+      setLocalData(LOCAL_STORAGE_KEYS.ORDERS, updated);
+      window.dispatchEvent(new CustomEvent('orders-updated', { detail: { orderId, paymentStatus: canonical } }));
+      return updated.find(o => o.id === orderId || String(o.id) === String(orderId) || o.order_code === orderId);
     },
 
     async updateNotes(orderId, notes) {
@@ -3779,7 +3874,7 @@ export const Api = {
               key: row.variante_chave,
               id: Number(row.produto_id),
               sku: row.sku || prod?.sku || '',
-              name: row.nome || prod?.name || prod?.nome || '',
+              name: (row.nome || prod?.name || prod?.nome || '').trim().toUpperCase(),
               price: prod?.price !== undefined ? Number(prod.price) : (Number(row.preco) || 0),
               image: row.imagem || prod?.image || '',
               variant: row.variante || {},
@@ -3828,7 +3923,7 @@ export const Api = {
           variante_chave: String(item.key),
           quantidade: Math.max(1, Number(item.quantity) || 1),
           preco: Number(item.price) || 0,
-          nome: item.name || '',
+          nome: (item.name || '').trim().toUpperCase(),
           imagem: item.image || '',
           sku: item.sku || '',
           variante: item.variant || {},

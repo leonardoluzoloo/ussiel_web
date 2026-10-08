@@ -154,7 +154,7 @@ export const Storage = {
         key: variantKey,
         id: product.id,
         sku: product.sku,
-        name: product.name,
+        name: (product.name || '').trim().toUpperCase(),
         price: product.price,
         image: (selectedVariant && selectedVariant.image) || product.image,
         variant: selectedVariant,

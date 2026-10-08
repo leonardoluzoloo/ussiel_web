@@ -557,9 +557,11 @@ img {
 }
 
 .action-badge.badge-cart {
-  background: var(--accent-orange);
+  background: transparent !important;
+  color: var(--accent-orange) !important;
   border: none !important;
   box-shadow: none !important;
+  font-size: 0.85rem;
 }
 
 .action-text-group {
@@ -5708,6 +5710,14 @@ img {
     border: 2px solid #ffffff !important;
   }
 
+  .action-badge.badge-cart {
+    background: transparent !important;
+    color: var(--accent-orange) !important;
+    border: none !important;
+    box-shadow: none !important;
+    font-size: 0.8rem !important;
+  }
+
   /* Linha 2 - Campo de Busca em Largura Total (100%) */
   .search-container {
     order: 3 !important;
@@ -7133,6 +7143,36 @@ img {
 
 .admin-table tr:hover td {
   background: #fafafa;
+}
+
+.order-row-clickable,
+.product-row-clickable,
+.customer-row-clickable,
+.category-info-clickable,
+.subcategory-row-clickable {
+  cursor: pointer !important;
+  user-select: none;
+}
+
+.order-row-clickable:hover td,
+.product-row-clickable:hover td,
+.customer-row-clickable:hover td {
+  background: #f1f5f9 !important;
+}
+
+.order-row-clickable.admin-res-card:hover,
+.product-row-clickable.admin-res-card:hover,
+.customer-row-clickable.admin-res-card:hover {
+  border-color: #94a3b8 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+}
+
+.category-info-clickable:hover .category-name-text {
+  color: #2563eb !important;
+}
+
+.subcategory-row-clickable:hover {
+  background: #f1f5f9 !important;
 }
 
 .admin-table-wrapper {

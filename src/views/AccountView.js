@@ -88,28 +88,47 @@ export function renderAccountView(initialTab = 'orders') {
     // Se a aba for Favoritos e o usuário não estiver logado, exibe os favoritos com banner convidativo
     if (!user && currentTab === 'wishlist') {
       container.innerHTML = `
-        <div style="margin-top: 32px; margin-bottom: 24px;">
-          <h1 style="font-family: var(--font-display); font-size: 2rem; font-weight: 900; color: #0f172a; margin-bottom: 6px;">
-            Meus Produtos Favoritos (${wishlistedProducts.length})
-          </h1>
-          <p style="color: #64748b; font-size: 0.9375rem; margin: 0;">
-            Itens que você salvou no seu navegador. <a href="#/login" style="color: var(--primary-600); font-weight: 700; text-decoration: underline;">Entre na sua conta</a> para sincronizar em qualquer dispositivo.
-          </p>
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 24px; margin-bottom: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--border-light);">
+          <div>
+            <div style="display: flex; align-items: baseline; gap: 10px;">
+              <h1 style="font-family: var(--font-display); font-size: clamp(1.5rem, 4vw, 1.85rem); font-weight: 800; color: var(--text-main); margin: 0; letter-spacing: -0.02em;">
+                Meus Favoritos
+              </h1>
+              ${wishlistedProducts.length > 0 ? `
+                <span style="font-size: 0.95rem; color: var(--text-muted); font-weight: 600;">
+                  (${wishlistedProducts.length} ${wishlistedProducts.length === 1 ? 'item' : 'itens'})
+                </span>
+              ` : ''}
+            </div>
+            <p style="color: #64748b; font-size: 0.875rem; margin: 4px 0 0 0;">
+              Itens salvos no seu navegador. <a href="#/login" style="color: var(--primary-600); font-weight: 700; text-decoration: underline;">Entre na sua conta</a> para sincronizar em qualquer dispositivo.
+            </p>
+          </div>
+          <a href="#/catalogo" style="font-size: 0.875rem; color: var(--primary-600); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+            ${Icons.arrowLeft(14)}
+            <span>${wishlistedProducts.length > 0 ? 'Continuar comprando' : 'Voltar à loja'}</span>
+          </a>
         </div>
 
         ${wishlistedProducts.length === 0 ? `
-          <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 56px 24px; text-align: center; box-shadow: var(--shadow-sm); margin-bottom: 48px;">
-            <div style="width: 56px; height: 56px; border-radius: 50%; background: #fee2e2; color: #ef4444; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
-              ${Icons.heart(28, '#ef4444')}
+          <!-- Favoritos Vazio de Alto Padrão (Clean, Minimalista, Idêntico ao Carrinho Vazio) -->
+          <div class="cart-empty-clean" style="text-align: center; padding: clamp(40px, 8vh, 80px) 16px; max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <!-- Ícone Sutil com Acabamento Refinado -->
+            <div style="width: 72px; height: 72px; border-radius: 50%; background: #eff6ff; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; color: var(--primary-600); border: 1px solid rgba(37,99,235,0.12);">
+              ${Icons.heart(32, 'var(--primary-600)')}
             </div>
-            <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin-bottom: 8px;">
-              Sua lista de favoritos está vazia
-            </h3>
-            <p style="color: var(--text-secondary); font-size: 0.9375rem; max-width: 440px; margin: 0 auto 24px auto;">
-              Clique no coração dos produtos que você mais gostou para salvá-los e acompanhar preços e novidades!
+
+            <h2 style="font-family: var(--font-display); font-size: clamp(1.3rem, 4vw, 1.55rem); font-weight: 800; color: var(--text-main); margin: 0 0 10px 0; letter-spacing: -0.02em;">
+              A sua lista de favoritos está vazia
+            </h2>
+
+            <p style="color: var(--text-secondary); font-size: clamp(0.875rem, 2.5vw, 0.9375rem); margin: 0 0 24px 0; line-height: 1.5; max-width: 360px;">
+              Ainda não adicionou nenhum artigo aos favoritos. Explore e acesse o catálogo.
             </p>
-            <a href="#/catalogo" class="btn btn-primary" style="padding: 12px 28px; border-radius: 8px; font-weight: 700;">
-              Explorar Catálogo
+
+            <a href="#/catalogo" class="btn btn-primary" style="padding: 13px 32px; font-weight: 700; border-radius: 8px; font-size: 0.9375rem; display: inline-flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 14px rgba(37,99,235,0.22); min-height: 46px; width: 100%; max-width: 240px;">
+              <span>Acessar Catálogo</span>
+              ${Icons.chevronRight(16)}
             </a>
           </div>
         ` : `
@@ -363,14 +382,43 @@ export function renderAccountView(initialTab = 'orders') {
             </div>
           ` : currentTab === 'wishlist' ? `
             <div>
-              <h2 style="font-family: var(--font-display); font-size: 1.35rem; font-weight: 800; color: #0f172a; margin-bottom: 20px;">
-                Meus Produtos Favoritos (${wishlistedProducts.length})
-              </h2>
+              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border-light);">
+                <div style="display: flex; align-items: baseline; gap: 10px;">
+                  <h2 style="font-family: var(--font-display); font-size: clamp(1.3rem, 3.5vw, 1.55rem); font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -0.02em;">
+                    Meus Produtos Favoritos
+                  </h2>
+                  ${wishlistedProducts.length > 0 ? `
+                    <span style="font-size: 0.95rem; color: var(--text-muted); font-weight: 600;">
+                      (${wishlistedProducts.length} ${wishlistedProducts.length === 1 ? 'item' : 'itens'})
+                    </span>
+                  ` : ''}
+                </div>
+                <a href="#/catalogo" style="font-size: 0.875rem; color: var(--primary-600); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+                  ${Icons.arrowLeft(14)}
+                  <span>${wishlistedProducts.length > 0 ? 'Continuar comprando' : 'Voltar à loja'}</span>
+                </a>
+              </div>
 
               ${wishlistedProducts.length === 0 ? `
-                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 48px 24px; text-align: center; box-shadow: 0 1px 3px rgba(15,23,42,0.04);">
-                  <p style="color: #64748b; margin-bottom: 16px; font-size: 0.9375rem;">Você ainda não favoritou nenhum produto cadastrado na loja.</p>
-                  <a href="#/catalogo" class="btn btn-primary" style="padding: 10px 24px; border-radius: 8px; font-weight: 700;">Descobrir Produtos</a>
+                <!-- Favoritos Vazio de Alto Padrão (Clean, Minimalista, Idêntico ao Carrinho Vazio) -->
+                <div class="cart-empty-clean" style="text-align: center; padding: clamp(40px, 8vh, 80px) 16px; max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                  <!-- Ícone Sutil com Acabamento Refinado -->
+                  <div style="width: 72px; height: 72px; border-radius: 50%; background: #eff6ff; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; color: var(--primary-600); border: 1px solid rgba(37,99,235,0.12);">
+                    ${Icons.heart(32, 'var(--primary-600)')}
+                  </div>
+
+                  <h2 style="font-family: var(--font-display); font-size: clamp(1.3rem, 4vw, 1.55rem); font-weight: 800; color: var(--text-main); margin: 0 0 10px 0; letter-spacing: -0.02em;">
+                    A sua lista de favoritos está vazia
+                  </h2>
+
+                  <p style="color: var(--text-secondary); font-size: clamp(0.875rem, 2.5vw, 0.9375rem); margin: 0 0 24px 0; line-height: 1.5; max-width: 360px;">
+                    Ainda não adicionou nenhum artigo aos favoritos. Explore e acesse o catálogo.
+                  </p>
+
+                  <a href="#/catalogo" class="btn btn-primary" style="padding: 13px 32px; font-weight: 700; border-radius: 8px; font-size: 0.9375rem; display: inline-flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 14px rgba(37,99,235,0.22); min-height: 46px; width: 100%; max-width: 240px;">
+                    <span>Acessar Catálogo</span>
+                    ${Icons.chevronRight(16)}
+                  </a>
                 </div>
               ` : `
                 <div class="products-grid" id="accountWishlistGrid">

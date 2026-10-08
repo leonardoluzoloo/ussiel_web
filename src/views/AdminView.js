@@ -1189,7 +1189,7 @@ export function renderAdminView() {
                   ${ordersList.slice(0, 5).map(o => {
       const cleanCode = String(o.order_code || o.codigo_pedido || o.id).replace(/^#/, '');
       return `
-                    <tr>
+                    <tr class="order-row-clickable" data-order-id="${o.id}" style="cursor: pointer;">
                       <td style="font-family:ui-monospace, monospace; font-size:0.8125rem; font-weight:700; color:#334155;">${cleanCode}</td>
                       <td>
                         <div style="font-weight:600; color:#0f172a; font-size:0.875rem;">${o.customer_name || 'Cliente'}</div>
@@ -1218,7 +1218,7 @@ export function renderAdminView() {
               ${ordersList.slice(0, 5).map(o => {
       const cleanCode = String(o.order_code || o.codigo_pedido || o.id).replace(/^#/, '');
       return `
-                <div class="admin-res-card">
+                <div class="admin-res-card order-row-clickable" data-order-id="${o.id}" style="cursor: pointer;">
                   <div class="admin-res-card-header">
                     <div>
                       <strong style="font-family:ui-monospace, monospace; font-size:0.875rem; color:#0f172a;">${cleanCode}</strong>
@@ -1338,7 +1338,7 @@ export function renderAdminView() {
       const waLink = cleanPhone ? `https://wa.me/${cleanPhone.startsWith('244') ? cleanPhone : '244' + cleanPhone}` : null;
 
       return `
-                    <tr>
+                    <tr class="order-row-clickable" data-order-id="${o.id}" style="cursor: pointer;">
                       <td style="font-family:ui-monospace, monospace; font-size:0.8125rem; font-weight:700; color:#334155;">
                         ${cleanCode}
                       </td>
@@ -1362,7 +1362,7 @@ export function renderAdminView() {
                       <td>
                         ${renderStatusBadge(o.status)}
                       </td>
-                      <td style="text-align:center; width:52px;">
+                      <td style="text-align:center; width:52px;" onclick="event.stopPropagation()">
                         <div class="admin-actions-dropdown">
                           <button type="button" class="admin-actions-trigger-btn" data-id="${o.id}" title="Ações do pedido">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -1401,7 +1401,7 @@ export function renderAdminView() {
             ${filtered.map(o => {
       const cleanCode = String(o.order_code || o.codigo_pedido || o.id).replace(/^#/, '');
       return `
-                <div class="admin-res-card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:10px;">
+                <div class="admin-res-card order-row-clickable" data-order-id="${o.id}" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:10px; cursor:pointer;">
                   <div class="admin-res-card-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                     <div>
                       <strong style="font-family:ui-monospace, monospace; font-size:0.875rem; color:#0f172a;">${cleanCode}</strong>
@@ -1423,7 +1423,7 @@ export function renderAdminView() {
                       <strong style="color:#0f172a; font-size:0.9375rem;">${formatPrice(o.total)}</strong>
                     </div>
                   </div>
-                  <div class="admin-res-card-actions" style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px; padding-top:8px; border-top:1px solid #f1f5f9;">
+                  <div class="admin-res-card-actions" style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px; padding-top:8px; border-top:1px solid #f1f5f9;" onclick="event.stopPropagation()">
                     <button class="btn btn-secondary btn-sm open-order-modal-btn" data-order-id="${o.id}" style="font-size:0.8125rem; padding:6px 12px;">
                       Ver Detalhes
                     </button>
@@ -1516,6 +1516,7 @@ export function renderAdminView() {
               <thead>
                 <tr>
                   <th style="width:55px;">ID</th>
+                  <th style="width:110px;">SKU</th>
                   <th style="width:48px;">Foto</th>
                   <th>Produto</th>
                   <th>Marca</th>
@@ -1534,9 +1535,12 @@ export function renderAdminView() {
       const isBlocked = p.is_active === false;
 
       return `
-                    <tr style="${isBlocked ? 'background:#fafafa; opacity:0.85;' : ''}">
+                    <tr class="product-row-clickable" data-id="${p.id}" style="cursor: pointer; ${isBlocked ? 'background:#fafafa; opacity:0.85;' : ''}">
                       <td style="font-family:ui-monospace, monospace; font-size:0.8125rem; font-weight:700; color:#64748b;">
                         ${p.id}
+                      </td>
+                      <td style="font-family:ui-monospace, monospace; font-size:0.8125rem; font-weight:600; color:#334155;">
+                        ${p.sku || '—'}
                       </td>
                       <td style="width:48px;">
                         ${p.image ? `
@@ -1553,9 +1557,6 @@ export function renderAdminView() {
                       </td>
                       <td>
                         <div style="font-weight:600; color:#0f172a; font-size:0.875rem;">${p.name}</div>
-                        <div style="font-family:ui-monospace, monospace; font-size:0.75rem; color:#64748b; margin-top:2px;">
-                          SKU: <span style="font-weight:600; color:#475569;">${p.sku || '—'}</span>
-                        </div>
                       </td>
                       <td>
                         <span style="font-size:0.8125rem; font-weight:600; color:#334155; background:#f1f5f9; padding:2px 8px; border-radius:4px; border:1px solid #e2e8f0; display:inline-block; white-space:nowrap;">
@@ -1588,7 +1589,7 @@ export function renderAdminView() {
                           <span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:0.75rem;">Bloqueado</span>
                         `}
                       </td>
-                      <td style="text-align:center; width:52px;">
+                      <td style="text-align:center; width:52px;" onclick="event.stopPropagation()">
                         <div class="admin-actions-dropdown">
                           <button type="button" class="admin-actions-trigger-btn" data-id="${p.id}" title="Ações do produto">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -1638,13 +1639,14 @@ export function renderAdminView() {
       const isBlocked = p.is_active === false;
 
       return `
-                <div class="admin-res-card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:14px; padding:14px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.02); box-sizing:border-box; width:100%;">
+                <div class="admin-res-card product-row-clickable" data-id="${p.id}" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:14px; padding:14px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.02); box-sizing:border-box; width:100%; cursor:pointer;">
                   <!-- Topo: ID + Marca + Status -->
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:8px;">
                     <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                       <span style="font-family:ui-monospace, monospace; font-size:0.75rem; font-weight:700; color:#64748b; background:#f1f5f9; padding:2px 8px; border-radius:5px; border:1px solid #e2e8f0;">
                         ID ${p.id}
                       </span>
+                      ${p.sku ? `<span style="font-family:ui-monospace, monospace; font-size:0.75rem; font-weight:600; color:#334155; background:#f8fafc; padding:2px 8px; border-radius:5px; border:1px solid #e2e8f0;">SKU: ${p.sku}</span>` : ''}
                       ${p.brand ? `<span style="font-size:0.75rem; color:#475569; font-weight:600; background:#f8fafc; padding:2px 8px; border-radius:5px; border:1px solid #e2e8f0;">${p.brand}</span>` : ''}
                     </div>
                     <div>
@@ -1670,7 +1672,7 @@ export function renderAdminView() {
                         ${p.name}
                       </strong>
                       <div style="font-size:0.75rem; color:#64748b; margin-bottom:6px;">
-                        ${cat ? cat.name : '—'} ${subName ? `• ${subName}` : ''} ${p.sku ? `• <span style="font-family:ui-monospace, monospace; font-weight:600; color:#475569;">SKU: ${p.sku}</span>` : ''}
+                        ${cat ? cat.name : '—'} ${subName ? `• ${subName}` : ''}
                       </div>
                       <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
                         <div>
@@ -1784,11 +1786,11 @@ export function renderAdminView() {
                   <!-- Linha da Categoria Responsiva -->
                   <div class="category-accordion-header" data-cat-id="${c.id}" style="padding:12px 14px; background:${isExpanded ? '#f8fafc' : '#ffffff'}; border-bottom:${isExpanded ? '1px solid #f1f5f9' : 'none'}; cursor:pointer; box-sizing:border-box;">
                     <div class="category-header-top" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-                      <div style="display:flex; align-items:center; gap:8px; min-width:0; flex:1;">
-                        <span class="category-chevron-icon" style="color:#64748b; font-size:0.75rem; transition:transform 0.15s ease; display:inline-block; transform:${isExpanded ? 'rotate(90deg)' : 'none'}; flex-shrink:0;">
+                      <div class="category-info-clickable" data-cat-id="${c.id}" style="display:flex; align-items:center; gap:8px; min-width:0; flex:1; cursor:pointer;" title="Clique para ver ou editar dados da categoria">
+                        <button type="button" class="category-chevron-icon toggle-category-accordion-btn" data-cat-id="${c.id}" title="${isExpanded ? 'Recolher subcategorias' : 'Expandir subcategorias'}" style="background:none; border:none; padding:4px 6px; cursor:pointer; color:#64748b; font-size:0.75rem; transition:transform 0.15s ease; display:inline-flex; align-items:center; justify-content:center; transform:${isExpanded ? 'rotate(90deg)' : 'none'}; flex-shrink:0;">
                           ▶
-                        </span>
-                        <strong style="font-size:0.9375rem; color:#0f172a; font-weight:700; word-break:break-word;">
+                        </button>
+                        <strong class="category-name-text" style="font-size:0.9375rem; color:#0f172a; font-weight:700; word-break:break-word;">
                           ${c.name}
                         </strong>
                         <span style="font-size:0.75rem; color:#64748b; background:#f1f5f9; padding:2px 8px; border-radius:10px; font-weight:700; flex-shrink:0;">
@@ -1824,7 +1826,7 @@ export function renderAdminView() {
                       ` : `
                         <div>
                           ${subs.map((sub, idx) => `
-                            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 0; flex-wrap:wrap; ${idx < subs.length - 1 ? 'border-bottom:1px solid #f1f5f9;' : ''}">
+                            <div class="subcategory-row-clickable" data-cat-id="${c.id}" data-sub-id="${sub.id}" style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 8px; border-radius:6px; cursor:pointer; transition:background 0.15s ease; ${idx < subs.length - 1 ? 'border-bottom:1px solid #f1f5f9;' : ''}" title="Clique para ver ou editar dados da subcategoria">
                               <div style="display:flex; align-items:center; gap:6px; min-width:0;">
                                 <span style="color:#94a3b8; font-size:0.65rem;">•</span>
                                 <span style="font-size:0.84rem; color:#1e293b; font-weight:600; word-break:break-word;">
@@ -1832,7 +1834,7 @@ export function renderAdminView() {
                                 </span>
                                 ${sub.is_active === false ? `<span style="font-size:0.65rem; color:#b91c1c; background:#fee2e2; padding:1px 5px; border-radius:4px;">Inativa</span>` : ''}
                               </div>
-                              <div style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
+                              <div style="display:flex; gap:6px; align-items:center; flex-shrink:0;" onclick="event.stopPropagation()">
                                 <button class="btn btn-xs edit-subcategory-btn" data-cat-id="${c.id}" data-sub-id="${sub.id}" style="background:#ffffff; border:1px solid #e2e8f0; color:#475569; font-size:0.75rem; padding:3px 8px; border-radius:4px; cursor:pointer;">
                                   Editar
                                 </button>
@@ -2355,7 +2357,7 @@ export function renderAdminView() {
       const isBlocked = c.status === 'blocked';
 
       return `
-                    <tr style="${isBlocked ? 'background:#fafafa; opacity:0.85;' : ''}">
+                    <tr class="customer-row-clickable" data-id="${c.id}" style="cursor: pointer; ${isBlocked ? 'background:#fafafa; opacity:0.85;' : ''}">
                       <td style="font-family:ui-monospace, monospace; font-size:0.8125rem; font-weight:700; color:#64748b;">
                         ${c.id}
                       </td>
@@ -2387,7 +2389,7 @@ export function renderAdminView() {
                           </span>
                         `}
                       </td>
-                      <td style="text-align:center; width:52px;">
+                      <td style="text-align:center; width:52px;" onclick="event.stopPropagation()">
                         <div class="admin-actions-dropdown">
                           <button type="button" class="admin-actions-trigger-btn" data-id="${c.id}" title="Ações do cliente">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -2436,7 +2438,7 @@ export function renderAdminView() {
       const waLink = cleanPhone ? `https://wa.me/${cleanPhone.startsWith('244') ? cleanPhone : '244' + cleanPhone}` : null;
 
       return `
-                <div class="admin-res-card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.02); box-sizing:border-box; width:100%;">
+                <div class="admin-res-card customer-row-clickable" data-id="${c.id}" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.02); box-sizing:border-box; width:100%; cursor:pointer;">
                   <div class="admin-res-card-header" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; gap:8px;">
                     <div style="min-width:0; flex:1;">
                       <strong style="font-size:0.9375rem; color:#0f172a; font-weight:700; word-break:break-word;">${c.name}</strong>
@@ -2462,7 +2464,7 @@ export function renderAdminView() {
                       <strong style="color:#0f172a; font-size:0.95rem; font-weight:800;">${formatPrice(c.total_spent || 0)}</strong>
                     </div>
                   </div>
-                  <div class="admin-res-card-actions" style="display:flex; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid #f1f5f9;">
+                  <div class="admin-res-card-actions" style="display:flex; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid #f1f5f9;" onclick="event.stopPropagation()">
                     ${waLink ? `
                       <a href="${waLink}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:6px; color:#15803d; border-color:#bbf7d0; background:#f0fdf4; font-size:0.8125rem; font-weight:600; padding:8px 12px; text-decoration:none; border-radius:8px;">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
@@ -2603,7 +2605,7 @@ export function renderAdminView() {
       const isLow = stock > 0 && stock <= minStock;
 
       return `
-                      <tr>
+                      <tr class="product-row-clickable" data-id="${p.id}" style="cursor: pointer;">
                         <td style="font-family:ui-monospace, monospace; font-size:0.8125rem; font-weight:700; color:#64748b;">
                           ${p.id}
                         </td>
@@ -2676,7 +2678,7 @@ export function renderAdminView() {
       const isLow = stock > 0 && stock <= minStock;
 
       return `
-                  <div class="admin-res-card" style="padding:14px; border:1px solid #e2e8f0; border-radius:12px; background:#fff; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.02); box-sizing:border-box; width:100%;">
+                  <div class="admin-res-card product-row-clickable" data-id="${p.id}" style="padding:14px; border:1px solid #e2e8f0; border-radius:12px; background:#fff; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.02); box-sizing:border-box; width:100%; cursor: pointer;">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; gap:8px;">
                       <div style="display:flex; gap:10px; align-items:center; min-width:0; flex:1;">
                         ${p.image ? `
@@ -3379,6 +3381,15 @@ export function renderAdminView() {
       });
     });
 
+    container.querySelectorAll('.order-row-clickable').forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('button, a, select, input, .admin-actions-dropdown')) return;
+        const id = row.dataset.orderId;
+        const order = ordersList.find(o => String(o.id) === String(id) || o.order_code === id || o.codigo_pedido === id);
+        if (order) openOrderDetailsModal(order);
+      });
+    });
+
     container.querySelectorAll('.copy-order-code-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -3498,6 +3509,15 @@ export function renderAdminView() {
       });
     });
 
+    container.querySelectorAll('.product-row-clickable').forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('button, a, select, input, .admin-actions-dropdown')) return;
+        const id = Number(row.dataset.id);
+        const prod = productsList.find(p => p.id === id);
+        if (prod) openProductModal(prod);
+      });
+    });
+
     container.querySelectorAll('.duplicate-product-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = Number(btn.dataset.id);
@@ -3583,11 +3603,11 @@ export function renderAdminView() {
     if (newCatBtn) newCatBtn.addEventListener('click', () => openCategoryModal());
     if (emptyCatBtn) emptyCatBtn.addEventListener('click', () => openCategoryModal());
 
-    // Toggle do Acordeão: Clicar no cabeçalho da categoria abre ou fecha suas subcategorias
-    container.querySelectorAll('.category-accordion-header').forEach(header => {
-      header.addEventListener('click', (e) => {
-        if (e.target.closest('button') || e.target.closest('.btn')) return;
-        const catId = Number(header.dataset.catId);
+    // Toggle do Acordeão: Apenas o chevron abre ou fecha as subcategorias
+    container.querySelectorAll('.toggle-category-accordion-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const catId = Number(btn.dataset.catId);
         if (expandedCategoryIds.has(catId)) {
           expandedCategoryIds.delete(catId);
         } else {
@@ -3598,6 +3618,16 @@ export function renderAdminView() {
           main.innerHTML = renderCategoriesTab();
           attachTabSpecificEvents();
         }
+      });
+    });
+
+    // Clicar por cima da categoria abre diretamente os dados/edição da categoria
+    container.querySelectorAll('.category-info-clickable, .category-accordion-header').forEach(header => {
+      header.addEventListener('click', (e) => {
+        if (e.target.closest('button, a, .toggle-category-accordion-btn, .category-header-actions')) return;
+        const catId = Number(header.dataset.catId);
+        const cat = categoriesList.find(c => c.id === catId);
+        if (cat) openCategoryModal(cat);
       });
     });
 
@@ -3637,6 +3667,20 @@ export function renderAdminView() {
           } catch (err) {
             Toast.show(err.message || 'Erro ao excluir categoria.', 'error');
           }
+        }
+      });
+    });
+
+    // Clicar por cima da subcategoria abre diretamente os dados/edição
+    container.querySelectorAll('.subcategory-row-clickable').forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('button, a, select, input')) return;
+        const catId = Number(row.dataset.catId);
+        const subId = row.dataset.subId;
+        const cat = categoriesList.find(c => c.id === catId);
+        const sub = (cat?.subcategories || []).find(s => String(s.id) === String(subId));
+        if (cat && sub) {
+          openSubcategoryModal({ parent_id: cat.id, sub });
         }
       });
     });
@@ -3843,8 +3887,17 @@ export function renderAdminView() {
 
     container.querySelectorAll('.open-customer-modal-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        const id = Number(btn.dataset.id);
-        const cust = customersList.find(c => c.id === id);
+        const id = btn.dataset.id;
+        const cust = customersList.find(c => String(c.id) === String(id));
+        if (cust) openCustomerDetailsModal(cust);
+      });
+    });
+
+    container.querySelectorAll('.customer-row-clickable').forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('button, a, select, input, .admin-actions-dropdown')) return;
+        const id = row.dataset.id;
+        const cust = customersList.find(c => String(c.id) === String(id));
         if (cust) openCustomerDetailsModal(cust);
       });
     });
@@ -4241,14 +4294,14 @@ export function renderAdminView() {
           <!-- 4. Alteração de Status & Notas -->
           <div class="admin-card-panel">
             <div class="admin-panel-header">
-              <span class="admin-panel-title">Status Operacional</span>
+              <span class="admin-panel-title">Status Operacional & Pagamento</span>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
               <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; color: #475569;">Atualizar Status:</label>
+                <label class="form-label" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; color: #475569;">Status do Pedido:</label>
                 <select id="modalOrderStatusSelect" class="form-input" style="height: 33px; font-size: 0.8125rem; padding: 4px 8px;">
                   <option value="received" ${(order.status === 'received' || order.status_pedido === 'received') ? 'selected' : ''}>Recebido</option>
-                  <option value="confirmed" ${(order.status === 'confirmed' || order.status_pedido === 'confirmed') ? 'selected' : ''}>Confirmado / Pago</option>
+                  <option value="confirmed" ${(order.status === 'confirmed' || order.status_pedido === 'confirmed') ? 'selected' : ''}>Confirmado</option>
                   <option value="preparing" ${(order.status === 'preparing' || order.status_pedido === 'preparing') ? 'selected' : ''}>Em Separação</option>
                   <option value="shipped" ${(order.status === 'shipped' || order.status_pedido === 'shipped') ? 'selected' : ''}>Enviado</option>
                   <option value="delivered" ${(order.status === 'delivered' || order.status_pedido === 'delivered') ? 'selected' : ''}>Entregue</option>
@@ -4257,9 +4310,18 @@ export function renderAdminView() {
               </div>
 
               <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; color: #475569;">Notas Internas / Rastreio:</label>
-                <input type="text" id="modalOrderNotesInput" class="form-input" style="height: 33px; font-size: 0.8125rem; padding: 4px 8px;" placeholder="Ex: Código de rastreio, notas..." value="${order.admin_notes || order.notas_admin || ''}" />
+                <label class="form-label" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; color: #475569;">Status do Pagamento:</label>
+                <select id="modalOrderPaymentStatusSelect" class="form-input" style="height: 33px; font-size: 0.8125rem; padding: 4px 8px;">
+                  <option value="pago" ${(order.payment_status === 'paid' || order.payment_status === 'pago' || order.status_pagamento === 'pago') ? 'selected' : ''}>Concluído / Pago</option>
+                  <option value="pendente" ${(order.payment_status === 'pending' || order.payment_status === 'pendente' || order.status_pagamento === 'pendente' || (!order.payment_status && !order.status_pagamento)) ? 'selected' : ''}>Pendente</option>
+                  <option value="cancelado" ${(order.payment_status === 'cancelled' || order.payment_status === 'failed' || order.payment_status === 'cancelado' || order.status_pagamento === 'cancelado') ? 'selected' : ''}>Cancelado / Recusado</option>
+                </select>
               </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; color: #475569;">Notas Internas / Rastreio:</label>
+              <input type="text" id="modalOrderNotesInput" class="form-input" style="height: 33px; font-size: 0.8125rem; padding: 4px 8px;" placeholder="Ex: Código de rastreio, notas..." value="${order.admin_notes || order.notas_admin || ''}" />
             </div>
 
             ${history.length > 0 ? `
@@ -4290,17 +4352,31 @@ export function renderAdminView() {
     modal.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', () => modal.remove()));
     modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 
+    // Se o usuário selecionar status 'delivered', altera automaticamente o select de pagamento para 'pago'
+    const orderStatusSelect = modal.querySelector('#modalOrderStatusSelect');
+    const paymentStatusSelect = modal.querySelector('#modalOrderPaymentStatusSelect');
+    if (orderStatusSelect && paymentStatusSelect) {
+      orderStatusSelect.addEventListener('change', () => {
+        if (orderStatusSelect.value === 'delivered' || orderStatusSelect.value === 'confirmed') {
+          paymentStatusSelect.value = 'pago';
+        } else if (orderStatusSelect.value === 'cancelled') {
+          paymentStatusSelect.value = 'cancelado';
+        }
+      });
+    }
+
     modal.querySelector('#saveOrderStatusBtn').addEventListener('click', async () => {
       const saveBtn = modal.querySelector('#saveOrderStatusBtn');
       const newStatus = modal.querySelector('#modalOrderStatusSelect').value;
+      const newPaymentStatus = modal.querySelector('#modalOrderPaymentStatusSelect')?.value || null;
       const notes = modal.querySelector('#modalOrderNotesInput')?.value.trim() || '';
 
       saveBtn.disabled = true;
       saveBtn.innerHTML = 'Salvando...';
 
       try {
-        await Api.orders.updateStatus(order.id, newStatus, notes);
-        Toast.show('Status do pedido atualizado!', 'success');
+        await Api.orders.updateStatus(order.id, newStatus, notes, newPaymentStatus);
+        Toast.show('Status do pedido e pagamento atualizados!', 'success');
         modal.remove();
         await loadAllData();
         render();
@@ -5190,11 +5266,12 @@ export function renderAdminView() {
   async function duplicateProduct(prod) {
     try {
       const rand = Math.floor(1000 + Math.random() * 9000);
+      const cleanProdName = (prod.name || '').trim().toUpperCase();
       const payload = {
-        name: `${prod.name} (Cópia)`,
+        name: `${cleanProdName} (CÓPIA)`,
         sku: `${prod.sku || 'NV'}-CPY-${rand}`,
         slug: prod.slug ? `${prod.slug}-copia-${rand}` : undefined,
-        brand: prod.brand || 'NovaTech',
+        brand: (prod.brand || 'NOVATECH').trim().toUpperCase(),
         price: Number(prod.price || 0),
         old_price: prod.old_price || prod.oldPrice ? Number(prod.old_price || prod.oldPrice) : null,
         category_id: prod.category_id ? Number(prod.category_id) : null,
@@ -5275,6 +5352,13 @@ export function renderAdminView() {
 
       if (!name) {
         Toast.show('O nome da categoria é obrigatório.', 'warning');
+        return;
+      }
+
+      // Validação de duplicidade na interface antes do envio
+      const catDuplicate = categoriesList.find(c => (!isEdit || c.id !== cat.id) && (c.name || '').trim().toUpperCase() === name);
+      if (catDuplicate) {
+        Toast.show(`A categoria "${name}" já está cadastrada. Não é permitido cadastrar categorias duplicadas.`, 'warning');
         return;
       }
 
@@ -5382,6 +5466,16 @@ export function renderAdminView() {
       if (!name) {
         Toast.show('O nome da subcategoria é obrigatório.', 'warning');
         return;
+      }
+
+      // Validação de duplicidade na interface antes do envio
+      const targetParent = categoriesList.find(c => String(c.id) === String(parentId));
+      if (targetParent && Array.isArray(targetParent.subcategories)) {
+        const subDuplicate = targetParent.subcategories.find(s => (!isEdit || String(s.id) !== String(sub.id)) && (s.name || '').trim().toUpperCase() === name);
+        if (subDuplicate) {
+          Toast.show(`A subcategoria/marca "${name}" já está cadastrada na categoria ${targetParent.name}.`, 'warning');
+          return;
+        }
       }
 
       saveBtn.disabled = true;

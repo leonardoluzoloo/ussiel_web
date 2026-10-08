@@ -447,7 +447,7 @@ export function renderCheckoutView() {
                 <div class="checkout-item-row">
                   <img src="${i.image}" alt="${i.name}" class="checkout-item-img" style="border-radius: 6px;" />
                   <div class="checkout-item-info">
-                    <div class="checkout-item-title">${i.name}</div>
+                    <div class="checkout-item-title">${(i.name || '').toUpperCase()}</div>
                     <div class="checkout-item-meta">${i.quantity} un. • ${formatPrice(i.price)}</div>
                   </div>
                   <div class="checkout-item-price">${formatPrice(i.price * i.quantity)}</div>

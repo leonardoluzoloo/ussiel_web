@@ -137,7 +137,7 @@ export function renderCartView() {
                       </a>
                       <div class="cart-item-details">
                         <a href="#/produto/${encodeURIComponent(prodLink)}" style="color: var(--text-main); font-weight: 700; font-size: 0.9375rem; text-decoration: none; display: block; line-height: 1.35; margin-bottom: 4px;">
-                          ${item.name}
+                          ${(item.name || '').toUpperCase()}
                         </a>
                         ${item.variant?.color || item.variant?.storage ? `
                           <div style="display: inline-flex; align-items: center; gap: 4px; background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; color: #475569; font-weight: 500;">
