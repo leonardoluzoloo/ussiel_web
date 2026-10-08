@@ -13,32 +13,9 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
   container.className = 'container catalog-view-page';
   container.style.minHeight = '650px';
 
-  // Pré-carregamento imediato do cache local persistente para eliminar qualquer flash no F5
-  const getCachedList = (key) => {
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
-      }
-    } catch {}
-    return [];
-  };
-
-  const cachedBanners = getCachedList('novatech_admin_banners_v4_clean').filter(b => b.is_active !== false && (b.image_url || b.image));
-  const cachedProds = getCachedList('novatech_admin_produtos_v4_clean').filter(p => p.is_active !== false);
-  const cachedCats = getCachedList('novatech_admin_categorias_v4_clean').filter(c => c.is_active !== false);
-
-  let activeProducts = cachedProds.map(p => ({
-    ...p,
-    oldPrice: p.old_price !== undefined ? p.old_price : p.oldPrice,
-    badges: Array.isArray(p.badges) ? p.badges : (p.badges ? (typeof p.badges === 'string' ? JSON.parse(p.badges) : p.badges) : []),
-    gallery: Array.isArray(p.gallery) ? p.gallery : (p.gallery ? (typeof p.gallery === 'string' ? JSON.parse(p.gallery) : p.gallery) : [p.image]),
-    variants: (typeof p.variants === 'object' && p.variants !== null) ? p.variants : (p.variants ? JSON.parse(p.variants) : {}),
-    specs: (typeof p.specs === 'object' && p.specs !== null) ? p.specs : (p.specs ? JSON.parse(p.specs) : {})
-  }));
-  let activeCategories = cachedCats;
-  let activeBanners = cachedBanners;
+  let activeProducts = [];
+  let activeCategories = [];
+  let activeBanners = [];
   let isDatabaseLoaded = false;
 
   let selectedCategories = categorySlug ? [categorySlug] : [];

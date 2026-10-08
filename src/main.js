@@ -66,14 +66,13 @@ function initApp() {
             .eq('email', session.user.email)
             .maybeSingle();
 
-          const currentUser = Storage.getUser();
+          // Role canônica determinada estritamente pelo banco de dados ou pelos metadados oficiais do Auth
           const isUserAdmin = profile?.nivel_acesso === 'admin' ||
             session.user.user_metadata?.role === 'admin' ||
-            session.user.app_metadata?.role === 'admin' ||
-            currentUser?.role === 'admin';
+            session.user.app_metadata?.role === 'admin';
           const role = isUserAdmin ? 'admin' : 'customer';
 
-          Storage.saveUser({
+          const userData = {
             id: profile?.id || session.user.id,
             auth_user_id: session.user.id,
             name: profile?.nome || session.user.user_metadata?.name || '',
@@ -82,8 +81,19 @@ function initApp() {
             whatsapp: profile?.whatsapp || profile?.telefone || session.user.user_metadata?.phone || '',
             endereco: profile?.endereco || '',
             ponto_referencia: profile?.ponto_referencia || '',
-            role
-          });
+            role,
+            nivel_acesso: role
+          };
+
+          if (isUserAdmin) {
+            Storage.setRememberMe(false);
+            Storage.saveAdminUser(userData);
+            if (session.access_token && Storage.saveAdminToken) {
+              Storage.saveAdminToken(session.access_token);
+            }
+          } else {
+            Storage.saveUser(userData);
+          }
         } catch (e) {
           console.warn('Aviso ao sincronizar sessão ativa com perfil no Supabase:', e.message);
         }
@@ -236,7 +246,7 @@ function initApp() {
       pageTitle = 'Detalhes do Produto | NovaTech Angola';
     } else if (path === '/carrinho') {
       mainContainer.appendChild(renderCartView());
-      pageTitle = 'Meu Carrinho de Compras | NovaTech Angola';
+      pageTitle = 'Carrinho | NovaTech Angola';
     } else if (path === '/checkout') {
       mainContainer.appendChild(renderCheckoutView());
       pageTitle = 'Finalizar Pedido Seguro | NovaTech Angola';

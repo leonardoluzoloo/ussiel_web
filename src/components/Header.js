@@ -12,28 +12,8 @@ export function createHeader() {
   const header = document.createElement('header');
   header.className = 'site-header';
 
-  const getCachedList = (key) => {
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
-      }
-    } catch {}
-    return [];
-  };
-
-  const initialDbCats = getCachedList('novatech_admin_categorias_v4_clean').filter(c => c.is_active !== false && c.ativo !== false);
-  
-  let dynamicCategories = initialDbCats.map(c => ({
-    id: c.id,
-    name: c.name || c.nome || '',
-    slug: c.slug || (c.name ? c.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : ''),
-    iconName: c.iconName || c.icon_name || c.icone || 'package',
-    subcategories: (Array.isArray(c.subcategories) ? c.subcategories : (c.subcategorias ? (typeof c.subcategorias === 'string' ? JSON.parse(c.subcategorias) : c.subcategorias) : [])).filter(s => s && s.is_active !== false && s.ativo !== false)
-  }));
-  
-  let dynamicProducts = getCachedList('novatech_admin_produtos_v4_clean').filter(p => p.is_active !== false && p.ativo !== false);
+  let dynamicCategories = [];
+  let dynamicProducts = [];
 
   async function syncHeaderDynamicData() {
     try {
@@ -59,14 +39,46 @@ export function createHeader() {
   render();
   syncHeaderDynamicData();
 
+  function updateCartHeader() {
+    const cartCount = Storage.getCartCount();
+    const cartSubtotal = Storage.getCartSubtotal();
+
+    const cartBadge = header.querySelector('#headerCartBadge');
+    if (cartBadge) {
+      cartBadge.textContent = cartCount;
+    }
+
+    const cartTotal = header.querySelector('#headerCartTotal');
+    if (cartTotal) {
+      cartTotal.textContent = formatPrice(cartSubtotal);
+    }
+  }
+
+  function updateWishlistHeader() {
+    const wishlistCount = Storage.getWishlist().length;
+    const wishlistBadge = header.querySelector('#headerWishlistBadge');
+    if (wishlistBadge) {
+      wishlistBadge.textContent = wishlistCount;
+    }
+  }
+
   window.addEventListener('categories-updated', () => syncHeaderDynamicData());
   window.addEventListener('products-updated', () => syncHeaderDynamicData());
+  window.addEventListener('cart-updated', updateCartHeader);
+  window.addEventListener('wishlist-updated', updateWishlistHeader);
+  window.addEventListener('user-updated', () => render());
+  window.addEventListener('hashchange', () => {
+    updateCartHeader();
+    updateWishlistHeader();
+  });
 
   function render() {
     const cartCount = Storage.getCartCount();
     const cartSubtotal = Storage.getCartSubtotal();
     const wishlistCount = Storage.getWishlist().length;
     const user = Storage.getUser();
+    const adminUser = Storage.getAdminUser ? Storage.getAdminUser() : null;
+    const isLoggedAdmin = adminUser || (user && (user.role === 'admin' || user.nivel_acesso === 'admin'));
 
     header.innerHTML = `
       <!-- 1. Top Promo Bar -->
@@ -77,6 +89,11 @@ export function createHeader() {
             <span>Entregas em Luanda em 24–48h • Enviamos para todo o país</span>
           </div>
           <div class="top-bar-right">
+            ${isLoggedAdmin ? `
+              <a href="#/admin" class="top-link" style="color: #38bdf8; font-weight: 700; background: rgba(56,189,248,0.12); padding: 2px 8px; border-radius: 4px;" title="Ir para Painel Administrativo">
+                ⚡ Painel Administrativo
+              </a>
+            ` : ''}
             <a href="https://wa.me/244923179192" target="_blank" class="top-link">
               ${Icons.whatsapp(14, '#25d366')}
               <span>WhatsApp: +244 923 179 192</span>
@@ -139,7 +156,7 @@ export function createHeader() {
               </div>
               <div class="action-text-group">
                 <span class="action-label-small">${user ? `Olá, ${user.name.split(' ')[0]}` : 'Bem-vindo'}</span>
-                <span class="action-label-strong">${user ? 'Minha Conta' : 'Entrar / Criar'}</span>
+                <span class="action-label-strong">${user ? (isLoggedAdmin ? 'Painel Gestor' : 'Minha Conta') : 'Entrar / Criar'}</span>
               </div>
             </div>
 
@@ -152,7 +169,7 @@ export function createHeader() {
             </a>
 
             <!-- Cart -->
-            <div class="header-action-btn header-cart-highlight" id="headerCartBtn" style="cursor: pointer;" title="Abrir Meu Carrinho">
+            <a href="#/carrinho" class="header-action-btn header-cart-highlight" id="headerCartBtn" style="cursor: pointer; text-decoration: none;" title="Ver Carrinho">
               <div class="action-icon-wrap">
                 ${Icons.cart(22, 'currentColor')}
                 <span class="action-badge badge-cart" id="headerCartBadge">${cartCount}</span>
@@ -161,7 +178,7 @@ export function createHeader() {
                 <span class="action-label-small">Meu Carrinho</span>
                 <span class="action-label-strong" id="headerCartTotal">${formatPrice(cartSubtotal)}</span>
               </div>
-            </div>
+            </a>
           </div>
         </div>
       </div>
@@ -255,18 +272,21 @@ export function createHeader() {
   }
 
   function attachHeaderEvents() {
-    // Cart open
+    // Cart open -> Navega direto para o carrinho completo
     const cartBtn = header.querySelector('#headerCartBtn');
     if (cartBtn) {
-      cartBtn.onclick = () => window.dispatchEvent(new CustomEvent('open-mini-cart'));
+      cartBtn.onclick = () => { window.location.hash = '/carrinho'; };
     }
 
     // Account click
     const userBtn = header.querySelector('#headerUserBtn');
     if (userBtn) {
       userBtn.onclick = () => {
-        const user = Storage.getUser();
-        if (user) {
+        const adminUser = Storage.getAdminUser ? Storage.getAdminUser() : null;
+        const generalUser = Storage.getUser();
+        if (adminUser || generalUser?.role === 'admin') {
+          window.location.hash = '/admin';
+        } else if (generalUser) {
           window.location.hash = '/minha-conta';
         } else {
           window.location.hash = '/login';

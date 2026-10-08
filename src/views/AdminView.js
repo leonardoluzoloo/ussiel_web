@@ -63,16 +63,18 @@ export function renderAdminView() {
       console.warn('Erro ao checar status:', e.message);
     }
 
-    const currentUser = Storage.getUser();
-    const token = Api.getToken();
+    const currentUser = Storage.getAdminUser ? Storage.getAdminUser() : Storage.getUser();
+    const token = Storage.getAdminToken ? Storage.getAdminToken() : Api.getToken();
 
     if (currentUser && token) {
       try {
         const me = await Api.auth.me();
         if (me) {
-          Storage.saveUser(me);
           if (me.role === 'admin') {
+            Storage.saveAdminUser(me);
             await loadAllData();
+          } else {
+            Storage.saveUser(me);
           }
         }
       } catch (err) {
@@ -137,10 +139,12 @@ export function renderAdminView() {
   // 3. Renderizador Principal & AdminRouteGuard
   function render() {
     const subRoute = getAdminSubRoute();
-    const currentUser = Storage.getUser();
-    const token = Api.getToken();
+    const adminUser = Storage.getAdminUser ? Storage.getAdminUser() : null;
+    const generalUser = Storage.getUser();
+    const currentUser = adminUser || generalUser;
+    const token = Storage.getAdminToken ? Storage.getAdminToken() : Api.getToken();
     const isAdmin = currentUser && (currentUser.role === 'admin' || currentUser.nivel_acesso === 'admin') && Boolean(token);
-    const isCustomer = currentUser && currentUser.role === 'customer' && !isAdmin;
+    const isCustomer = generalUser && generalUser.role === 'customer' && !isAdmin;
 
     if (isLoading) {
       layoutMounted = false;
@@ -179,9 +183,15 @@ export function renderAdminView() {
       return;
     }
 
-    // Se já autenticado como ADMIN e tentar acessar telas de login/register/forgot:
-    if (['login', 'register', 'forgot-password', 'reset-password'].includes(subRoute)) {
+    // Se já autenticado como ADMIN e tentar acessar telas de login/forgot/reset:
+    if (['login', 'forgot-password', 'reset-password'].includes(subRoute)) {
       window.history.replaceState(null, '', window.location.pathname + `#/admin/${currentTab || 'dashboard'}`);
+    } else if (subRoute === 'register') {
+      // Admin autenticado pode acessar a tela de cadastro de novo gestor
+      layoutMounted = false;
+      container.innerHTML = '';
+      renderRegisterScreen();
+      return;
     } else if (!subRoute) {
       currentTab = currentTab || 'dashboard';
     } else {
@@ -629,16 +639,23 @@ export function renderAdminView() {
             type: 'info',
             duration: 8000
           });
-          window.location.hash = '#/admin/login';
+          if (isCallerAdmin) {
+            window.location.hash = '#/admin/dashboard';
+          } else {
+            window.location.hash = '#/admin/login';
+          }
           return;
         }
 
-        if (res?.user) {
-          Storage.saveUser(res.user);
+        if (!isCallerAdmin && res?.user) {
+          Storage.saveAdminUser(res.user);
         }
+
         Toast.show({
           title: 'Conta administrativa criada com sucesso! 🎉',
-          message: `Bem-vindo(a), ${res?.user?.name || name}!`,
+          message: isCallerAdmin
+            ? `Administrador ${name} cadastrado com sucesso no sistema.`
+            : `Bem-vindo(a), ${res?.user?.name || name}!`,
           type: 'success'
         });
         window.location.hash = '#/admin/dashboard';
@@ -3172,7 +3189,11 @@ export function renderAdminView() {
       console.warn('Erro ao chamar logout da API:', err.message);
     }
 
-    Storage.logoutUser();
+    if (Storage.logoutAdmin) {
+      Storage.logoutAdmin();
+    } else {
+      Storage.logoutUser();
+    }
     sessionStorage.clear();
     Api.removeToken();
 

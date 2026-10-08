@@ -20,35 +20,7 @@ export function renderProductDetailView(productSlug) {
 
   const cleanTargetSlug = decodeURIComponent(String(productSlug || '')).trim();
 
-  // Pré-carregamento imediato do cache local para eliminar delay e piscadas
-  try {
-    const cachedCatsRaw = localStorage.getItem('novatech_admin_categorias_v4_clean') || localStorage.getItem('novatech_categories_v1');
-    allCategories = cachedCatsRaw ? JSON.parse(cachedCatsRaw) : [];
-    if (!Array.isArray(allCategories)) allCategories = [];
-
-    const mappedId = findIdByStableUid('produtos', cleanTargetSlug);
-    const cachedRaw = localStorage.getItem('novatech_admin_produtos_v4_clean') || localStorage.getItem('novatech_products_v1');
-    const cachedProds = cachedRaw ? JSON.parse(cachedRaw) : [];
-    const targetLower = cleanTargetSlug.toLowerCase();
-
-    const initialCached = (Array.isArray(cachedProds) ? cachedProds : []).find(p => {
-      const pId = String(p.id || '').toLowerCase();
-      const pUid = String(p.uid || '').toLowerCase();
-      const pSlug = String(p.slug || '').toLowerCase();
-      const pSku = String(p.sku || '').toLowerCase();
-      return pUid === targetLower || pSlug === targetLower || pId === targetLower || pSku === targetLower || (mappedId && pId === String(mappedId).toLowerCase());
-    });
-
-    if (initialCached) {
-      const cachedGal = Array.isArray(initialCached.gallery) ? initialCached.gallery.filter(Boolean) : [];
-      if (cachedGal.length === 0 && initialCached.image) cachedGal.push(initialCached.image);
-      product = {
-        ...initialCached,
-        gallery: cachedGal
-      };
-      isLoading = false;
-    }
-  } catch {}
+  allCategories = [];
 
   // State
   let selectedColor = product?.variants?.colors?.[0]?.name || '';
@@ -873,14 +845,7 @@ export function renderProductDetailView(productSlug) {
             price: currentPrice
           };
           Storage.addToCart(itemProduct, currentQty, { color: selectedColor, storage: selectedStorage, image: currentImage });
-          Toast.show({
-            title: 'Produto adicionado ao carrinho ✓',
-            message: `${currentQty} un. • ${product.name} ${selectedColor ? `(${selectedColor})` : ''}`,
-            type: 'success',
-            actionLabel: 'Ver Carrinho →',
-            onAction: () => window.dispatchEvent(new CustomEvent('open-mini-cart'))
-          });
-          window.dispatchEvent(new CustomEvent('open-mini-cart'));
+          window.location.hash = '/carrinho';
         } catch (err) {
           Toast.show({ title: 'Atenção ao Adicionar', message: err.message || 'Erro ao adicionar item ao carrinho.', type: 'warning' });
         }

@@ -59,11 +59,11 @@ export function setupMobileNav() {
         ${wishlistCount > 0 ? `<span class="mobile-nav-badge">${wishlistCount}</span>` : ''}
         <span>Favoritos</span>
       </a>
-      <div class="mobile-nav-item" id="mobileBottomCartBtn">
+      <a href="#/carrinho" class="mobile-nav-item" id="mobileBottomCartBtn">
         ${Icons.cart(22)}
         ${cartCount > 0 ? `<span class="mobile-nav-badge">${cartCount}</span>` : ''}
         <span>Carrinho</span>
-      </div>
+      </a>
       <div class="mobile-nav-item" id="mobileBottomUserBtn">
         ${Icons.user(20)}
         <span>Conta</span>
@@ -74,7 +74,7 @@ export function setupMobileNav() {
     if (catBtn) catBtn.onclick = () => window.dispatchEvent(new CustomEvent('open-mobile-drawer'));
 
     const cartBtn = bottomBar.querySelector('#mobileBottomCartBtn');
-    if (cartBtn) cartBtn.onclick = () => window.dispatchEvent(new CustomEvent('open-mini-cart'));
+    if (cartBtn) cartBtn.onclick = () => { window.location.hash = '/carrinho'; };
 
     const userBtn = bottomBar.querySelector('#mobileBottomUserBtn');
     if (userBtn) {

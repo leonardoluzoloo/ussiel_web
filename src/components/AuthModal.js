@@ -53,7 +53,7 @@ export function setupAuthModal() {
               <input type="email" id="loginEmail" class="form-input" placeholder="seu.email@exemplo.com" required />
             </div>
 
-            <div class="form-group">
+            <div class="form-group" style="margin-bottom: 2px;">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <label class="form-label">Senha</label>
                 <button type="button" id="toForgotTabBtn" style="font-size: 0.75rem; color: var(--primary-600); font-weight: 600;">
@@ -63,7 +63,14 @@ export function setupAuthModal() {
               <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required />
             </div>
 
-            <button type="submit" class="btn btn-primary btn-full" style="margin-top: 6px; font-weight: 700;">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 0;">
+              <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.8125rem; color: var(--text-secondary); cursor: pointer; user-select: none;">
+                <input type="checkbox" id="loginRememberMe" checked style="accent-color: var(--primary-600); width: 16px; height: 16px; cursor: pointer; border-radius: 4px;" />
+                <span style="font-weight: 500;">Lembrar de mim neste dispositivo</span>
+              </label>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full" style="margin-top: 4px; font-weight: 700;">
               Entrar na Conta
             </button>
 
@@ -320,6 +327,8 @@ export function setupAuthModal() {
         if (e && e.preventDefault) e.preventDefault();
         const email = modal.querySelector('#loginEmail').value.trim();
         const password = modal.querySelector('#loginPassword').value;
+        const rememberMeInput = modal.querySelector('#loginRememberMe');
+        const rememberMe = rememberMeInput ? rememberMeInput.checked : true;
         const submitBtn = loginForm.querySelector('button[type="submit"]');
 
         const originalBtnText = submitBtn ? submitBtn.innerHTML : 'Entrar na Conta';
@@ -329,8 +338,8 @@ export function setupAuthModal() {
         }
 
         try {
-          const result = await Api.auth.login(email, password);
-          Storage.saveUser(result.user);
+          const result = await Api.auth.login(email, password, { rememberMe });
+          Storage.saveUser(result.user, { rememberMe });
           const userName = result.user?.name || email.split('@')[0];
           Toast.show({
             title: 'Sessão iniciada com sucesso! 🚀',
@@ -495,7 +504,7 @@ export function setupAuthModal() {
             regStep = 'success_email';
             render();
           } else {
-            Storage.saveUser(result.user);
+            Storage.saveUser(result.user, { rememberMe: true });
             Toast.show({
               title: 'Conta criada com sucesso! 🎉',
               message: `Seja muito bem-vindo à NovaTech, ${regData.name || 'Cliente'}!`,

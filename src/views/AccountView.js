@@ -38,10 +38,6 @@ export function renderAccountView(initialTab = 'orders') {
   }
 
   let availableProducts = [];
-  try {
-    const rawProds = localStorage.getItem('novatech_admin_produtos_v4_clean') || localStorage.getItem('novatech_products_v1');
-    if (rawProds) availableProducts = JSON.parse(rawProds);
-  } catch {}
 
   let isSyncing = false;
 

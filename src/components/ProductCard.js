@@ -119,27 +119,7 @@ export function createProductCard(product, viewMode = 'grid') {
       : product.price;
 
     Storage.addToCart({ ...product, price: itemPrice }, 1, { color: defaultColor, storage: defaultStorage });
-
-    // Button animation feedback
-    const originalText = addBtn.innerHTML;
-    addBtn.innerHTML = `${Icons.check(18, '#ffffff')} <span>Adicionado!</span>`;
-    addBtn.style.background = '#10b981';
-
-    setTimeout(() => {
-      addBtn.innerHTML = originalText;
-      addBtn.style.background = '';
-    }, 1500);
-
-    // Toast with action
-    Toast.show({
-      title: 'Produto adicionado ao carrinho ✓',
-      message: product.name,
-      type: 'success',
-      actionLabel: 'Ver Carrinho →',
-      onAction: () => {
-        window.dispatchEvent(new CustomEvent('open-mini-cart'));
-      }
-    });
+    window.location.hash = '/carrinho';
   });
 
     // Navigation click (no card inteiro e nos elementos data-link)
@@ -269,25 +249,7 @@ export function createProductListCard(product) {
       : product.price;
 
     Storage.addToCart({ ...product, price: itemPrice }, 1, { color: defaultColor, storage: defaultStorage });
-
-    const originalText = addBtn.innerHTML;
-    addBtn.innerHTML = `${Icons.check(16, '#ffffff')} <span>Adicionado!</span>`;
-    addBtn.style.background = '#10b981';
-
-    setTimeout(() => {
-      addBtn.innerHTML = originalText;
-      addBtn.style.background = '';
-    }, 1500);
-
-    Toast.show({
-      title: 'Produto adicionado ao carrinho ✓',
-      message: product.name,
-      type: 'success',
-      actionLabel: 'Ver Carrinho →',
-      onAction: () => {
-        window.dispatchEvent(new CustomEvent('open-mini-cart'));
-      }
-    });
+    window.location.hash = '/carrinho';
   });
 
     // Navigation click (no card de lista inteiro)

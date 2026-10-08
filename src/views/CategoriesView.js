@@ -12,15 +12,6 @@ export function renderCategoriesView() {
   container.style.minHeight = '600px';
 
   let categories = [];
-  try {
-    const cached = localStorage.getItem('novatech_admin_categorias_v4_clean');
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed)) {
-        categories = parsed.filter(c => c.is_active !== false && c.ativo !== false);
-      }
-    }
-  } catch {}
 
   function getCategoryIcon(cat) {
     const key = (cat.iconName || cat.icone || cat.slug || cat.name || '').toLowerCase();

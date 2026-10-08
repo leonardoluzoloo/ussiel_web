@@ -1,5 +1,5 @@
 // ===================================================================
-// CART VIEW (Full Cart Page with Shipping Calculator & Order Summary)
+// CART VIEW (Tela de Carrinho Completo - Design Limpo & Profissional)
 // ===================================================================
 
 import { Icons } from '../utils/icons.js';
@@ -7,14 +7,12 @@ import { formatPrice } from '../utils/format.js';
 import { Storage, FREE_SHIPPING_THRESHOLD } from '../services/storage.js';
 import { Api } from '../services/api.js';
 import { Toast } from '../components/Toast.js';
-
 import { ANGOLA_PROVINCES } from '../utils/provinces.js';
 
 export function renderCartView() {
   const container = document.createElement('div');
   container.className = 'container';
 
-  // Province shipping estimates for Angola (Apenas Luanda ativa no momento)
   const PROVINCE_RATES = {
     'Luanda': 3500
   };
@@ -24,7 +22,9 @@ export function renderCartView() {
   function render() {
     const cart = Storage.getCart();
     const subtotal = Storage.getCartSubtotal();
+    const totalItems = cart.reduce((acc, item) => acc + (Number(item.quantity) || 1), 0);
     const coupon = Storage.getAppliedCoupon();
+    const wishlistCount = Storage.getWishlist().length;
 
     let discountAmount = 0;
     if (coupon) {
@@ -43,181 +43,223 @@ export function renderCartView() {
     const progressPct = Math.min(100, Math.round((subtotal / FREE_SHIPPING_THRESHOLD) * 100));
 
     container.innerHTML = `
-      <div style="margin-top: 32px; margin-bottom: 24px;">
-        <h1 style="font-family: var(--font-display); font-size: 2rem; font-weight: 900; color: var(--text-main);">
-          Meu Carrinho de Compras
-        </h1>
-        <p style="color: var(--text-secondary); font-size: 0.9375rem;">
-          Revise os seus produtos selecionados antes de avançar para a finalização do pedido.
-        </p>
+      <!-- Cabeçalho Limpo e Integrado -->
+      <div style="display: flex; align-items: baseline; justify-content: space-between; margin-top: 36px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border-light);">
+        <div style="display: flex; align-items: baseline; gap: 10px;">
+          <h1 style="font-family: var(--font-display); font-size: 1.875rem; font-weight: 800; color: var(--text-main); margin: 0; letter-spacing: -0.02em;">
+            Carrinho de Compras
+          </h1>
+          ${cart.length > 0 ? `
+            <span style="font-size: 0.95rem; color: var(--text-muted); font-weight: 600;">
+              (${totalItems} ${totalItems === 1 ? 'item' : 'itens'})
+            </span>
+          ` : ''}
+        </div>
+        <a href="#/catalogo" style="font-size: 0.875rem; color: var(--primary-600); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+          ${Icons.arrowLeft(14)}
+          <span>${cart.length > 0 ? 'Continuar comprando' : 'Voltar à loja'}</span>
+        </a>
       </div>
 
       ${cart.length === 0 ? `
-        <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 72px 24px; text-align: center; margin-bottom: 64px;">
-          <div style="margin-bottom: 16px; opacity: 0.4;">
-            ${Icons.cart(64, 'var(--text-muted)')}
+        <!-- Carrinho Vazio de Alto Padrão (Clean, Minimalista, 100% Responsivo no Mobile e Desktop) -->
+        <div class="cart-empty-clean" style="text-align: center; padding: clamp(40px, 8vh, 80px) 16px; max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <!-- Ícone Sutil com Acabamento Refinado -->
+          <div style="width: 72px; height: 72px; border-radius: 50%; background: #eff6ff; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; color: var(--primary-600); border: 1px solid rgba(37,99,235,0.12);">
+            ${Icons.cart(32, 'var(--primary-600)')}
           </div>
-          <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 8px;">
+
+          <h2 style="font-family: var(--font-display); font-size: clamp(1.3rem, 4vw, 1.55rem); font-weight: 800; color: var(--text-main); margin: 0 0 10px 0; letter-spacing: -0.02em;">
             O seu carrinho de compras está vazio
           </h2>
-          <p style="color: var(--text-secondary); font-size: 1rem; max-width: 480px; margin: 0 auto 28px auto;">
-            Aproveite as novidades e ofertas imperdíveis em smartphones, laptops, consoles e fones de ouvido!
+
+          <p style="color: var(--text-secondary); font-size: clamp(0.875rem, 2.5vw, 0.9375rem); margin: 0 0 24px 0; line-height: 1.5; max-width: 360px;">
+            Ainda não adicionou nenhum artigo. Explore e acesse o catálogo.
           </p>
-          <a href="#/" class="btn btn-primary" style="padding: 14px 32px;">
-            Explorar Produtos
+
+          <a href="#/catalogo" class="btn btn-primary" style="padding: 13px 32px; font-weight: 700; border-radius: 8px; font-size: 0.9375rem; display: inline-flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 14px rgba(37,99,235,0.22); min-height: 46px; width: 100%; max-width: 240px;">
+            <span>Acessar Catálogo</span>
+            ${Icons.chevronRight(16)}
           </a>
         </div>
       ` : `
-        <!-- Cart Grid Layout -->
-        <div class="checkout-grid">
-          <!-- Left: Cart Items List -->
+        <!-- Layout do Carrinho Completo -->
+        <div class="checkout-grid" style="margin-top: 20px; margin-bottom: 64px;">
+          <!-- Coluna Esquerda: Itens do Carrinho -->
           <div>
-            <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-md); overflow: hidden; margin-bottom: 20px;">
-              <!-- Header row (Desktop) -->
-              <div class="cart-table-header">
+            <!-- Informativo de Entrega Profissional -->
+            <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 12px 18px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+              <div style="display: flex; align-items: center; gap: 12px; font-size: 0.825rem; color: var(--text-secondary);">
+                <div style="width: 34px; height: 34px; border-radius: 8px; background: #eff6ff; display: flex; align-items: center; justify-content: center; color: var(--primary-600); flex-shrink: 0;">
+                  ${Icons.truck(18)}
+                </div>
+                <div>
+                  <div style="font-weight: 700; color: var(--text-main); font-size: 0.85rem;">
+                    Entrega em Luanda em até 24–48h
+                  </div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">
+                    Despacho rápido e conferência de segurança na entrega
+                  </div>
+                </div>
+              </div>
+              <div style="flex-shrink: 0;">
+                ${isFreeShipping ? `
+                  <span style="display: inline-flex; align-items: center; gap: 4px; background: #ecfdf5; color: #065f46; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 0.75rem; border: 1px solid #a7f3d0;">
+                    ✓ Entrega Grátis
+                  </span>
+                ` : `
+                  <span style="font-size: 0.8125rem; font-weight: 700; color: var(--text-main); background: #f8fafc; border: 1px solid var(--border-light); padding: 4px 10px; border-radius: 6px;">
+                    Taxa: ${formatPrice(shippingPrice)}
+                  </span>
+                `}
+              </div>
+            </div>
+
+            <!-- Tabela / Lista de Itens -->
+            <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-md); overflow: hidden; margin-bottom: 16px;">
+              <!-- Cabeçalho (Desktop) -->
+              <div class="cart-table-header" style="background: #fafbfc; border-bottom: 1px solid var(--border-light); padding: 14px 20px;">
                 <span>Produto</span>
-                <span>Preço Unitário</span>
+                <span>Preço</span>
                 <span style="text-align: center;">Quantidade</span>
                 <span style="text-align: right;">Subtotal</span>
                 <span></span>
               </div>
 
-              <!-- Items -->
-              ${cart.map(item => `
-                <div class="cart-item-row">
-                  <div class="cart-item-product-info">
-                    <img src="${item.image}" alt="${item.name}" class="cart-item-thumb" />
-                    <div class="cart-item-details">
-                      <h4 class="cart-item-name">
-                        ${item.name}
-                      </h4>
-                      ${item.variant?.color || item.variant?.storage ? `
-                        <div class="cart-item-variant">
-                          ${[item.variant.color, item.variant.storage].filter(Boolean).join(' • ')}
-                        </div>
-                      ` : ''}
-                      <div class="cart-item-sku">
-                        SKU: ${item.sku}
+              <!-- Itens -->
+              ${cart.map(item => {
+                const prodLink = item.uid || item.slug || item.id;
+                return `
+                  <div class="cart-item-row" style="padding: 18px 20px; border-bottom: 1px solid var(--border-light);">
+                    <div class="cart-item-product-info">
+                      <a href="#/produto/${encodeURIComponent(prodLink)}">
+                        <img src="${item.image}" alt="${item.name}" class="cart-item-thumb" style="width: 68px; height: 68px; object-fit: contain; border-radius: 8px; background: #f8fafc; border: 1px solid #f1f5f9; padding: 4px;" />
+                      </a>
+                      <div class="cart-item-details">
+                        <a href="#/produto/${encodeURIComponent(prodLink)}" style="color: var(--text-main); font-weight: 700; font-size: 0.9375rem; text-decoration: none; display: block; line-height: 1.35; margin-bottom: 4px;">
+                          ${item.name}
+                        </a>
+                        ${item.variant?.color || item.variant?.storage ? `
+                          <div style="display: inline-flex; align-items: center; gap: 4px; background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; color: #475569; font-weight: 500;">
+                            ${[item.variant.color, item.variant.storage].filter(Boolean).join(' • ')}
+                          </div>
+                        ` : ''}
                       </div>
                     </div>
-                  </div>
 
-                  <!-- Unit Price -->
-                  <div class="cart-item-unit-price">
-                    ${formatPrice(item.price)}
-                  </div>
-
-                  <!-- Qty -->
-                  <div class="cart-item-qty">
-                    <div class="qty-control">
-                      <button class="qty-btn" data-cart-action="dec" data-key="${item.key}">-</button>
-                      <span class="qty-val">${item.quantity}</span>
-                      <button class="qty-btn" data-cart-action="inc" data-key="${item.key}">+</button>
+                    <!-- Preço Unitário -->
+                    <div class="cart-item-unit-price" style="font-weight: 600; color: var(--text-secondary); font-size: 0.875rem;">
+                      ${formatPrice(item.price)}
                     </div>
-                  </div>
 
-                  <!-- Total -->
-                  <div class="cart-item-total">
-                    ${formatPrice(item.price * item.quantity)}
-                  </div>
+                    <!-- Quantidade -->
+                    <div class="cart-item-qty">
+                      <div class="qty-control" style="background: #f8fafc; border: 1px solid var(--border-light); border-radius: 6px; padding: 2px;">
+                        <button class="qty-btn" data-cart-action="dec" data-key="${item.key}" style="border-radius: 4px;" title="Diminuir">-</button>
+                        <span class="qty-val" style="min-width: 32px; font-weight: 700;">${item.quantity}</span>
+                        <button class="qty-btn" data-cart-action="inc" data-key="${item.key}" style="border-radius: 4px;" title="Aumentar">+</button>
+                      </div>
+                    </div>
 
-                  <!-- Delete -->
-                  <button class="btn-remove-item" data-cart-action="del" data-key="${item.key}" title="Remover produto">
-                    ${Icons.trash(18)}
-                  </button>
-                </div>
-              `).join('')}
+                    <!-- Subtotal do Item -->
+                    <div class="cart-item-total" style="font-weight: 800; font-size: 0.95rem; color: var(--text-main); text-align: right;">
+                      ${formatPrice(item.price * item.quantity)}
+                    </div>
+
+                    <!-- Remover -->
+                    <button class="btn-remove-item" data-cart-action="del" data-key="${item.key}" title="Remover item" style="background: none; border: none; cursor: pointer; color: #94a3b8; display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 4px; transition: color 0.15s ease;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'">
+                      ${Icons.trash(16)}
+                    </button>
+                  </div>
+                `;
+              }).join('')}
             </div>
 
-            <!-- Bottom Action Row -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
-              <a href="#/" class="btn btn-secondary" style="gap: 8px;">
-                ${Icons.arrowLeft(16)}
-                <span>Continuar Comprando</span>
+            <!-- Ações Inferiores -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 4px 24px 4px;">
+              <a href="#/" class="btn btn-secondary" style="font-size: 0.875rem; padding: 9px 18px; border-radius: 6px;">
+                ${Icons.arrowLeft(14)}
+                <span>Continuar comprando</span>
               </a>
-              <button id="clearAllCartBtn" class="btn btn-secondary" style="color: var(--accent-rose); border-color: #fecaca;">
-                Limpar Todo o Carrinho
+              <button id="clearAllCartBtn" style="background: none; border: none; font-size: 0.8125rem; color: #94a3b8; cursor: pointer; text-decoration: underline; padding: 6px 8px; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'">
+                Esvaziar carrinho
               </button>
             </div>
           </div>
 
-          <!-- Right: Summary & Checkout Card -->
+          <!-- Coluna Direita: Resumo do Pedido -->
           <div>
-            <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 24px; position: sticky; top: 180px;">
-              <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border-light);">
-                Resumo da Compra
+            <div style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 24px; position: sticky; top: 140px;">
+              <h3 style="font-family: var(--font-display); font-size: 1.15rem; font-weight: 800; color: var(--text-main); margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border-light);">
+                Resumo do pedido
               </h3>
 
-              <!-- Shipping Estimator -->
-              <div style="margin-bottom: 20px;">
-                <label style="font-size: 0.8125rem; font-weight: 700; color: var(--text-main); display: block; margin-bottom: 6px;">
-                  Calcular Entrega por Província
+              <!-- Destino de Entrega -->
+              <div style="margin-bottom: 18px;">
+                <label style="font-size: 0.8125rem; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 6px;">
+                  Destino da entrega
                 </label>
-                <select id="provinceSelect" class="form-select" style="width: 100%;">
+                <select id="provinceSelect" class="form-select" style="width: 100%; height: 40px; font-size: 0.875rem; border-radius: 6px;">
                   ${ANGOLA_PROVINCES.map(prov => `
-                    <option value="${prov.name}" ${prov.name === 'Luanda' ? 'selected' : ''} ${!prov.active ? 'disabled style="color: #94a3b8; background: #f8fafc;"' : ''}>
-                      ${prov.label} ${prov.name === 'Luanda' ? (isFreeShipping ? '(Grátis)' : `(${formatPrice(PROVINCE_RATES['Luanda'])})`) : ''}
+                    <option value="${prov.name}" ${prov.name === selectedProvince ? 'selected' : ''} ${!prov.active ? 'disabled style="color: #94a3b8; background: #f8fafc;"' : ''}>
+                      ${prov.name === 'Luanda' ? `Luanda • ${isFreeShipping ? 'Grátis' : formatPrice(PROVINCE_RATES['Luanda'])}` : `${prov.name} (Indisponível)`}
                     </option>
                   `).join('')}
                 </select>
-                <div style="font-size: 0.72rem; color: #64748b; margin-top: 5px;">
-                  📍 Entregas ativas exclusivamente em Luanda por enquanto.
-                </div>
               </div>
 
-              <!-- Coupon Box -->
+              <!-- Cupom de Desconto -->
               <div style="margin-bottom: 20px;">
-                <label style="font-size: 0.8125rem; font-weight: 700; color: var(--text-main); display: block; margin-bottom: 6px;">
-                  Cupom de Desconto
+                <label style="font-size: 0.8125rem; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 6px;">
+                  Cupom de desconto
                 </label>
                 ${coupon ? `
-                  <div style="display: flex; align-items: center; justify-content: space-between; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 10px 14px; border-radius: var(--radius-sm); font-size: 0.8125rem; color: #065f46;">
-                    <span>Cupom <strong>${coupon.code}</strong> ativo</span>
-                    <button id="removeCartCouponBtn" style="color: #065f46; font-weight: 800; cursor: pointer;">✕</button>
+                  <div style="display: flex; align-items: center; justify-content: space-between; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 8px 12px; border-radius: 6px; font-size: 0.8125rem; color: #166534;">
+                    <span>Cupom <strong>${coupon.code}</strong> aplicado</span>
+                    <button id="removeCartCouponBtn" style="background: none; border: none; color: #166534; font-weight: 800; cursor: pointer; font-size: 0.9rem;" title="Remover cupom">✕</button>
                   </div>
                 ` : `
                   <div style="display: flex; gap: 8px;">
-                    <input type="text" id="cartCouponCode" placeholder="Insira o seu código..." class="form-input" style="flex: 1;" />
-                    <button id="applyCartCouponBtn" class="btn btn-secondary">Aplicar</button>
-                  </div>
-                  <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">
-                    Insira o código do seu cupom para obter desconto imediato
+                    <input type="text" id="cartCouponCode" placeholder="Código do cupom" class="form-input" style="flex: 1; height: 38px; font-size: 0.8125rem; text-transform: uppercase;" />
+                    <button id="applyCartCouponBtn" class="btn btn-secondary" style="height: 38px; padding: 0 14px; font-size: 0.8125rem; font-weight: 600;">
+                      Aplicar
+                    </button>
                   </div>
                 `}
               </div>
 
-              <!-- Totals Breakdown -->
-              <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; font-size: 0.9375rem;">
+              <!-- Linhas de Valores -->
+              <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; font-size: 0.875rem;">
                 <div style="display: flex; justify-content: space-between; color: var(--text-secondary);">
                   <span>Subtotal</span>
-                  <strong>${formatPrice(subtotal)}</strong>
+                  <span style="font-weight: 600; color: var(--text-main);">${formatPrice(subtotal)}</span>
                 </div>
 
                 ${discountAmount > 0 ? `
-                  <div style="display: flex; justify-content: space-between; color: var(--accent-emerald);">
-                    <span>Desconto do Cupom</span>
-                    <strong>-${formatPrice(discountAmount)}</strong>
+                  <div style="display: flex; justify-content: space-between; color: #10b981;">
+                    <span>Desconto</span>
+                    <span style="font-weight: 700;">-${formatPrice(discountAmount)}</span>
                   </div>
                 ` : ''}
 
                 <div style="display: flex; justify-content: space-between; color: var(--text-secondary);">
-                  <span>Estimativa de Entrega (${selectedProvince})</span>
-                  <strong>${isFreeShipping ? '<span style="color: var(--accent-emerald);">GRÁTIS</span>' : formatPrice(shippingPrice)}</strong>
+                  <span>Entrega</span>
+                  <span>${isFreeShipping ? '<strong style="color: #10b981;">Grátis</strong>' : `<strong style="color: var(--text-main);">${formatPrice(shippingPrice)}</strong>`}</span>
                 </div>
 
-                <div style="display: flex; justify-content: space-between; padding-top: 14px; border-top: 2px solid #f1f5f9; font-size: 1.25rem; font-weight: 900; color: var(--text-main);">
-                  <span>Total a Pagar</span>
-                  <span style="color: var(--primary-700); font-family: var(--font-display);">${formatPrice(total)}</span>
+                <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 14px; border-top: 1px solid var(--border-light); font-size: 1.15rem; font-weight: 900; color: var(--text-main);">
+                  <span>Total</span>
+                  <span style="font-family: var(--font-display); font-size: 1.35rem; color: var(--primary-700);">${formatPrice(total)}</span>
                 </div>
               </div>
 
-              <button id="cartProceedToCheckoutBtn" class="btn btn-accent btn-full" style="padding: 14px 20px; font-size: 1rem;">
-                Avançar para o Pagamento
+              <!-- Botão Principal de Checkout -->
+              <button id="cartProceedToCheckoutBtn" class="btn btn-accent btn-full" style="padding: 13px 20px; font-size: 0.95rem; font-weight: 700; border-radius: 8px; justify-content: center;">
+                Finalizar compra
               </button>
 
-              <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 16px; font-size: 0.75rem; color: var(--text-muted);">
-                ${Icons.shieldCheck(16, '#10b981')}
-                <span>Compra protegida com segurança de 256 bits</span>
+              <div style="text-align: center; margin-top: 14px; font-size: 0.75rem; color: var(--text-muted);">
+                Entrega para Luanda • Pagamento no checkout
               </div>
             </div>
           </div>
@@ -229,7 +271,7 @@ export function renderCartView() {
   }
 
   function attachCartEvents() {
-    // Quantity actions
+    // Ações de Quantidade
     container.querySelectorAll('[data-cart-action="inc"]').forEach(btn => {
       btn.onclick = () => {
         Storage.updateCartQty(btn.dataset.key, 1);
@@ -244,26 +286,27 @@ export function renderCartView() {
       };
     });
 
+    // Remover Item
     container.querySelectorAll('[data-cart-action="del"]').forEach(btn => {
       btn.onclick = () => {
         Storage.removeFromCart(btn.dataset.key);
         render();
-        Toast.show({ title: 'Produto removido do carrinho', type: 'info' });
+        Toast.show({ title: 'Item removido do carrinho', type: 'info' });
       };
     });
 
-    // Clear cart
+    // Limpar Todo o Carrinho
     const clearBtn = container.querySelector('#clearAllCartBtn');
     if (clearBtn) {
       clearBtn.onclick = () => {
-        if (confirm('Tem certeza que deseja esvaziar o carrinho?')) {
+        if (confirm('Deseja realmente esvaziar todos os itens do carrinho?')) {
           Storage.clearCart();
           render();
         }
       };
     }
 
-    // Province selector
+    // Seletor de Província
     const provSelect = container.querySelector('#provinceSelect');
     if (provSelect) {
       provSelect.onchange = () => {
@@ -272,7 +315,7 @@ export function renderCartView() {
       };
     }
 
-    // Coupon actions
+    // Aplicar Cupom
     const applyBtn = container.querySelector('#applyCartCouponBtn');
     if (applyBtn) {
       applyBtn.onclick = async () => {
@@ -284,17 +327,18 @@ export function renderCartView() {
         }
 
         applyBtn.disabled = true;
-        applyBtn.innerHTML = 'Validando...';
+        applyBtn.innerHTML = '...';
 
         try {
+          const subtotal = Storage.getCartSubtotal();
           const validated = await Api.coupons.validate(code, subtotal);
           Storage.saveAppliedCoupon({
             code: validated.code,
             type: validated.discount_type || validated.type || 'percent',
             value: Number(validated.discount_value || validated.value || 0),
-            description: validated.description || `Cupom ${validated.code} ativado com sucesso!`
+            description: validated.description || `Cupom ${validated.code} aplicado`
           });
-          Toast.show({ title: 'Cupom aplicado! 🎉', message: `Desconto ativado no seu pedido.`, type: 'success' });
+          Toast.show({ title: 'Cupom aplicado com sucesso', type: 'success' });
           render();
         } catch (err) {
           Toast.show({ title: 'Cupom inválido', message: err.message || 'Verifique o código e tente novamente.', type: 'warning' });
@@ -304,6 +348,7 @@ export function renderCartView() {
       };
     }
 
+    // Remover Cupom
     const removeBtn = container.querySelector('#removeCartCouponBtn');
     if (removeBtn) {
       removeBtn.onclick = () => {
@@ -312,15 +357,15 @@ export function renderCartView() {
       };
     }
 
-    // Proceed to Checkout validation
+    // Avançar para o Checkout
     const checkoutBtn = container.querySelector('#cartProceedToCheckoutBtn');
     if (checkoutBtn) {
       checkoutBtn.onclick = () => {
         const user = Storage.getUser();
         if (!user) {
           Toast.show({
-            title: 'Identificação Necessária',
-            message: 'Inicie sessão ou crie uma conta para avançar ao pagamento.',
+            title: 'Identificação necessária',
+            message: 'Inicie sessão ou crie uma conta para concluir a compra.',
             type: 'info'
           });
           window.location.hash = '/login';
@@ -335,6 +380,13 @@ export function renderCartView() {
       };
     }
   }
+
+  const handleCartUpdated = () => {
+    if (document.body.contains(container)) {
+      render();
+    }
+  };
+  window.addEventListener('cart-updated', handleCartUpdated);
 
   render();
   return container;

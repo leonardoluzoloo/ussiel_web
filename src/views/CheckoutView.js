@@ -689,6 +689,7 @@ export function renderCheckoutView() {
 
           Storage.clearCart();
           Storage.removeCoupon();
+          Api.cart.clearDbCart().catch(() => {});
 
           if (coupon && coupon.code) {
             Api.coupons.incrementUsage(coupon.code).catch(() => {});

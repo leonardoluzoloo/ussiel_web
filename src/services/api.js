@@ -5,14 +5,14 @@
 // cupons, pedidos, itens_pedido, movimentacoes_estoque, configuracoes_loja
 // ===================================================================
 
-import { supabase, isSupabaseConfigured } from './supabaseClient.js';
+import { supabase, isSupabaseConfigured, createIsolatedAuthClient } from './supabaseClient.js';
 import { Storage, normalizeOrderStatus } from './storage.js';
 import { formatAuthError } from '../utils/format.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const TOKEN_KEY = 'novatech_auth_token_v2';
 
-// Cache local persistente para máxima resiliência e operação contínua (100% Zerado)
+// Chaves de referência para cache em memória da sessão (100% Zerado em localStorage)
 const LOCAL_STORAGE_KEYS = {
   PRODUCTS: 'novatech_admin_produtos_v4_clean',
   CATEGORIES: 'novatech_admin_categorias_v4_clean',
@@ -25,42 +25,48 @@ const LOCAL_STORAGE_KEYS = {
   STOCK_MOVEMENTS: 'novatech_admin_movimentacoes_v4_clean'
 };
 
-// Purga automática de dados residuais legados para garantir base 100% zerada
-(function purgeLegacyMocks() {
+// Purga automática e estrita: NENHUM dado de negócio ou credencial deve residir em localStorage
+(function purgeAllBusinessAndAuthFromLocalStorage() {
+  if (typeof window === 'undefined') return;
   try {
-    const legacyKeys = [
-      'novatech_admin_produtos_v3',
-      'novatech_admin_categorias_v3',
-      'novatech_admin_catalogos_v3',
-      'novatech_admin_banners_v3',
-      'novatech_admin_cupons_v3',
-      'novatech_admin_pedidos_v3',
-      'novatech_admin_usuarios_v3',
-      'novatech_admin_configuracoes_v3',
-      'novatech_admin_movimentacoes_v3',
-      'novatech_cart_v1',
-      'novatech_applied_coupon'
-    ];
-    legacyKeys.forEach(k => localStorage.removeItem(k));
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k) continue;
+      if (
+        k.startsWith('sb-') ||
+        k.startsWith('novatech_user_') ||
+        k.startsWith('novatech_admin_') ||
+        k.startsWith('novatech_auth_') ||
+        k.startsWith('novatech_wishlist') ||
+        k.startsWith('novatech_reviews_') ||
+        k.startsWith('novatech_products_') ||
+        k.startsWith('novatech_categories_') ||
+        k.startsWith('novatech_coupon') ||
+        k.startsWith('novatech_customer_orders_cache') ||
+        k.startsWith('novatech_stable_uid_')
+      ) {
+        keysToRemove.push(k);
+      }
+    }
+    keysToRemove.forEach(k => {
+      try { localStorage.removeItem(k); } catch {}
+    });
   } catch {}
 })();
 
+// Armazenamento volátil estritamente em memória RAM (Heap JS) durante a sessão ativa
+const runtimeMemoryCache = new Map();
+
 function getLocalData(key, defaultData = []) {
-  try {
-    const saved = localStorage.getItem(key);
-    if (saved) return JSON.parse(saved);
-  } catch (e) {
-    console.warn(`Erro ao ler localStorage [${key}]:`, e);
+  if (runtimeMemoryCache.has(key)) {
+    return runtimeMemoryCache.get(key);
   }
   return defaultData;
 }
 
 function setLocalData(key, data) {
-  try {
-    localStorage.setItem(key, JSON.stringify(data));
-  } catch (e) {
-    console.warn(`Erro ao salvar no localStorage [${key}]:`, e);
-  }
+  runtimeMemoryCache.set(key, data);
 }
 
 // ===================================================================
@@ -82,34 +88,25 @@ export function generateUid() {
   });
 }
 
+// Cache em memória para resolução estável de UID <-> ID sem poluir o navegador
+const stableUidStore = new Map();
+
 export function getStableUid(table, id, existingUid) {
   if (existingUid && String(existingUid).trim().length > 10) return existingUid;
   if (!id) return generateUid();
-  const regKey = `novatech_stable_uid_${table}`;
-  try {
-    const raw = localStorage.getItem(regKey);
-    const map = raw ? JSON.parse(raw) : {};
-    if (map[id]) return map[id];
-    const newUid = generateUid();
-    map[id] = newUid;
-    localStorage.setItem(regKey, JSON.stringify(map));
-    return newUid;
-  } catch {
-    return generateUid();
+  const cacheKey = `${table}_${id}`;
+  if (stableUidStore.has(cacheKey)) {
+    return stableUidStore.get(cacheKey);
   }
+  const newUid = generateUid();
+  stableUidStore.set(cacheKey, newUid);
+  stableUidStore.set(`rev_${table}_${newUid}`, id);
+  return newUid;
 }
 
 export function findIdByStableUid(table, uid) {
   if (!uid) return null;
-  const regKey = `novatech_stable_uid_${table}`;
-  try {
-    const raw = localStorage.getItem(regKey);
-    const map = raw ? JSON.parse(raw) : {};
-    for (const [id, u] of Object.entries(map)) {
-      if (u === uid) return id;
-    }
-  } catch {}
-  return null;
+  return stableUidStore.get(`rev_${table}_${uid}`) || null;
 }
 
 function mapCategoriaFromDb(c) {
@@ -571,21 +568,47 @@ function mapConfiguracoesToDb(s = {}) {
 }
 
 export const Api = {
-  // --- TOKEN MANAGEMENT ---
+  // --- TOKEN MANAGEMENT (HÍBRIDO CONFORME REGRA 2 DE ALTO PADRÃO) ---
   getToken() {
-    return localStorage.getItem(TOKEN_KEY);
-  },
-
-  setToken(token) {
-    if (token) {
-      localStorage.setItem(TOKEN_KEY, token);
-    } else {
-      localStorage.removeItem(TOKEN_KEY);
+    try {
+      const sessionToken = sessionStorage.getItem(TOKEN_KEY);
+      if (sessionToken) return sessionToken;
+      if (Storage.isRememberMeActive && Storage.isRememberMeActive()) {
+        return localStorage.getItem(TOKEN_KEY);
+      }
+      return null;
+    } catch {
+      return null;
     }
   },
 
+  setToken(token, options = {}) {
+    try {
+      if (token) {
+        const isRemember = options.rememberMe !== undefined
+          ? Boolean(options.rememberMe)
+          : (Storage.isRememberMeActive && Storage.isRememberMeActive());
+        const isAdmin = options.isAdmin || (Storage.getAdminUser && Boolean(Storage.getAdminUser()));
+
+        if (isRemember && !isAdmin) {
+          localStorage.setItem(TOKEN_KEY, token);
+          sessionStorage.removeItem(TOKEN_KEY);
+        } else {
+          sessionStorage.setItem(TOKEN_KEY, token);
+          localStorage.removeItem(TOKEN_KEY);
+        }
+      } else {
+        sessionStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(TOKEN_KEY);
+      }
+    } catch {}
+  },
+
   removeToken() {
-    localStorage.removeItem(TOKEN_KEY);
+    try {
+      sessionStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(TOKEN_KEY);
+    } catch {}
   },
 
   // --- GENERIC FASTAPI REQUEST (Fallback Opcional) ---
@@ -732,11 +755,19 @@ export const Api = {
       throw new Error('Serviço de autenticação não configurado no servidor.');
     },
 
-    async login(email, password) {
+    async login(email, password, options = {}) {
       const cleanEmail = String(email || '').trim().toLowerCase();
+      const rememberMe = options.rememberMe !== undefined ? Boolean(options.rememberMe) : true;
 
       if (isSupabaseConfigured() && supabase) {
         try {
+          // Prepara a intenção de persistência para o smartAuthStorageAdapter
+          if (rememberMe) {
+            Storage.setRememberMe(true);
+          } else {
+            Storage.setRememberMe(false);
+          }
+
           const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
           if (error) {
             throw new Error(formatAuthError(error));
@@ -759,6 +790,11 @@ export const Api = {
               ? 'admin'
               : 'customer';
 
+            // HARDENING ADMIN: Administrador NUNCA possui 'Lembrar de mim' ativado
+            if (role === 'admin') {
+              Storage.setRememberMe(false);
+            }
+
             // Verificação de status do usuário no banco
             if (userProfile && (userProfile.status === 'bloqueado' || userProfile.is_active === false)) {
               await supabase.auth.signOut().catch(() => {});
@@ -775,10 +811,21 @@ export const Api = {
               ponto_referencia: userProfile?.ponto_referencia || data.user.user_metadata?.ponto_referencia || '',
               role: role
             };
+
+            const isCustomerRemember = role === 'customer' && rememberMe;
+
             if (data.session?.access_token) {
-              Api.setToken(data.session.access_token);
+              Api.setToken(data.session.access_token, {
+                rememberMe: isCustomerRemember,
+                isAdmin: role === 'admin'
+              });
             }
-            return { access_token: data.session?.access_token, user };
+
+            return {
+              access_token: data.session?.access_token,
+              user,
+              rememberMe: isCustomerRemember
+            };
           }
         } catch (sbErr) {
           throw sbErr;
@@ -789,12 +836,18 @@ export const Api = {
     },
 
     async adminLogin(email, password) {
-      const result = await this.login(email, password);
+      Storage.setRememberMe(false);
+      const result = await this.login(email, password, { rememberMe: false });
       if (result.user.role !== 'admin') {
         // Encerra sessão caso um cliente tente logar no endpoint admin
         await this.logout().catch(() => {});
         throw new Error('Você não possui permissão para acessar o painel administrativo.');
       }
+      Storage.setRememberMe(false);
+      if (result.access_token && Storage.saveAdminToken) {
+        Storage.saveAdminToken(result.access_token);
+      }
+      Storage.saveAdminUser(result.user);
       return result;
     },
 
@@ -820,8 +873,8 @@ export const Api = {
 
       // 1. Verifica no banco se já existe algum administrador cadastrado
       const status = await Api.admin.getStatus();
-      const currentUser = Storage.getUser();
-      const isCallerAdmin = currentUser?.role === 'admin';
+      const currentAdmin = Storage.getAdminUser() || Storage.getUser();
+      const isCallerAdmin = currentAdmin?.role === 'admin' || currentAdmin?.nivel_acesso === 'admin';
 
       // 2. Se já existem administradores e quem tenta cadastrar NÃO é um admin logado:
       if (status.has_admin && !isCallerAdmin) {
@@ -838,13 +891,16 @@ export const Api = {
         });
       }
 
-      // 4. Se já há administradores e o usuário logado É administrador, cria o novo admin
+      // 4. Se já há administradores e o usuário logado É administrador:
+      // CRUCIAL: Utiliza um cliente isolado em memória (sem persistência no localStorage)
+      // para criar o novo usuário sem derrubar/sobrescrever a sessão do administrador atual!
       try {
         const redirectTo = typeof window !== 'undefined'
           ? `${window.location.origin}${window.location.pathname}`
           : undefined;
 
-        const { data, error } = await supabase.auth.signUp({
+        const isolatedClient = createIsolatedAuthClient() || supabase;
+        const { data, error } = await isolatedClient.auth.signUp({
           email,
           password,
           options: {
@@ -852,6 +908,7 @@ export const Api = {
             data: {
               name,
               phone,
+              whatsapp: phone,
               role: 'admin'
             }
           }
@@ -865,31 +922,63 @@ export const Api = {
           throw new Error('Este e-mail já está cadastrado no sistema. Inicie sessão ou recupere sua senha.');
         }
 
-        // Como o chamador é admin autenticado, o trigger proteger_nivel_acesso_usuario permite o nível 'admin'
-        const { error: upsertErr } = await supabase.from('usuarios').upsert({
-          auth_user_id: data.user?.id || null,
-          nome: name,
-          email: email,
-          telefone: phone,
-          whatsapp: phone,
-          nivel_acesso: 'admin',
-          status: 'ativo',
-          ativo: true
-        }, { onConflict: 'email' });
+        const authUserId = data.user?.id || null;
 
-        if (upsertErr) {
-          console.warn('Aviso ao sincronizar administrador no banco:', upsertErr.message);
+        // 5. Gravação direta e garantida na tabela 'usuarios' usando o cliente do admin autenticado
+        let savedInDb = false;
+        try {
+          const { data: rpcRes, error: rpcErr } = await supabase.rpc('admin_cadastrar_usuario', {
+            p_email: email,
+            p_nome: name,
+            p_telefone: phone,
+            p_nivel_acesso: 'admin',
+            p_auth_user_id: authUserId
+          });
+          if (!rpcErr && rpcRes?.success) {
+            savedInDb = true;
+          } else if (rpcErr) {
+            console.warn('Nota RPC admin_cadastrar_usuario:', rpcErr.message);
+          }
+        } catch (rpcEx) {
+          console.warn('Fallback RPC admin_cadastrar_usuario:', rpcEx.message);
+        }
+
+        if (!savedInDb) {
+          const { error: upsertErr } = await supabase.from('usuarios').upsert({
+            auth_user_id: authUserId,
+            nome: name,
+            email: email,
+            telefone: phone,
+            whatsapp: phone,
+            nivel_acesso: 'admin',
+            status: 'ativo',
+            ativo: true
+          }, { onConflict: 'email' });
+
+          if (upsertErr) {
+            console.error('Erro ao sincronizar administrador na tabela usuarios:', upsertErr);
+            throw new Error(`Falha ao salvar administrador no banco de dados: ${upsertErr.message}`);
+          }
         }
 
         const newAdminUser = {
-          id: data.user?.id || Date.now(),
-          auth_user_id: data.user?.id || null,
+          id: authUserId || Date.now(),
+          auth_user_id: authUserId,
           name: name || email.split('@')[0],
           email,
           phone,
-          role: 'admin'
+          role: 'admin',
+          nivel_acesso: 'admin',
+          status: 'ativo',
+          is_active: true
         };
 
+        // Atualiza a lista de usuários no cache local com o novo admin
+        const localUsers = getLocalData(LOCAL_STORAGE_KEYS.CUSTOMERS, []);
+        setLocalData(LOCAL_STORAGE_KEYS.CUSTOMERS, [newAdminUser, ...localUsers.filter(u => u.email !== email)]);
+
+        // NOTA DE SEGURANÇA: NÃO chamar Storage.saveUser(newAdminUser)!
+        // O administrador que realizou o cadastro permanece com sua sessão intacta.
         const sessionToken = data.session?.access_token || null;
         const requiresEmailConfirmation = !sessionToken && Boolean(data.user);
 
@@ -1209,7 +1298,7 @@ export const Api = {
 
         if (error) {
           console.error('Erro ao gravar categoria no Supabase:', error);
-          throw new Error('Falha ao gravar no banco de dados: ' + (error.message || 'Erro desconhecido'));
+          throw new Error('Falha ao gravar categoria no banco de dados: ' + (error.message || 'Erro desconhecido'));
         }
 
         if (data) {
@@ -1221,23 +1310,14 @@ export const Api = {
         }
       }
 
-      const current = getLocalData(LOCAL_STORAGE_KEYS.CATEGORIES, []);
-      const newCat = {
-        id: Date.now(),
-        slug: payload.slug,
-        name: payload.nome,
-        description: payload.descricao,
-        subcategories: [],
-        display_order: payload.ordem_exibicao,
-        is_active: payload.ativo
-      };
-      current.push(newCat);
-      setLocalData(LOCAL_STORAGE_KEYS.CATEGORIES, current);
-      window.dispatchEvent(new CustomEvent('categories-updated', { detail: { category: newCat } }));
-      return newCat;
+      throw new Error('Serviço de banco de dados indisponível. Não foi possível criar a categoria no servidor.');
     },
 
     async update(id, categoryData) {
+      if (!isSupabaseConfigured() || !supabase) {
+        throw new Error('Serviço de banco de dados indisponível. Não foi possível atualizar a categoria no servidor.');
+      }
+
       const currentCats = await this.getAll();
       const existing = currentCats.find(c => c.id === id);
 
@@ -1251,44 +1331,35 @@ export const Api = {
 
       const payload = mapCategoriaToDb(merged);
 
-      if (isSupabaseConfigured() && supabase) {
-        const { data, error } = await supabase
-          .from('categorias')
-          .update(payload)
-          .eq('id', id)
-          .select()
-          .single();
+      const { data, error } = await supabase
+        .from('categorias')
+        .update(payload)
+        .eq('id', id)
+        .select()
+        .single();
 
-        if (error) {
-          console.error('Erro ao atualizar categoria no Supabase:', error);
-          throw new Error('Falha ao atualizar no banco de dados: ' + (error.message || 'Erro desconhecido'));
-        }
-
-        if (data) {
-          const item = mapCategoriaFromDb(data);
-          const current = getLocalData(LOCAL_STORAGE_KEYS.CATEGORIES, []);
-          const updated = current.map(c => c.id === id ? item : c);
-          setLocalData(LOCAL_STORAGE_KEYS.CATEGORIES, updated);
-          window.dispatchEvent(new CustomEvent('categories-updated', { detail: { category: item } }));
-          return item;
-        }
+      if (error) {
+        console.error('Erro ao atualizar categoria no Supabase:', error);
+        throw new Error('Falha ao atualizar categoria no banco de dados: ' + (error.message || 'Erro desconhecido'));
       }
 
+      const item = mapCategoriaFromDb(data);
       const current = getLocalData(LOCAL_STORAGE_KEYS.CATEGORIES, []);
-      const updated = current.map(c => c.id === id ? { ...c, ...categoryData } : c);
+      const updated = current.map(c => c.id === id ? item : c);
       setLocalData(LOCAL_STORAGE_KEYS.CATEGORIES, updated);
-      const changed = updated.find(c => c.id === id);
-      window.dispatchEvent(new CustomEvent('categories-updated', { detail: { category: changed } }));
-      return changed;
+      window.dispatchEvent(new CustomEvent('categories-updated', { detail: { category: item } }));
+      return item;
     },
 
     async delete(id) {
-      if (isSupabaseConfigured() && supabase) {
-        const { error } = await supabase.from('categorias').delete().eq('id', id);
-        if (error) {
-          console.error('Erro ao excluir categoria no Supabase:', error);
-          throw new Error('Falha ao excluir categoria do banco de dados: ' + (error.message || 'Erro desconhecido'));
-        }
+      if (!isSupabaseConfigured() || !supabase) {
+        throw new Error('Serviço de banco de dados indisponível. Não foi possível excluir a categoria no servidor.');
+      }
+
+      const { error } = await supabase.from('categorias').delete().eq('id', id);
+      if (error) {
+        console.error('Erro ao excluir categoria no Supabase:', error);
+        throw new Error('Falha ao excluir categoria do banco de dados: ' + (error.message || 'Erro desconhecido'));
       }
 
       const current = getLocalData(LOCAL_STORAGE_KEYS.CATEGORIES, []);
@@ -1556,11 +1627,7 @@ export const Api = {
         }
       }
 
-      const list = getLocalData(LOCAL_STORAGE_KEYS.CATALOGS, []);
-      const newCat = { id: Date.now(), ...catalogData };
-      list.push(newCat);
-      setLocalData(LOCAL_STORAGE_KEYS.CATALOGS, list);
-      return newCat;
+      throw new Error('Serviço de banco de dados indisponível. Conecte o Supabase para cadastrar campanhas.');
     },
 
     async update(id, catalogData) {
@@ -1580,10 +1647,7 @@ export const Api = {
         }
       }
 
-      const list = getLocalData(LOCAL_STORAGE_KEYS.CATALOGS, []);
-      const updated = list.map(c => c.id === id ? { ...c, ...catalogData } : c);
-      setLocalData(LOCAL_STORAGE_KEYS.CATALOGS, updated);
-      return updated.find(c => c.id === id);
+      throw new Error('Serviço de banco de dados indisponível. Não foi possível atualizar a campanha no servidor.');
     },
 
     async delete(id) {
@@ -1593,11 +1657,12 @@ export const Api = {
           console.error('Erro ao deletar campanha no Supabase:', error);
           throw new Error('Falha ao excluir campanha do banco de dados: ' + (error.message || 'Erro desconhecido'));
         }
+        const list = getLocalData(LOCAL_STORAGE_KEYS.CATALOGS, []);
+        setLocalData(LOCAL_STORAGE_KEYS.CATALOGS, list.filter(c => c.id !== id));
+        return { success: true };
       }
 
-      const list = getLocalData(LOCAL_STORAGE_KEYS.CATALOGS, []);
-      setLocalData(LOCAL_STORAGE_KEYS.CATALOGS, list.filter(c => c.id !== id));
-      return { success: true };
+      throw new Error('Serviço de banco de dados indisponível. Não foi possível excluir a campanha no servidor.');
     }
   },
 
@@ -1779,12 +1844,7 @@ export const Api = {
         }
       }
 
-      const list = getLocalData(LOCAL_STORAGE_KEYS.PRODUCTS, []);
-      const newProd = { id: Date.now(), ...productData };
-      list.unshift(newProd);
-      setLocalData(LOCAL_STORAGE_KEYS.PRODUCTS, list);
-      window.dispatchEvent(new CustomEvent('products-updated', { detail: { product: newProd } }));
-      return newProd;
+      throw new Error('Serviço de banco de dados indisponível. Conecte o Supabase para cadastrar produtos.');
     },
 
     async update(id, productData) {
@@ -1831,12 +1891,7 @@ export const Api = {
         }
       }
 
-      const list = getLocalData(LOCAL_STORAGE_KEYS.PRODUCTS, []);
-      const updated = list.map(p => p.id === id ? { ...p, ...productData } : p);
-      setLocalData(LOCAL_STORAGE_KEYS.PRODUCTS, updated);
-      const changed = updated.find(p => p.id === id);
-      window.dispatchEvent(new CustomEvent('products-updated', { detail: { product: changed } }));
-      return changed;
+      throw new Error('Serviço de banco de dados indisponível. Não foi possível atualizar o produto no servidor.');
     },
 
     async delete(id) {
@@ -1846,12 +1901,13 @@ export const Api = {
           console.error('Erro ao excluir produto no Supabase:', error);
           throw new Error('Falha ao excluir produto do banco de dados: ' + (error.message || 'Erro desconhecido'));
         }
+        const list = getLocalData(LOCAL_STORAGE_KEYS.PRODUCTS, []);
+        setLocalData(LOCAL_STORAGE_KEYS.PRODUCTS, list.filter(p => p.id !== id));
+        window.dispatchEvent(new CustomEvent('products-updated', { detail: { id } }));
+        return { success: true };
       }
 
-      const list = getLocalData(LOCAL_STORAGE_KEYS.PRODUCTS, []);
-      setLocalData(LOCAL_STORAGE_KEYS.PRODUCTS, list.filter(p => p.id !== id));
-      window.dispatchEvent(new CustomEvent('products-updated', { detail: { id } }));
-      return { success: true };
+      throw new Error('Serviço de banco de dados indisponível. Não foi possível excluir o produto no servidor.');
     }
   },
 
@@ -2036,12 +2092,7 @@ export const Api = {
         }
       }
 
-      const list = getLocalData(LOCAL_STORAGE_KEYS.BANNERS, []);
-      const newBanner = { id: Date.now(), ...bannerData };
-      list.push(newBanner);
-      setLocalData(LOCAL_STORAGE_KEYS.BANNERS, list);
-      window.dispatchEvent(new CustomEvent('banners-updated', { detail: { banner: newBanner } }));
-      return newBanner;
+      throw new Error('Serviço de banco de dados indisponível. Conecte o Supabase para cadastrar banners.');
     },
 
     async update(id, bannerData) {
@@ -2064,12 +2115,7 @@ export const Api = {
         }
       }
 
-      const list = getLocalData(LOCAL_STORAGE_KEYS.BANNERS, []);
-      const updated = list.map(b => b.id === id ? { ...b, ...bannerData } : b);
-      setLocalData(LOCAL_STORAGE_KEYS.BANNERS, updated);
-      const changed = updated.find(b => b.id === id);
-      window.dispatchEvent(new CustomEvent('banners-updated', { detail: { banner: changed } }));
-      return changed;
+      throw new Error('Serviço de banco de dados indisponível. Não foi possível atualizar o banner no servidor.');
     },
 
     async delete(id) {
@@ -2079,12 +2125,13 @@ export const Api = {
           console.error('Erro ao excluir banner no Supabase:', error);
           throw new Error('Falha ao excluir banner do banco de dados: ' + (error.message || 'Erro desconhecido'));
         }
+        const list = getLocalData(LOCAL_STORAGE_KEYS.BANNERS, []);
+        setLocalData(LOCAL_STORAGE_KEYS.BANNERS, list.filter(b => b.id !== id));
+        window.dispatchEvent(new CustomEvent('banners-updated', { detail: { id } }));
+        return { success: true };
       }
 
-      const list = getLocalData(LOCAL_STORAGE_KEYS.BANNERS, []);
-      setLocalData(LOCAL_STORAGE_KEYS.BANNERS, list.filter(b => b.id !== id));
-      window.dispatchEvent(new CustomEvent('banners-updated', { detail: { id } }));
-      return { success: true };
+      throw new Error('Serviço de banco de dados indisponível. Não foi possível excluir o banner no servidor.');
     }
   },
 
@@ -2262,12 +2309,7 @@ export const Api = {
         }
       }
 
-      const list = getLocalData(LOCAL_STORAGE_KEYS.COUPONS, []);
-      const newCupom = { id: Date.now(), times_used: 0, ...couponData };
-      list.unshift(newCupom);
-      setLocalData(LOCAL_STORAGE_KEYS.COUPONS, list);
-      window.dispatchEvent(new CustomEvent('coupons-updated', { detail: { coupon: newCupom } }));
-      return newCupom;
+      throw new Error('Serviço de banco de dados indisponível. Conecte o Supabase para cadastrar cupons.');
     },
 
     async update(id, couponData) {
@@ -2290,12 +2332,7 @@ export const Api = {
         }
       }
 
-      const list = getLocalData(LOCAL_STORAGE_KEYS.COUPONS, []);
-      const updated = list.map(c => c.id === id ? { ...c, ...couponData } : c);
-      setLocalData(LOCAL_STORAGE_KEYS.COUPONS, updated);
-      const changed = updated.find(c => c.id === id);
-      window.dispatchEvent(new CustomEvent('coupons-updated', { detail: { coupon: changed } }));
-      return changed;
+      throw new Error('Serviço de banco de dados indisponível. Não foi possível atualizar o cupom no servidor.');
     },
 
     async delete(id) {
@@ -2305,12 +2342,13 @@ export const Api = {
           console.error('Erro ao excluir cupom no Supabase:', error);
           throw new Error('Falha ao excluir cupom do banco de dados: ' + (error.message || 'Erro desconhecido'));
         }
+        const list = getLocalData(LOCAL_STORAGE_KEYS.COUPONS, []);
+        setLocalData(LOCAL_STORAGE_KEYS.COUPONS, list.filter(c => c.id !== id));
+        window.dispatchEvent(new CustomEvent('coupons-updated', { detail: { id } }));
+        return { success: true };
       }
 
-      const list = getLocalData(LOCAL_STORAGE_KEYS.COUPONS, []);
-      setLocalData(LOCAL_STORAGE_KEYS.COUPONS, list.filter(c => c.id !== id));
-      window.dispatchEvent(new CustomEvent('coupons-updated', { detail: { id } }));
-      return { success: true };
+      throw new Error('Serviço de banco de dados indisponível. Não foi possível excluir o cupom no servidor.');
     }
   },
 
@@ -3049,8 +3087,8 @@ export const Api = {
             throw new Error('Este e-mail já está cadastrado no sistema. Inicie sessão ou utilize a recuperação de senha.');
           }
 
-          // 2. Usa RPC segura bootstrap_first_admin para promover no banco
-          // Esta RPC só funciona se NÃO existir nenhum admin cadastrado
+          // 2. Usa RPC segura bootstrap_first_admin ou admin_cadastrar_usuario para promover no banco
+          let dbOk = false;
           try {
             const { data: bootstrapResult, error: bootstrapError } = await supabase.rpc('bootstrap_first_admin', {
               p_email: cleanEmail,
@@ -3058,10 +3096,38 @@ export const Api = {
               p_telefone: phone
             });
 
-            if (bootstrapError) {
-              // Se já existe admin, o bootstrap falha — isso é esperado
-              console.warn('bootstrap_first_admin:', bootstrapError.message);
-              // Tenta upsert normal
+            if (!bootstrapError && bootstrapResult?.success) {
+              dbOk = true;
+              if (authData?.user?.id) {
+                await supabase.from('usuarios')
+                  .update({ auth_user_id: authData.user.id })
+                  .eq('email', cleanEmail)
+                  .catch(() => {});
+              }
+            } else if (bootstrapError) {
+              console.warn('Nota bootstrap_first_admin:', bootstrapError.message);
+            }
+          } catch (rpcErr) {
+            console.warn('Fallback bootstrap_first_admin:', rpcErr.message);
+          }
+
+          if (!dbOk) {
+            try {
+              const { data: rpcRes, error: rpcErr } = await supabase.rpc('admin_cadastrar_usuario', {
+                p_email: cleanEmail,
+                p_nome: cleanName,
+                p_telefone: phone,
+                p_nivel_acesso: 'admin',
+                p_auth_user_id: authData?.user?.id || null
+              });
+              if (!rpcErr && rpcRes?.success) {
+                dbOk = true;
+              }
+            } catch (ignore) {}
+          }
+
+          if (!dbOk) {
+            try {
               await supabase.from('usuarios').upsert({
                 auth_user_id: authData?.user?.id || null,
                 nome: cleanName,
@@ -3074,28 +3140,9 @@ export const Api = {
                 status: 'ativo',
                 ativo: true
               }, { onConflict: 'email' });
-            } else {
-              // Atualiza o auth_user_id no registro criado pela RPC
-              if (authData?.user?.id) {
-                await supabase.from('usuarios')
-                  .update({ auth_user_id: authData.user.id })
-                  .eq('email', cleanEmail);
-              }
+            } catch (upErr) {
+              console.warn('Aviso ao sincronizar usuarios no setup:', upErr.message);
             }
-          } catch (rpcErr) {
-            console.warn('Nota: RPC bootstrap_first_admin indisponível, usando upsert direto:', rpcErr.message);
-            await supabase.from('usuarios').upsert({
-              auth_user_id: authData?.user?.id || null,
-              nome: cleanName,
-              email: cleanEmail,
-              telefone: phone,
-              whatsapp: phone,
-              endereco: endereco,
-              ponto_referencia: pontoReferencia,
-              nivel_acesso: 'admin',
-              status: 'ativo',
-              ativo: true
-            }, { onConflict: 'email' });
           }
 
           let sessionToken = authData?.session?.access_token || null;
@@ -3121,6 +3168,7 @@ export const Api = {
 
           if (sessionToken) {
             Api.setToken(sessionToken);
+            if (Storage.saveAdminToken) Storage.saveAdminToken(sessionToken);
           } else if (!requiresEmailConfirmation && !authData?.session) {
             requiresEmailConfirmation = true;
           }
@@ -3133,13 +3181,16 @@ export const Api = {
             phone: phone,
             endereco: endereco,
             ponto_referencia: pontoReferencia,
-            role: 'admin'
+            role: 'admin',
+            nivel_acesso: 'admin',
+            status: 'ativo',
+            is_active: true
           };
 
           // Registrar no cache local
           const localUsers = getLocalData(LOCAL_STORAGE_KEYS.CUSTOMERS, []);
           setLocalData(LOCAL_STORAGE_KEYS.CUSTOMERS, [user, ...localUsers.filter(u => u.email !== user.email)]);
-          Storage.saveUser(user);
+          Storage.saveAdminUser(user);
 
           return { 
             access_token: sessionToken, 
@@ -3216,13 +3267,11 @@ export const Api = {
   },
 
   // ===================================================================
-  // 12. AVALIAÇÕES DE PRODUTOS (TABELA: 'avaliacoes')
-  // Supabase como fonte de verdade — localStorage apenas como cache
+  // 12. AVALIAÇÕES DE PRODUTOS (TABELA: 'avaliacoes') - 100% SUPABASE
   // ===================================================================
   reviews: {
     /**
      * Busca avaliações aprovadas de um produto diretamente do Supabase.
-     * Fallback para localStorage somente se Supabase estiver indisponível.
      */
     async getByProduct(productId) {
       const prodId = Number(productId);
@@ -3238,7 +3287,7 @@ export const Api = {
             .order('criado_em', { ascending: false });
 
           if (!error && data) {
-            const mapped = data.map(r => ({
+            return data.map(r => ({
               id: r.id,
               product_id: r.produto_id,
               user_id: r.usuario_id,
@@ -3250,9 +3299,6 @@ export const Api = {
               approved: r.aprovado,
               date: r.criado_em
             }));
-            // Atualiza cache local por produto
-            try { localStorage.setItem(`novatech_reviews_cache_${prodId}`, JSON.stringify(mapped)); } catch {}
-            return mapped;
           }
           if (error) console.warn('Aviso ao buscar avaliações no Supabase:', error.message);
         } catch (e) {
@@ -3260,17 +3306,11 @@ export const Api = {
         }
       }
 
-      // Fallback: tenta cache local (sem gravar no localStorage como fonte de verdade)
-      try {
-        const cached = localStorage.getItem(`novatech_reviews_cache_${prodId}`);
-        if (cached) return JSON.parse(cached);
-      } catch {}
       return [];
     },
 
     /**
-     * Submete uma nova avaliação ao Supabase.
-     * Tenta associar ao usuário logado se disponível.
+     * Submete uma nova avaliação diretamente ao Supabase.
      */
     async create({ productId, author, comment, rating = 5, email = '' }) {
       const prodId = Number(productId);
@@ -3279,25 +3319,26 @@ export const Api = {
       if (!comment || !comment.trim()) throw new Error('Escreva um comentário para publicar a avaliação.');
       if (rating < 1 || rating > 5) throw new Error('A nota deve ser entre 1 e 5 estrelas.');
 
-      // Tenta descobrir o usuário logado para associar à avaliação
+      if (!isSupabaseConfigured() || !supabase) {
+        throw new Error('Serviço de avaliações indisponível. Conecte o Supabase para publicar sua avaliação.');
+      }
+
       let userId = null;
       let isVerified = false;
-      if (isSupabaseConfigured() && supabase) {
-        try {
-          const { data: { user: authUser } } = await supabase.auth.getUser();
-          if (authUser) {
-            const { data: profile } = await supabase
-              .from('usuarios')
-              .select('id')
-              .eq('auth_user_id', authUser.id)
-              .single();
-            if (profile) {
-              userId = profile.id;
-              isVerified = true; // Usuário autenticado = compra verificável
-            }
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+          const { data: profile } = await supabase
+            .from('usuarios')
+            .select('id')
+            .eq('auth_user_id', authUser.id)
+            .maybeSingle();
+          if (profile) {
+            userId = profile.id;
+            isVerified = true;
           }
-        } catch {}
-      }
+        }
+      } catch {}
 
       const payload = {
         produto_id: prodId,
@@ -3310,67 +3351,32 @@ export const Api = {
         aprovado: true
       };
 
-      if (isSupabaseConfigured() && supabase) {
-        try {
-          const { data, error } = await supabase
-            .from('avaliacoes')
-            .insert(payload)
-            .select()
-            .single();
+      const { data, error } = await supabase
+        .from('avaliacoes')
+        .insert(payload)
+        .select()
+        .single();
 
-          if (error) {
-            console.error('Erro ao inserir avaliação no Supabase:', error);
-            throw new Error('Não foi possível publicar a avaliação. Tente novamente.');
-          }
-
-          if (data) {
-            // Limpa cache para forçar re-fetch atualizado
-            try { localStorage.removeItem(`novatech_reviews_cache_${prodId}`); } catch {}
-            return {
-              id: data.id,
-              product_id: data.produto_id,
-              user_id: data.usuario_id,
-              author: data.autor,
-              comment: data.comentario,
-              rating: data.nota,
-              verified: data.verificado,
-              approved: data.aprovado,
-              date: data.criado_em
-            };
-          }
-        } catch (sbErr) {
-          if (sbErr.message && sbErr.message.includes('publicar')) throw sbErr;
-          console.warn('Fallback local para avaliação:', sbErr.message);
-        }
+      if (error) {
+        console.error('Erro ao inserir avaliação no Supabase:', error);
+        throw new Error('Não foi possível publicar a avaliação no banco de dados: ' + (error.message || 'Erro desconhecido'));
       }
 
-      // Fallback local (somente quando Supabase indisponível)
-      const localReview = {
-        id: `local-${Date.now()}`,
-        product_id: prodId,
-        user_id: null,
-        author: author.trim(),
-        comment: comment.trim(),
-        rating: Number(rating),
-        verified: false,
-        approved: true,
-        date: new Date().toISOString(),
-        _local: true // Marca como pendente de sincronização
+      return {
+        id: data.id,
+        product_id: data.produto_id,
+        user_id: data.usuario_id,
+        author: data.autor,
+        comment: data.comentario,
+        rating: data.nota,
+        verified: data.verificado,
+        approved: data.aprovado,
+        date: data.criado_em
       };
-
-      // Adiciona ao cache local
-      try {
-        const cached = JSON.parse(localStorage.getItem(`novatech_reviews_cache_${prodId}`) || '[]');
-        cached.unshift(localReview);
-        localStorage.setItem(`novatech_reviews_cache_${prodId}`, JSON.stringify(cached));
-      } catch {}
-
-      return localReview;
     },
 
     /**
-     * Busca TODAS as avaliações para o painel Admin (aprovadas e pendentes).
-     * Apenas Admin deve chamar este método.
+     * Busca TODAS as avaliações para o painel Admin.
      */
     async getAll() {
       if (isSupabaseConfigured() && supabase) {
@@ -3402,9 +3408,6 @@ export const Api = {
       return [];
     },
 
-    /**
-     * Admin: aprovar ou rejeitar uma avaliação.
-     */
     async updateApproval(reviewId, approved) {
       if (isSupabaseConfigured() && supabase) {
         const { data, error } = await supabase
@@ -3416,18 +3419,376 @@ export const Api = {
         if (error) throw new Error('Falha ao atualizar avaliação: ' + error.message);
         return data;
       }
-      return { id: reviewId, approved };
+      throw new Error('Serviço de banco de dados indisponível.');
     },
 
-    /**
-     * Admin: excluir uma avaliação.
-     */
     async delete(reviewId) {
       if (isSupabaseConfigured() && supabase) {
         const { error } = await supabase.from('avaliacoes').delete().eq('id', reviewId);
         if (error) throw new Error('Falha ao excluir avaliação: ' + error.message);
+        return { success: true };
       }
-      return { success: true };
+      throw new Error('Serviço de banco de dados indisponível.');
+    }
+  },
+
+  // ===================================================================
+  // 12.1 FAVORITOS / WISHLIST (TABELA: 'favoritos') - 100% SUPABASE
+  // ===================================================================
+  wishlist: {
+    async _getDbUserId() {
+      if (!isSupabaseConfigured() || !supabase) return null;
+      let user = Storage.getUser();
+
+      if (!user) {
+        try {
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          if (authUser?.email) {
+            const { data } = await supabase.from('usuarios').select('id').eq('email', authUser.email.toLowerCase().trim()).maybeSingle();
+            if (data?.id) return Number(data.id);
+          }
+        } catch {}
+        return null;
+      }
+
+      if (user.db_id && !isNaN(Number(user.db_id))) return Number(user.db_id);
+      if (user.id && typeof user.id === 'number' && !isNaN(user.id)) return user.id;
+
+      try {
+        const cleanEmail = (user.email || '').toLowerCase().trim();
+        if (cleanEmail) {
+          const { data } = await supabase.from('usuarios').select('id').eq('email', cleanEmail).maybeSingle();
+          if (data?.id) return Number(data.id);
+        }
+      } catch {}
+      return null;
+    },
+
+    async getIds() {
+      const dbUserId = await this._getDbUserId();
+      if (!dbUserId) return Storage.getWishlist();
+
+      if (isSupabaseConfigured() && supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('favoritos')
+            .select('produto_id')
+            .eq('usuario_id', dbUserId);
+
+          if (!error && data) {
+            const ids = data.map(f => Number(f.produto_id)).filter(id => !isNaN(id));
+            Storage.setWishlist(ids);
+            return ids;
+          }
+        } catch (e) {
+          console.warn('Erro ao consultar favoritos no banco:', e.message);
+        }
+      }
+      return Storage.getWishlist();
+    },
+
+    async getAll() {
+      const dbUserId = await this._getDbUserId();
+      if (!dbUserId) return [];
+
+      if (isSupabaseConfigured() && supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('favoritos')
+            .select('*, produtos(*)')
+            .eq('usuario_id', dbUserId)
+            .order('criado_em', { ascending: false });
+
+          if (!error && data) {
+            return data.map(f => ({
+              id: f.id,
+              product_id: f.produto_id,
+              product: f.produtos ? mapProdutoFromDb(f.produtos) : null,
+              created_at: f.criado_em
+            }));
+          }
+        } catch (e) {
+          console.warn('Erro ao consultar lista completa de favoritos:', e.message);
+        }
+      }
+      return [];
+    },
+
+    async add(productId) {
+      const prodId = Number(productId);
+      if (!prodId || isNaN(prodId) || prodId <= 0) return false;
+
+      const dbUserId = await this._getDbUserId();
+      if (dbUserId && isSupabaseConfigured() && supabase) {
+        try {
+          const { error } = await supabase.from('favoritos').insert({
+            usuario_id: dbUserId,
+            produto_id: prodId
+          });
+          if (error && !error.message.includes('unique') && !error.message.includes('duplicate')) {
+            console.warn('Aviso ao inserir favorito no Supabase:', error.message);
+          }
+        } catch (e) {
+          console.warn('Erro ao salvar favorito no Supabase:', e.message);
+        }
+      }
+      return true;
+    },
+
+    async remove(productId) {
+      const prodId = Number(productId);
+      if (!prodId || isNaN(prodId) || prodId <= 0) return false;
+
+      const dbUserId = await this._getDbUserId();
+      if (dbUserId && isSupabaseConfigured() && supabase) {
+        try {
+          const { error } = await supabase
+            .from('favoritos')
+            .delete()
+            .eq('usuario_id', dbUserId)
+            .eq('produto_id', prodId);
+          if (error) console.warn('Aviso ao remover favorito no Supabase:', error.message);
+        } catch (e) {
+          console.warn('Erro ao deletar favorito no Supabase:', e.message);
+        }
+      }
+      return true;
+    },
+
+    async toggle(productId) {
+      const prodId = Number(productId);
+      if (!prodId || isNaN(prodId) || prodId <= 0) return { isAdded: false };
+
+      const currentIds = Storage.getWishlist();
+      const isCurrentlyAdded = currentIds.includes(prodId) || currentIds.includes(String(productId));
+
+      if (isCurrentlyAdded) {
+        await this.remove(prodId);
+        return { isAdded: false };
+      } else {
+        await this.add(prodId);
+        return { isAdded: true };
+      }
+    },
+
+    async mergeAndSync() {
+      const dbUserId = await this._getDbUserId();
+      if (!dbUserId) return Storage.getWishlist();
+
+      const localIds = Storage.getWishlist().map(id => Number(id)).filter(id => !isNaN(id) && id > 0);
+      let dbIds = [];
+
+      if (isSupabaseConfigured() && supabase) {
+        try {
+          const { data } = await supabase
+            .from('favoritos')
+            .select('produto_id')
+            .eq('usuario_id', dbUserId);
+
+          if (data) {
+            dbIds = data.map(f => Number(f.produto_id)).filter(id => !isNaN(id) && id > 0);
+          }
+
+          // Salva no banco os que o cliente favoritou como visitante
+          const missingInDb = localIds.filter(id => !dbIds.includes(id));
+          if (missingInDb.length > 0) {
+            const rowsToInsert = missingInDb.map(pId => ({
+              usuario_id: dbUserId,
+              produto_id: pId
+            }));
+            await supabase.from('favoritos').insert(rowsToInsert).catch(() => {});
+          }
+        } catch (e) {
+          console.warn('Aviso ao mesclar favoritos com o Supabase:', e.message);
+        }
+      }
+
+      const unifiedIds = Array.from(new Set([...localIds, ...dbIds]));
+      Storage.setWishlist(unifiedIds);
+      return unifiedIds;
+    },
+
+    async sync() {
+      return this.mergeAndSync();
+    }
+  },
+
+  // ===================================================================
+  // 12.2 CARRINHO EM NUVEM (TABELA: 'carrinho_itens') - MULTI-DISPOSITIVO
+  // ===================================================================
+  cart: {
+    async _getDbUserId() {
+      if (!isSupabaseConfigured() || !supabase) return null;
+      let user = Storage.getUser();
+
+      // Fallback: se user ainda não estiver no Storage, consulta direto no Auth ativo
+      if (!user) {
+        try {
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          if (authUser?.email) {
+            const { data } = await supabase.from('usuarios').select('id').eq('email', authUser.email.toLowerCase().trim()).maybeSingle();
+            if (data?.id) return Number(data.id);
+          }
+        } catch {}
+        return null;
+      }
+
+      if (user.db_id && !isNaN(Number(user.db_id))) return Number(user.db_id);
+      if (user.id && typeof user.id === 'number' && !isNaN(user.id)) return user.id;
+
+      try {
+        const cleanEmail = (user.email || '').toLowerCase().trim();
+        if (cleanEmail) {
+          const { data } = await supabase.from('usuarios').select('id').eq('email', cleanEmail).maybeSingle();
+          if (data?.id) return Number(data.id);
+        }
+      } catch {}
+      return null;
+    },
+
+    async getDbCart() {
+      const dbUserId = await this._getDbUserId();
+      if (!dbUserId || !isSupabaseConfigured() || !supabase) return [];
+
+      try {
+        const { data, error } = await supabase
+          .from('carrinho_itens')
+          .select('*, produtos(*)')
+          .eq('usuario_id', dbUserId)
+          .order('atualizado_em', { ascending: false });
+
+        if (error) {
+          if (error.code !== 'PGRST205' && !error.message?.includes('schema cache')) {
+            console.warn('Aviso ao consultar carrinho no Supabase:', error.message);
+          }
+          return [];
+        }
+
+        return (data || [])
+          .filter(row => row && row.produto_id && !isNaN(Number(row.produto_id)))
+          .map(row => {
+            const prod = row.produtos;
+            return {
+              key: row.variante_chave,
+              id: Number(row.produto_id),
+              sku: row.sku || prod?.sku || '',
+              name: row.nome || prod?.name || prod?.nome || '',
+              price: prod?.price !== undefined ? Number(prod.price) : (Number(row.preco) || 0),
+              image: row.imagem || prod?.image || '',
+              variant: row.variante || {},
+              quantity: Math.max(1, Number(row.quantidade) || 1),
+              stock: prod?.stock !== undefined ? Number(prod.stock) : 999
+            };
+          });
+      } catch (err) {
+        return [];
+      }
+    },
+
+    async saveDbCart(cartItems) {
+      const dbUserId = await this._getDbUserId();
+      if (!dbUserId || !isSupabaseConfigured() || !supabase) return false;
+
+      try {
+        const validItems = (cartItems || []).filter(item => item && item.id && !isNaN(Number(item.id)) && Number(item.id) > 0);
+
+        // Se o carrinho estiver vazio, remove todos os itens do usuário no banco
+        if (validItems.length === 0) {
+          await supabase.from('carrinho_itens').delete().eq('usuario_id', dbUserId);
+          return true;
+        }
+
+        // 1. Deleção segura de itens obsoletos por ID de chave primária
+        const currentKeys = validItems.map(i => String(i.key));
+        const { data: dbRows } = await supabase
+          .from('carrinho_itens')
+          .select('id, variante_chave')
+          .eq('usuario_id', dbUserId);
+
+        if (dbRows && dbRows.length > 0) {
+          const staleIds = dbRows
+            .filter(r => !currentKeys.includes(r.variante_chave))
+            .map(r => r.id);
+          if (staleIds.length > 0) {
+            await supabase.from('carrinho_itens').delete().in('id', staleIds);
+          }
+        }
+
+        // 2. Upsert atômico dos itens atuais
+        const rowsToUpsert = validItems.map(item => ({
+          usuario_id: dbUserId,
+          produto_id: Number(item.id),
+          variante_chave: String(item.key),
+          quantidade: Math.max(1, Number(item.quantity) || 1),
+          preco: Number(item.price) || 0,
+          nome: item.name || '',
+          imagem: item.image || '',
+          sku: item.sku || '',
+          variante: item.variant || {},
+          atualizado_em: new Date().toISOString()
+        }));
+
+        const { error } = await supabase
+          .from('carrinho_itens')
+          .upsert(rowsToUpsert, { onConflict: 'usuario_id,variante_chave' });
+
+        if (error && error.code !== 'PGRST205' && !error.message?.includes('schema cache')) {
+          console.warn('Aviso ao sincronizar itens do carrinho no Supabase:', error.message);
+        }
+        return true;
+      } catch (err) {
+        return false;
+      }
+    },
+
+    async mergeAndSync() {
+      const dbUserId = await this._getDbUserId();
+      if (!dbUserId) return Storage.getCart();
+
+      const localCart = Storage.getCart();
+      const dbCart = await this.getDbCart();
+
+      // Se não há carrinho no banco e há local, envia o local para o banco
+      if (dbCart.length === 0 && localCart.length > 0) {
+        await this.saveDbCart(localCart);
+        return localCart;
+      }
+
+      // Se há carrinho no banco e não há local, restaura o do banco
+      if (dbCart.length > 0 && localCart.length === 0) {
+        Storage.saveCart(dbCart, { skipDbSync: true });
+        return dbCart;
+      }
+
+      // Se ambos têm itens: mescla inteligente por chave de variante
+      const mergedMap = new Map();
+
+      dbCart.forEach(item => {
+        mergedMap.set(item.key, { ...item });
+      });
+
+      localCart.forEach(localItem => {
+        if (mergedMap.has(localItem.key)) {
+          const existing = mergedMap.get(localItem.key);
+          const maxStock = localItem.stock || existing.stock || 999;
+          existing.quantity = Math.min(maxStock, existing.quantity + localItem.quantity);
+        } else {
+          mergedMap.set(localItem.key, { ...localItem });
+        }
+      });
+
+      const mergedCart = Array.from(mergedMap.values());
+      Storage.saveCart(mergedCart, { skipDbSync: true });
+      await this.saveDbCart(mergedCart);
+      return mergedCart;
+    },
+
+    async clearDbCart() {
+      const dbUserId = await this._getDbUserId();
+      if (!dbUserId || !isSupabaseConfigured() || !supabase) return;
+      try {
+        await supabase.from('carrinho_itens').delete().eq('usuario_id', dbUserId);
+      } catch {}
     }
   },
 
@@ -3446,7 +3807,7 @@ export const Api = {
       }
 
       const tablesStatus = {};
-      const tablesToCheck = ['usuarios', 'categorias', 'catalogos', 'produtos', 'banners', 'cupons', 'pedidos', 'itens_pedido', 'movimentacoes_estoque', 'configuracoes_loja', 'avaliacoes'];
+      const tablesToCheck = ['usuarios', 'categorias', 'subcategorias', 'catalogos', 'produtos', 'banners', 'cupons', 'pedidos', 'itens_pedido', 'movimentacoes_estoque', 'configuracoes_loja', 'avaliacoes', 'favoritos', 'carrinho_itens'];
 
       for (const table of tablesToCheck) {
         try {
@@ -3471,3 +3832,38 @@ export const Api = {
     }
   }
 };
+
+// Sincronização automática em segundo plano para persistência de favoritos e carrinho no Supabase
+if (typeof window !== 'undefined') {
+  let cartSyncTimeout = null;
+  window.addEventListener('cart-db-sync', (e) => {
+    if (cartSyncTimeout) clearTimeout(cartSyncTimeout);
+    cartSyncTimeout = setTimeout(() => {
+      Api.cart.saveDbCart(e.detail?.cart || Storage.getCart()).catch(() => {});
+    }, 400);
+  });
+
+  window.addEventListener('wishlist-db-sync', async (e) => {
+    try {
+      const { productId, isAdded } = e.detail || {};
+      if (!productId) return;
+      if (isAdded) {
+        await Api.wishlist.add(productId);
+      } else {
+        await Api.wishlist.remove(productId);
+      }
+    } catch (err) {
+      console.warn('Erro ao sincronizar favorito com o banco de dados:', err.message);
+    }
+  });
+
+  // Ao carregar ou alterar sessão de usuário, sincroniza favoritos e carrinho do banco com merge inteligente
+  window.addEventListener('user-updated', async (e) => {
+    try {
+      if (e.detail?.user) {
+        await Api.wishlist.mergeAndSync();
+        await Api.cart.mergeAndSync();
+      }
+    } catch {}
+  });
+}
