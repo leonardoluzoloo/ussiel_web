@@ -244,9 +244,11 @@ export function renderProductDetailView(productSlug) {
     const productReviews = Array.isArray(product.reviews) ? product.reviews : [];
     const socialStats = getProductSocialStats(product);
     const totalReviewsCount = productReviews.length > 0 ? productReviews.length : socialStats.reviewsCount;
-    const calculatedRating = productReviews.length > 0
-      ? Number((productReviews.reduce((sum, r) => sum + Number(r.rating || r.avaliacao || 0), 0) / productReviews.length).toFixed(1))
-      : socialStats.rating;
+    const calculatedRating = totalReviewsCount > 0
+      ? (productReviews.length > 0
+          ? Number((productReviews.reduce((sum, r) => sum + Number(r.rating || r.avaliacao || 0), 0) / productReviews.length).toFixed(1))
+          : socialStats.rating)
+      : 0;
     const hasReviews = totalReviewsCount > 0 && calculatedRating > 0;
 
     const productDesc = (product.description && product.description !== 'undefined' && product.description !== 'null' && product.description.trim() !== '')
@@ -267,7 +269,7 @@ export function renderProductDetailView(productSlug) {
         ` : ''}
         ${product.brand && product.brand.toLowerCase() !== catDisplayName.toLowerCase() ? `
           <span>/</span>
-          <span style="color: var(--text-secondary);">${product.brand}</span>
+          <span style="color: var(--text-secondary);">${(product.brand || product.subcategory_name || 'NOVATECH').toUpperCase()}</span>
         ` : ''}
         <span>/</span>
         <span style="color: var(--text-main); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px;">${product.name || 'Produto'}</span>
@@ -305,7 +307,7 @@ export function renderProductDetailView(productSlug) {
         <div class="pdp-details">
           <div class="pdp-meta-row" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
             ${product.brand ? `
-              <span class="pdp-badge-brand" style="font-size: 0.75rem; font-weight: 700; color: #1e293b; background: #f1f5f9; padding: 3px 8px; border-radius: 6px; border: 1px solid #e2e8f0;">${product.brand}</span>
+              <span class="pdp-badge-brand" style="font-size: 0.75rem; font-weight: 700; color: #1e293b; background: #f1f5f9; padding: 3px 8px; border-radius: 6px; border: 1px solid #e2e8f0;">${(product.brand || product.subcategory_name || 'NOVATECH').toUpperCase()}</span>
             ` : ''}
             ${(product.is_active === false || product.ativo === false) ? `
               <span style="color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; font-weight: 700; font-size: 0.75rem; padding: 3px 8px; border-radius: 6px;">Indisponível</span>
@@ -316,7 +318,7 @@ export function renderProductDetailView(productSlug) {
             `}
           </div>
 
-          <h1 class="pdp-title">${product.name}</h1>
+          <h1 class="pdp-title">${(product.name || '').toUpperCase()}</h1>
 
           <!-- Prova Social Real (Vendas Reais, Estrelas, Média e Comentários) -->
           <div class="pdp-social-proof-row" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;">
@@ -328,6 +330,7 @@ export function renderProductDetailView(productSlug) {
               <span style="font-weight: 700; font-size: 0.84rem; color: #0f172a;">${calculatedRating.toFixed(1)}</span>
               <span style="font-size: 0.78rem; color: #64748b;">(${totalReviewsCount} ${totalReviewsCount === 1 ? 'comentário' : 'comentários'})</span>
             ` : `
+              <span style="font-size: 0.84rem; color: #94a3b8; font-weight: 500;">0.0</span>
               <span style="font-size: 0.78rem; color: #94a3b8;">(0 avaliações)</span>
             `}
           </div>

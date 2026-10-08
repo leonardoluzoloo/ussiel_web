@@ -4458,7 +4458,7 @@ export function renderAdminView() {
   // 2. Modal de Produto
   function openProductModal(prod = null) {
     const isEdit = Boolean(prod);
-    const initialSku = (prod?.sku || '').trim() || generateProductSku(prod?.brand, prod?.name);
+    const initialSku = (prod?.sku || '').trim() || generateProductSku(prod?.subcategory_name || prod?.subcategory || prod?.brand, prod?.name);
     const modal = document.createElement('div');
     modal.className = 'admin-modal-overlay';
     modal.innerHTML = `
@@ -4503,34 +4503,11 @@ export function renderAdminView() {
               </div>
             </div>
 
-            <!-- Linha 1: Nome (2fr), Marca (1fr), SKU Automático (1.2fr) -->
-            <div style="display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1.2fr); gap: 8px; margin-bottom: 8px;">
+            <!-- Linha 1: Nome (2.8fr), SKU Automático (1.2fr) -->
+            <div style="display: grid; grid-template-columns: minmax(0, 2.8fr) minmax(0, 1.2fr); gap: 8px; margin-bottom: 8px;">
               <div class="form-group">
                 <label class="admin-form-label" for="pName">Nome do Produto *</label>
-                <input type="text" id="pName" class="form-input" value="${prod?.name || ''}" placeholder="Ex: iPhone 16 Pro Max 256GB" required style="font-weight: 600;" />
-              </div>
-
-              <div class="form-group">
-                <label class="admin-form-label" for="pBrand">Marca *</label>
-                <input type="text" id="pBrand" class="form-input" list="mobileBrandSuggestions" value="${prod?.brand || ''}" placeholder="Ex: Apple" required style="font-weight: 600;" />
-                <datalist id="mobileBrandSuggestions">
-                  <option value="Apple">
-                  <option value="Samsung">
-                  <option value="Xiaomi">
-                  <option value="Motorola">
-                  <option value="Huawei">
-                  <option value="Google Pixel">
-                  <option value="Realme">
-                  <option value="Infinix">
-                  <option value="Tecno">
-                  <option value="OnePlus">
-                  <option value="Honor">
-                  <option value="Oppo">
-                  <option value="Vivo">
-                  <option value="Sony">
-                  <option value="Nokia">
-                  <option value="NovaTech">
-                </datalist>
+                <input type="text" id="pName" class="form-input" value="${(prod?.name || '').toUpperCase()}" placeholder="Ex: IPHONE 16 PRO MAX 256GB" required style="font-weight: 600; text-transform: uppercase;" />
               </div>
 
               <div class="form-group">
@@ -4558,7 +4535,7 @@ export function renderAdminView() {
               </div>
 
               <div class="form-group" id="pSubcategoryWrapper">
-                <label id="pSubcategoryLabel" class="admin-form-label" for="pSubcategory">Subcategoria *</label>
+                <label id="pSubcategoryLabel" class="admin-form-label" for="pSubcategory">Subcategoria (Marca) *</label>
                 <select id="pSubcategory" class="form-input" style="font-weight: 600;" required>
                   <option value="">Selecione...</option>
                 </select>
@@ -4746,20 +4723,34 @@ export function renderAdminView() {
       });
     });
 
-    // Interatividade Dinâmica do SKU (Geração, Re-geração e Edição)
+    // Interatividade Dinâmica do SKU (Geração, Re-geração e Edição via Subcategoria/Marca)
     const skuInput = modal.querySelector('#pSku');
-    const brandInput = modal.querySelector('#pBrand');
     const nameInput = modal.querySelector('#pName');
     const btnRegenerateSku = modal.querySelector('#btnRegenerateSku');
 
+    function getSelectedSubcategoryBrand() {
+      if (subSelect && subSelect.value) {
+        const selectedSubOption = subSelect.options[subSelect.selectedIndex];
+        return (selectedSubOption?.dataset?.name || selectedSubOption?.text || '').trim().toUpperCase();
+      }
+      return '';
+    }
+
     let skuManuallyEdited = isEdit;
+
+    nameInput?.addEventListener('input', (e) => {
+      e.target.value = e.target.value.toUpperCase();
+      if (!skuManuallyEdited && skuInput) {
+        skuInput.value = generateProductSku(getSelectedSubcategoryBrand(), e.target.value);
+      }
+    });
 
     skuInput?.addEventListener('input', () => {
       skuManuallyEdited = true;
     });
 
     btnRegenerateSku?.addEventListener('click', () => {
-      const freshSku = generateProductSku(brandInput?.value, nameInput?.value);
+      const freshSku = generateProductSku(getSelectedSubcategoryBrand(), nameInput?.value);
       if (skuInput) {
         skuInput.value = freshSku;
         skuManuallyEdited = false;
@@ -4768,9 +4759,9 @@ export function renderAdminView() {
     });
 
     if (!isEdit) {
-      brandInput?.addEventListener('change', () => {
+      subSelect?.addEventListener('change', () => {
         if (!skuManuallyEdited && skuInput) {
-          skuInput.value = generateProductSku(brandInput.value, nameInput?.value);
+          skuInput.value = generateProductSku(getSelectedSubcategoryBrand(), nameInput?.value);
         }
       });
     }
@@ -5096,9 +5087,19 @@ export function renderAdminView() {
       const catVal = catSelect.value;
       const subVal = subSelect.value;
       const isActiveVal = modal.querySelector('#pStatus').value === 'true';
-      const skuVal = (modal.querySelector('#pSku')?.value || '').trim() || generateProductSku(modal.querySelector('#pBrand')?.value, nameVal);
 
-      if (!nameVal) {
+      let subName = '';
+      if (subSelect && subSelect.value && subSelect.style.display !== 'none') {
+        const selectedSubOption = subSelect.options[subSelect.selectedIndex];
+        subName = selectedSubOption?.dataset?.name || selectedSubOption?.text || '';
+      }
+
+      // O campo SUBCATEGORIA representa a MARCA do produto
+      const definedBrand = (subName || 'NovaTech').trim().toUpperCase();
+      const formattedProdName = nameVal.trim().toUpperCase();
+      const skuVal = (modal.querySelector('#pSku')?.value || '').trim() || generateProductSku(definedBrand, formattedProdName);
+
+      if (!formattedProdName) {
         Toast.show('O nome do produto é obrigatório.', 'warning');
         modal.querySelector('#pName').focus();
         return;
@@ -5108,12 +5109,6 @@ export function renderAdminView() {
         Toast.show('Selecione a Categoria do produto.', 'warning');
         catSelect.focus();
         return;
-      }
-
-      let subName = '';
-      if (subSelect && subSelect.value && subSelect.style.display !== 'none') {
-        const selectedSubOption = subSelect.options[subSelect.selectedIndex];
-        subName = selectedSubOption?.dataset?.name || selectedSubOption?.text || '';
       }
 
       // Galeria e Capa
@@ -5128,7 +5123,7 @@ export function renderAdminView() {
         const cImg = row.querySelector('.color-img-val')?.value?.trim() || '';
         if (cName) {
           colorsArray.push({
-            name: cName,
+            name: cName.toUpperCase(),
             hex: cHex,
             image: cImg
           });
@@ -5150,15 +5145,15 @@ export function renderAdminView() {
       saveBtn.textContent = 'Salvando produto no banco...';
 
       const payload = {
-        name: nameVal,
-        sku: skuVal,
-        brand: modal.querySelector('#pBrand').value.trim() || 'NovaTech',
+        name: formattedProdName,
+        sku: skuVal.toUpperCase(),
+        brand: definedBrand,
         price: Number(modal.querySelector('#pPrice').value),
         old_price: modal.querySelector('#pOldPrice').value ? Number(modal.querySelector('#pOldPrice').value) : null,
         category_id: Number(catVal),
         subcategory_id: subVal ? Number(subVal) : null,
-        subcategory_name: subName,
-        subcategory: subName,
+        subcategory_name: subName ? subName.toUpperCase() : '',
+        subcategory: subName ? subName.toUpperCase() : '',
         stock: Number(modal.querySelector('#pStock').value),
         stock_min: Number(modal.querySelector('#pStockMin').value),
         image: coverImage,
@@ -5241,7 +5236,7 @@ export function renderAdminView() {
         <form id="categoryForm" class="admin-modal-body" style="padding:16px 20px; display:flex; flex-direction:column; gap:14px; background:#ffffff;">
           <div class="form-group">
             <label class="form-label" style="font-weight:600; font-size:0.8125rem; color:#334155; margin-bottom:6px; display:block;">Nome da Categoria *</label>
-            <input type="text" id="catName" class="form-input" value="${cat?.name || ''}" placeholder="Ex: Smartphones, Computadores, Acessórios..." required style="padding:9px 12px; font-size:0.875rem;" />
+            <input type="text" id="catName" class="form-input" value="${(cat?.name || '').toUpperCase()}" placeholder="Ex: SMARTPHONES, COMPUTADORES, ACESSÓRIOS..." required style="padding:9px 12px; font-size:0.875rem; text-transform: uppercase;" />
           </div>
 
           <div class="form-group">
@@ -5276,7 +5271,7 @@ export function renderAdminView() {
     modal.querySelector('#categoryForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const saveBtn = modal.querySelector('#saveCategoryBtn');
-      const name = modal.querySelector('#catName').value.trim();
+      const name = modal.querySelector('#catName').value.trim().toUpperCase();
 
       if (!name) {
         Toast.show('O nome da categoria é obrigatório.', 'warning');
@@ -5341,8 +5336,8 @@ export function renderAdminView() {
           </div>
 
           <div class="form-group">
-            <label class="form-label" style="font-weight:600; font-size:0.8125rem; color:#334155; margin-bottom:6px; display:block;">Nome da Subcategoria *</label>
-            <input type="text" id="subName" class="form-input" value="${sub?.name || ''}" placeholder="Ex: iPhones, Monitores, Carregadores..." required style="padding:9px 12px; font-size:0.875rem;" />
+            <label class="form-label" style="font-weight:600; font-size:0.8125rem; color:#334155; margin-bottom:6px; display:block;">Nome da Subcategoria (Marca) *</label>
+            <input type="text" id="subName" class="form-input" value="${(sub?.name || '').toUpperCase()}" placeholder="Ex: APPLE, SAMSUNG, ZARA..." required style="padding:9px 12px; font-size:0.875rem; text-transform: uppercase;" />
           </div>
 
           <div class="form-group">
@@ -5377,7 +5372,7 @@ export function renderAdminView() {
     modal.querySelector('#subcategoryForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const parentId = modal.querySelector('#subParentSelect').value;
-      const name = modal.querySelector('#subName').value.trim();
+      const name = modal.querySelector('#subName').value.trim().toUpperCase();
       const saveBtn = modal.querySelector('#saveSubcategoryBtn');
 
       if (!parentId) {

@@ -88,21 +88,26 @@ export function getProductSocialStats(product) {
   if (reviewsArr.length > 0) {
     const sum = reviewsArr.reduce((acc, r) => acc + Number(r.rating || r.nota || r.avaliacao || 0), 0);
     rating = Number((sum / reviewsArr.length).toFixed(1));
-  } else if (product.rating !== undefined && product.rating !== null && Number(product.rating) > 0) {
-    rating = Number(Number(product.rating).toFixed(1));
-  } else if (product.avaliacao_media !== undefined && product.avaliacao_media !== null && Number(product.avaliacao_media) > 0) {
-    rating = Number(Number(product.avaliacao_media).toFixed(1));
+  } else if (reviewsCount > 0) {
+    if (product.rating !== undefined && product.rating !== null && Number(product.rating) > 0) {
+      rating = Number(Number(product.rating).toFixed(1));
+    } else if (product.avaliacao_media !== undefined && product.avaliacao_media !== null && Number(product.avaliacao_media) > 0) {
+      rating = Number(Number(product.avaliacao_media).toFixed(1));
+    }
+  } else {
+    rating = 0;
   }
 
   const hasSales = sold > 0;
-  const hasReviews = reviewsCount > 0 && rating > 0;
+  const hasReviews = reviewsCount > 0;
+  const hasRating = hasReviews && rating > 0;
 
   return {
     soldCount: sold,
     soldFormatted,
     hasSales,
-    rating: hasReviews ? rating : 0,
-    reviewsCount: hasReviews ? reviewsCount : 0,
+    rating: hasRating ? rating : 0,
+    reviewsCount: reviewsCount,
     hasReviews
   };
 }

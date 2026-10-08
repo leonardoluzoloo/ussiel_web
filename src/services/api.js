@@ -120,8 +120,8 @@ function mapCategoriaFromDb(c) {
     uid: s.uid || s.uuid || getStableUid('subcategorias', s.id, s.uid),
     category_id: s.category_id || s.categoria_id || c.id,
     slug: s.slug,
-    name: s.name || s.nome,
-    nome: s.nome || s.name,
+    name: (s.name || s.nome || '').trim().toUpperCase(),
+    nome: (s.nome || s.name || '').trim().toUpperCase(),
     description: s.description || s.descricao || '',
     display_order: s.display_order || s.ordem_exibicao || 1,
     is_active: s.is_active !== false && s.ativo !== false
@@ -131,7 +131,7 @@ function mapCategoriaFromDb(c) {
     id: c.id,
     uid: c.uid || c.uuid || getStableUid('categorias', c.id, c.uid),
     slug: c.slug,
-    name: c.nome,
+    name: (c.nome || '').trim().toUpperCase(),
     description: c.descricao || '',
     bannerDesc: c.descricao || '',
     iconName: c.icone || 'package',
@@ -145,7 +145,7 @@ function mapCategoriaFromDb(c) {
 }
 
 function mapCategoriaToDb(c) {
-  const cleanName = (c.name || c.nome || '').trim();
+  const cleanName = (c.name || c.nome || '').trim().toUpperCase();
   const baseSlug = c.slug || cleanName
     .toLowerCase()
     .normalize('NFD')
@@ -214,19 +214,22 @@ function mapProdutoFromDb(p) {
 
   const prodDesc = p.descricao || (rawSpecs && rawSpecs._descricao) || p.description || '';
 
+  const formattedBrand = (p.marca || subName || 'NovaTech').trim().toUpperCase();
+  const formattedSubName = (subName || p.marca || '').trim().toUpperCase();
+
   return {
     id: p.id,
     uid: p.uid || p.uuid || getStableUid('produtos', p.id, p.uid),
     sku: p.sku,
     slug: p.slug,
-    name: p.nome,
-    brand: p.marca || 'NovaTech',
+    name: (p.nome || '').trim().toUpperCase(),
+    brand: formattedBrand,
     category: p.categoria_id,
     category_id: p.categoria_id,
     catalog_id: p.catalogo_id,
     subcategory_id: subId,
-    subcategory_name: subName,
-    subcategory: subName,
+    subcategory_name: formattedSubName,
+    subcategory: formattedSubName,
     price: Number(p.preco || 0),
     oldPrice: p.preco_antigo ? Number(p.preco_antigo) : null,
     old_price: p.preco_antigo ? Number(p.preco_antigo) : null,
@@ -251,7 +254,11 @@ function mapProdutoFromDb(p) {
       if (rawRev.length > 0) {
         return Number((rawRev.reduce((sum, r) => sum + Number(r.rating || r.avaliacao || 0), 0) / rawRev.length).toFixed(1));
       }
-      return (p.avaliacao_media !== null && p.avaliacao_media !== undefined && Number(p.avaliacao_media) > 0) ? Number(p.avaliacao_media) : 0;
+      const totalRev = Number(p.total_avaliacoes ?? 0);
+      if (totalRev > 0 && p.avaliacao_media !== null && p.avaliacao_media !== undefined && Number(p.avaliacao_media) > 0) {
+        return Number(Number(p.avaliacao_media).toFixed(1));
+      }
+      return 0;
     })(),
     reviewsCount: (() => {
       const rawRev = Array.isArray(p.avaliacoes) ? p.avaliacoes : (Array.isArray(p.reviews) ? p.reviews : []);
@@ -287,8 +294,8 @@ function mapProdutoToDb(p) {
     uid: p.uid || generateUid(),
     sku: p.sku || `NV-${Date.now().toString(36).toUpperCase()}`,
     slug: p.slug || (p.name ? p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : `prod-${Date.now()}`),
-    nome: p.name || p.nome || '',
-    marca: p.brand || p.marca || 'NovaTech',
+    nome: (p.name || p.nome || '').trim().toUpperCase(),
+    marca: (p.brand || p.marca || p.subcategory_name || p.subcategory || 'NovaTech').trim().toUpperCase(),
     categoria_id: p.category_id ? Number(p.category_id) : (p.category ? Number(p.category) : null),
     subcategoria_id: parsedSubId,
     catalogo_id: p.catalog_id ? Number(p.catalog_id) : null,
@@ -1713,9 +1720,35 @@ export const Api = {
           else if (params.sort_by === 'rating') query = query.order('avaliacao_media', { ascending: false });
           else query = query.order('id', { ascending: true });
 
-          const { data, error } = await query;
-          if (!error && data) {
-            const mapped = data.map(mapProdutoFromDb);
+          const [prodsRes, revsRes] = await Promise.all([
+            query,
+            supabase.from('avaliacoes').select('*').eq('aprovado', true)
+          ]);
+
+          const data = prodsRes.data;
+          const reviewsData = (!revsRes.error && revsRes.data) ? revsRes.data : [];
+
+          if (!prodsRes.error && data) {
+            const mapped = data.map(p => {
+              const itemRevs = reviewsData.filter(r => Number(r.produto_id) === Number(p.id));
+              if (itemRevs.length > 0) {
+                p.avaliacoes = itemRevs.map(r => ({
+                  id: r.id,
+                  rating: Number(r.nota || 5),
+                  nota: Number(r.nota || 5),
+                  author: r.autor,
+                  comment: r.comentario,
+                  created_at: r.criado_em
+                }));
+                p.total_avaliacoes = itemRevs.length;
+                p.avaliacao_media = Number((itemRevs.reduce((sum, r) => sum + Number(r.nota || 0), 0) / itemRevs.length).toFixed(1));
+              } else {
+                p.avaliacoes = [];
+                p.total_avaliacoes = 0;
+                p.avaliacao_media = 0;
+              }
+              return mapProdutoFromDb(p);
+            });
             setLocalData(LOCAL_STORAGE_KEYS.PRODUCTS, mapped);
             return mapped;
           }
@@ -1768,7 +1801,28 @@ export const Api = {
             const res = await supabase.from('produtos').select('*').eq('id', Number(identifier)).maybeSingle();
             data = res.data;
           }
-          if (data) return mapProdutoFromDb(data);
+          if (data) {
+            try {
+              const { data: itemRevs } = await supabase.from('avaliacoes').select('*').eq('produto_id', data.id).eq('aprovado', true);
+              if (itemRevs && itemRevs.length > 0) {
+                data.avaliacoes = itemRevs.map(r => ({
+                  id: r.id,
+                  rating: Number(r.nota || 5),
+                  nota: Number(r.nota || 5),
+                  author: r.autor,
+                  comment: r.comentario,
+                  created_at: r.criado_em
+                }));
+                data.total_avaliacoes = itemRevs.length;
+                data.avaliacao_media = Number((itemRevs.reduce((sum, r) => sum + Number(r.nota || 0), 0) / itemRevs.length).toFixed(1));
+              } else {
+                data.avaliacoes = [];
+                data.total_avaliacoes = 0;
+                data.avaliacao_media = 0;
+              }
+            } catch {}
+            return mapProdutoFromDb(data);
+          }
         } catch (e) {}
       }
 

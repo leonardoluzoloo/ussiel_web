@@ -1896,15 +1896,15 @@ img {
 
 .products-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .product-card {
   background: #ffffff;
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  padding: 16px;
+  padding: 10px 10px 12px;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -1912,7 +1912,7 @@ img {
 }
 
 .product-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-3px);
   box-shadow: var(--shadow-lg);
   border-color: #cbd5e1;
 }
@@ -1920,19 +1920,19 @@ img {
 /* Card Badges */
 .card-badges {
   position: absolute;
-  top: 14px;
-  left: 14px;
+  top: 10px;
+  left: 10px;
   z-index: 5;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .badge {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 800;
   text-transform: uppercase;
-  padding: 3px 8px;
+  padding: 2px 7px;
   border-radius: var(--radius-xs);
   letter-spacing: 0.04em;
 }
@@ -1955,11 +1955,11 @@ img {
 /* Wishlist Button on Card */
 .btn-wishlist {
   position: absolute;
-  top: 14px;
-  right: 14px;
+  top: 10px;
+  right: 10px;
   z-index: 5;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   background: #ffffff;
   border: 1px solid var(--border-light);
   border-radius: 50%;
@@ -1974,7 +1974,7 @@ img {
 .btn-wishlist:hover {
   color: var(--accent-rose);
   border-color: var(--accent-rose);
-  transform: scale(1.1);
+  transform: scale(1.08);
 }
 
 .btn-wishlist.active {
@@ -1986,11 +1986,11 @@ img {
 /* Product Card Image */
 .card-img-wrap {
   width: 100%;
-  height: 200px;
+  height: 165px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
   position: relative;
   cursor: pointer;
   overflow: hidden;
@@ -2006,7 +2006,7 @@ img {
 }
 
 .product-card:hover .card-img {
-  transform: scale(1.08);
+  transform: scale(1.06);
 }
 
 /* Card Content */
@@ -2014,19 +2014,19 @@ img {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .card-brand {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   color: var(--text-muted);
 }
 
 .card-stock {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 600;
   color: var(--accent-emerald);
   display: flex;
@@ -2036,19 +2036,19 @@ img {
 
 .card-stock::before {
   content: '';
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--accent-emerald);
 }
 
 .card-title {
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: var(--text-main);
-  line-height: 1.35;
-  margin-bottom: 8px;
-  min-height: 38px;
+  line-height: 1.3;
+  margin-bottom: 6px;
+  min-height: 34px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -2064,18 +2064,18 @@ img {
 .card-rating {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   flex-wrap: wrap;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   line-height: 1.2;
 }
 
 .card-sold-count {
-  font-size: 0.6875rem;
+  font-size: 0.65rem;
   font-weight: 700;
   color: #475569;
   background: #f1f5f9;
-  padding: 2px 6px;
+  padding: 2px 5px;
   border-radius: 4px;
   white-space: nowrap;
   letter-spacing: -0.01em;
@@ -2089,19 +2089,24 @@ img {
 }
 
 .stars svg {
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
   flex-shrink: 0;
 }
 
 .card-rating-score {
-  font-size: 0.75rem;
+  font-size: 0.725rem;
   font-weight: 700;
   color: #0f172a;
 }
 
+.card-rating-score.card-rating-zero {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
 .rating-count {
-  font-size: 0.71875rem;
+  font-size: 0.7rem;
   color: #64748b;
   font-weight: 500;
 }
@@ -2109,45 +2114,45 @@ img {
 /* Card Price */
 .card-price-wrap {
   margin-top: auto;
-  padding-top: 10px;
+  padding-top: 8px;
   border-top: 1px dashed var(--border-light);
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .price-old {
-  font-size: 0.8125rem;
+  font-size: 0.78rem;
   color: var(--text-muted);
   text-decoration: line-through;
 }
 
 .price-current {
   font-family: var(--font-display);
-  font-size: 1.25rem;
+  font-size: 1.15rem;
   font-weight: 800;
   color: var(--text-main);
 }
 
 .price-installment {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: var(--text-secondary);
 }
 
 /* Card Button */
 .btn-card-add {
   width: 100%;
-  height: 42px;
+  height: 38px;
   background: var(--primary-600);
   color: #ffffff;
   border-radius: var(--radius-sm);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   transition: all var(--transition-fast);
 }
 
@@ -3132,10 +3137,10 @@ img {
 
 .catalog-layout {
   display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: 36px;
-  margin-top: 24px;
-  margin-bottom: 64px;
+  grid-template-columns: 240px 1fr;
+  gap: 18px;
+  margin-top: 14px;
+  margin-bottom: 40px;
   align-items: start;
 }
 
@@ -3143,9 +3148,9 @@ img {
   background: #ffffff;
   border: 1px solid #e5e5e7;
   border-radius: 12px;
-  padding: 20px 18px;
+  padding: 18px 16px;
   position: sticky;
-  top: 150px;
+  top: 96px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
@@ -3366,6 +3371,152 @@ img {
   margin-top: 2px;
 }
 
+/* Rating Filter Real Elements */
+.filter-ratings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filter-rating-row-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.filter-rating-row-btn:hover {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.filter-rating-row-btn.active {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.filter-rating-stars-visual {
+  display: inline-flex;
+  gap: 1.5px;
+  font-size: 0.92rem;
+  line-height: 1;
+  margin-right: 8px;
+  letter-spacing: 0.5px;
+}
+
+.star-gold {
+  color: #f59e0b;
+}
+
+.star-gray {
+  color: #cbd5e1;
+}
+
+.filter-rating-text {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #334155;
+  flex: 1;
+}
+
+.filter-rating-row-btn.active .filter-rating-text {
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+/* Catalog Pagination & Load More (Blocos 4x3) */
+.catalog-pagination-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin-top: 36px;
+  margin-bottom: 24px;
+  padding: 24px 20px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  text-align: center;
+}
+
+.catalog-pagination-wrap.all-loaded {
+  background: #f8fafc;
+  border-color: #f1f5f9;
+}
+
+.catalog-pagination-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 320px;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.catalog-pagination-info strong {
+  color: #0f172a;
+}
+
+.catalog-pagination-bar {
+  width: 100%;
+  height: 5px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.catalog-pagination-progress {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+  border-radius: 999px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.catalog-load-more-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 32px;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  border-radius: 10px;
+  border: 1px solid #0f172a;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
+}
+
+.catalog-load-more-btn:hover {
+  background: #1e293b;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+}
+
+.catalog-load-more-btn:active {
+  transform: translateY(0);
+}
+
+.catalog-all-loaded-text {
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: #10b981;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* Mobile Filter Trigger Bar */
 .mobile-filter-bar {
   display: none;
@@ -3379,14 +3530,52 @@ img {
 }
 
 /* Catalog Main Content */
+
+/* Catalog Skeleton Loader & Shimmer Effect */
+.catalog-card-skeleton {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 10px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+
+.shimmer-box {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: catalogShimmer 1.5s infinite;
+}
+
+@keyframes catalogShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.catalog-spinner-dot {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #94a3b8;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  display: inline-block;
+  vertical-align: middle;
+  animation: catalogSpin 0.7s linear infinite;
+}
+
+@keyframes catalogSpin {
+  to { transform: rotate(360deg); }
+}
+
 .catalog-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 14px;
+  margin-bottom: 16px;
   background: #ffffff;
-  padding: 12px 18px;
+  padding: 10px 16px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-light);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
@@ -5368,6 +5557,7 @@ img {
 
   .catalog-layout {
     grid-template-columns: 240px 1fr;
+    gap: 18px;
   }
 }
 
@@ -5942,6 +6132,13 @@ img {
     width: 40px !important;
     height: 40px !important;
     flex-shrink: 0 !important;
+  }
+
+  .catalog-layout {
+    grid-template-columns: 1fr !important;
+    gap: 0 !important;
+    margin-top: 14px !important;
+    margin-bottom: 40px !important;
   }
 
   .catalog-sidebar {

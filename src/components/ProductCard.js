@@ -30,32 +30,32 @@ export function createProductCard(product, viewMode = 'grid') {
 
     <!-- Wishlist Button -->
     <button class="btn-wishlist ${isWishlisted ? 'active' : ''}" title="Adicionar aos Favoritos" data-wishlist-id="${product.id}">
-      ${Icons.heart(18, isWishlisted ? '#ef4444' : 'currentColor', isWishlisted ? '#ef4444' : 'none')}
+      ${Icons.heart(16, isWishlisted ? '#ef4444' : 'currentColor', isWishlisted ? '#ef4444' : 'none')}
     </button>
 
     <!-- Product Image -->
     <div class="card-img-wrap" data-link="/produto/${product.uid || product.slug || product.id}">
       ${product.image ? `
         <img src="${product.image}" alt="${product.name}" class="card-img" loading="lazy" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';" />
-        <div style="display: none; width: 100%; height: 100%; min-height: 180px; background: #f8fafc; align-items: center; justify-content: center; color: var(--text-muted);">
-          ${Icons.package(36)}
+        <div style="display: none; width: 100%; height: 100%; min-height: 150px; background: #f8fafc; align-items: center; justify-content: center; color: var(--text-muted);">
+          ${Icons.package(32)}
         </div>
       ` : `
-        <div style="display: flex; width: 100%; height: 100%; min-height: 180px; background: #f8fafc; align-items: center; justify-content: center; color: var(--text-muted);">
-          ${Icons.package(36)}
+        <div style="display: flex; width: 100%; height: 100%; min-height: 150px; background: #f8fafc; align-items: center; justify-content: center; color: var(--text-muted);">
+          ${Icons.package(32)}
         </div>
       `}
     </div>
 
     <!-- Product Meta -->
     <div class="card-meta">
-      <span class="card-brand">${product.brand || 'NovaTech'}</span>
+      <span class="card-brand">${(product.brand || product.subcategory_name || 'NOVATECH').toUpperCase()}</span>
       <span class="card-stock">${product.stock > 0 ? 'Em Stock' : 'Esgotado'}</span>
     </div>
 
     <!-- Title -->
-    <h3 class="card-title" data-link="/produto/${product.uid || product.slug || product.id}" title="${product.name}">
-      ${product.name}
+    <h3 class="card-title" data-link="/produto/${product.uid || product.slug || product.id}" title="${(product.name || '').toUpperCase()}">
+      ${(product.name || '').toUpperCase()}
     </h3>
 
     <!-- Ratings & Vendas Reais -->
@@ -66,7 +66,8 @@ export function createProductCard(product, viewMode = 'grid') {
         <span class="card-rating-score">${socialStats.rating.toFixed(1)}</span>
         <span class="rating-count">(${socialStats.reviewsCount})</span>
       ` : `
-        <span style="font-size: 0.725rem; color: #94a3b8; font-weight: 500;">(0)</span>
+        <span class="card-rating-score card-rating-zero">0.0</span>
+        <span class="rating-count">(0)</span>
       `}
     </div>
 
@@ -85,7 +86,7 @@ export function createProductCard(product, viewMode = 'grid') {
 
     <!-- Add to Cart CTA -->
     <button class="btn-card-add" data-add-id="${product.id}">
-      ${Icons.cart(18, '#ffffff')}
+      ${Icons.cart(16, '#ffffff')}
       <span>Adicionar</span>
     </button>
   `;
@@ -163,7 +164,7 @@ export function createProductListCard(product) {
     <div class="list-info-col">
       <div class="list-brand-stock">
         <span class="list-brand-tag">
-          ${product.brand || 'NovaTech'}
+          ${(product.brand || product.subcategory_name || 'NOVATECH').toUpperCase()}
         </span>
         <span class="list-stock-tag" style="color:${product.stock > 0 ? '#16a34a' : '#ef4444'};">
           <span style="width:6px; height:6px; border-radius:50%; background:${product.stock > 0 ? '#16a34a' : '#ef4444'};"></span>
@@ -173,8 +174,8 @@ export function createProductListCard(product) {
         ${discountPct > 0 ? `<span class="badge badge-discount">-${discountPct}%</span>` : ''}
       </div>
 
-      <h3 class="list-title" data-link="/produto/${product.uid || product.slug || product.id}" title="${product.name}">
-        ${product.name}
+      <h3 class="list-title" data-link="/produto/${product.uid || product.slug || product.id}" title="${(product.name || '').toUpperCase()}">
+        ${(product.name || '').toUpperCase()}
       </h3>
 
       <div class="list-meta-row" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
@@ -184,7 +185,8 @@ export function createProductListCard(product) {
           <span class="card-rating-score">${socialStats.rating.toFixed(1)}</span>
           <span class="rating-count">(${socialStats.reviewsCount})</span>
         ` : `
-          <span style="font-size: 0.725rem; color: #94a3b8; font-weight: 500;">(0)</span>
+          <span class="card-rating-score card-rating-zero">0.0</span>
+          <span class="rating-count">(0)</span>
         `}
         ${product.variants?.storage && product.variants.storage.length > 1 ? `
           <span class="list-variants-badge">

@@ -6,17 +6,37 @@
 import { Icons } from '../utils/icons.js';
 import { Api } from '../services/api.js';
 import { createProductCard } from '../components/ProductCard.js';
-import { formatPrice } from '../utils/format.js';
+import { formatPrice, getProductSocialStats } from '../utils/format.js';
 
 export function renderCatalogView({ categorySlug = null, subcategorySlug = null, searchQuery = null, isDeals = false, isNew = false } = {}) {
   const container = document.createElement('div');
   container.className = 'container catalog-view-page';
   container.style.minHeight = '650px';
 
-  let activeProducts = [];
-  let activeCategories = [];
-  let activeBanners = [];
-  let isDatabaseLoaded = false;
+  const PAGE_SIZE = 12; // 4 produtos na horizontal x 3 na vertical = 12 por lote
+  let visibleCount = PAGE_SIZE;
+
+  // Cache instantâneo da sessão (evita tela em branco ou falso 'nenhum produto' ao recarregar F5)
+  const SESSION_PRODS_KEY = 'novatech_session_catalog_products';
+  const SESSION_CATS_KEY = 'novatech_session_catalog_categories';
+  const SESSION_BANNERS_KEY = 'novatech_session_catalog_banners';
+
+  let cachedProds = [];
+  let cachedCats = [];
+  let cachedBanners = [];
+  try {
+    const rawProds = sessionStorage.getItem(SESSION_PRODS_KEY);
+    if (rawProds) cachedProds = JSON.parse(rawProds);
+    const rawCats = sessionStorage.getItem(SESSION_CATS_KEY);
+    if (rawCats) cachedCats = JSON.parse(rawCats);
+    const rawBanners = sessionStorage.getItem(SESSION_BANNERS_KEY);
+    if (rawBanners) cachedBanners = JSON.parse(rawBanners);
+  } catch (e) {}
+
+  let activeProducts = Array.isArray(cachedProds) && cachedProds.length > 0 ? cachedProds : [];
+  let activeCategories = Array.isArray(cachedCats) && cachedCats.length > 0 ? cachedCats : [];
+  let activeBanners = Array.isArray(cachedBanners) && cachedBanners.length > 0 ? cachedBanners : [];
+  let isDatabaseLoaded = activeProducts.length > 0;
 
   let selectedCategories = categorySlug ? [categorySlug] : [];
   let selectedSubcategories = subcategorySlug ? [subcategorySlug] : [];
@@ -52,16 +72,29 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
       activeBanners = (realBanners && realBanners.length > 0) ? realBanners : activeBanners;
 
       if (realProds && realProds.length > 0) {
-        activeProducts = realProds.map(p => ({
-          ...p,
-          oldPrice: p.old_price !== undefined ? p.old_price : p.oldPrice,
-          badges: Array.isArray(p.badges) ? p.badges : (p.badges ? (typeof p.badges === 'string' ? JSON.parse(p.badges) : p.badges) : []),
-          gallery: Array.isArray(p.gallery) ? p.gallery : (p.gallery ? (typeof p.gallery === 'string' ? JSON.parse(p.gallery) : p.gallery) : [p.image]),
-          variants: (typeof p.variants === 'object' && p.variants !== null) ? p.variants : (p.variants ? JSON.parse(p.variants) : {}),
-          specs: (typeof p.specs === 'object' && p.specs !== null) ? p.specs : (p.specs ? JSON.parse(p.specs) : {})
-        }));
+        activeProducts = realProds.map(p => {
+          const stats = getProductSocialStats(p);
+          return {
+            ...p,
+            rating: stats.rating,
+            reviewsCount: stats.reviewsCount,
+            oldPrice: p.old_price !== undefined ? p.old_price : p.oldPrice,
+            badges: Array.isArray(p.badges) ? p.badges : (p.badges ? (typeof p.badges === 'string' ? JSON.parse(p.badges) : p.badges) : []),
+            gallery: Array.isArray(p.gallery) ? p.gallery : (p.gallery ? (typeof p.gallery === 'string' ? JSON.parse(p.gallery) : p.gallery) : [p.image]),
+            variants: (typeof p.variants === 'object' && p.variants !== null) ? p.variants : (p.variants ? JSON.parse(p.variants) : {}),
+            specs: (typeof p.specs === 'object' && p.specs !== null) ? p.specs : (p.specs ? JSON.parse(p.specs) : {})
+          };
+        });
+        try {
+          sessionStorage.setItem(SESSION_PRODS_KEY, JSON.stringify(activeProducts));
+          sessionStorage.setItem(SESSION_CATS_KEY, JSON.stringify(activeCategories));
+          if (activeBanners && activeBanners.length > 0) {
+            sessionStorage.setItem(SESSION_BANNERS_KEY, JSON.stringify(activeBanners));
+          }
+        } catch (e) {}
       } else if (isDatabaseLoaded && (!realProds || realProds.length === 0)) {
         activeProducts = [];
+        try { sessionStorage.removeItem(SESSION_PRODS_KEY); } catch (e) {}
       }
       render();
     } catch (e) {
@@ -178,10 +211,10 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
         }
       }
 
-      // 6. Marcas selecionadas
+      // 6. Marcas selecionadas (provenientes das Subcategorias)
       if (selectedBrands.length > 0) {
-        const prodBrand = (product.brand || '').trim().toLowerCase();
-        const matchBrand = selectedBrands.some(b => b.trim().toLowerCase() === prodBrand);
+        const prodBrand = (product.brand || product.subcategory_name || product.subcategory || '').trim().toUpperCase();
+        const matchBrand = selectedBrands.some(b => b.trim().toUpperCase() === prodBrand);
         if (!matchBrand) return false;
       }
 
@@ -244,11 +277,32 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
       return true;
     });
 
-    const existingBrands = Array.from(new Set(
-      baseCategoryProducts
-        .map(p => (p.brand || '').trim())
-        .filter(Boolean)
-    )).sort((a, b) => a.localeCompare(b, 'pt', { sensitivity: 'base' }));
+    // Subcategorias cadastradas no painel ADMIN atuam como as Marcas oficiais
+    let candidateSubs = [];
+    if (isSingleCategory && currentCategoryObj && Array.isArray(currentCategoryObj.subcategories) && currentCategoryObj.subcategories.length > 0) {
+      candidateSubs = currentCategoryObj.subcategories;
+    } else {
+      candidateSubs = activeCategories.flatMap(c => Array.isArray(c.subcategories) ? c.subcategories : []);
+    }
+
+    // Todas as subcategorias cadastradas exibidas em MAIÚSCULAS
+    const subBrandsList = candidateSubs
+      .filter(s => s && s.is_active !== false)
+      .map(s => (s.name || s.nome || '').trim().toUpperCase())
+      .filter(Boolean);
+
+    // Também inclui qualquer marca existente nos produtos em MAIÚSCULAS para compatibilidade
+    const prodBrandsList = baseCategoryProducts
+      .map(p => (p.brand || p.subcategory_name || p.subcategory || '').trim().toUpperCase())
+      .filter(Boolean);
+
+    // Unifica e exibe todas as marcas mesmo que ainda não possuam produtos vinculados
+    const existingBrands = Array.from(new Set([...subBrandsList, ...prodBrandsList]))
+      .sort((a, b) => a.localeCompare(b, 'pt', { sensitivity: 'base' }));
+
+    // Contadores reais de avaliação no Supabase
+    const count4Plus = baseCategoryProducts.filter(p => Number(p.rating || 0) >= 4).length;
+    const count3Plus = baseCategoryProducts.filter(p => Number(p.rating || 0) >= 3).length;
 
     // Define qual cabeçalho estruturado renderizar
     const isCategoryPage = Boolean(isSingleCategory && currentCategoryObj);
@@ -394,7 +448,7 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
               <div class="filter-group-header">
                 <span>Categorias</span>
               </div>
-              <div class="filter-group-content" style="max-height: 280px; overflow-y: auto; padding-right: 2px;">
+              <div class="filter-group-content">
                 ${activeCategories.map(c => {
                   const isChecked = selectedCategories.includes(c.slug) || selectedCategories.includes(String(c.id));
                   const catProdCount = activeProducts.filter(p => matchesCategory(p, c)).length;
@@ -407,7 +461,7 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
                           value="${c.slug || c.id}" 
                           ${isChecked ? 'checked' : ''} 
                         />
-                        <span class="filter-checkbox-label" style="font-weight: ${isChecked ? '700' : '500'}; flex: 1;">${c.name}</span>
+                        <span class="filter-checkbox-label" style="font-weight: ${isChecked ? '700' : '500'}; flex: 1;">${c.name.toUpperCase()}</span>
                         <span class="filter-checkbox-count">(${catProdCount})</span>
                       </label>
                     </div>
@@ -423,19 +477,23 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
               <div class="filter-group-header">
                 <span>Marcas</span>
               </div>
-              <div class="filter-group-content" style="max-height: 220px; overflow-y: auto; padding-right: 2px;">
+              <div class="filter-group-content">
                 ${existingBrands.map(b => {
-                  const count = baseCategoryProducts.filter(p => (p.brand || '').trim().toLowerCase() === b.toLowerCase()).length;
-                  const isChecked = selectedBrands.map(x => x.toLowerCase()).includes(b.toLowerCase());
+                  const bUpper = b.trim().toUpperCase();
+                  const count = baseCategoryProducts.filter(p => {
+                    const pBrand = (p.brand || p.subcategory_name || p.subcategory || '').trim().toUpperCase();
+                    return pBrand === bUpper;
+                  }).length;
+                  const isChecked = selectedBrands.map(x => x.toUpperCase()).includes(bUpper);
                   return `
                     <label class="filter-checkbox-row">
                       <input 
                         type="checkbox" 
                         class="apple-checkbox brand-check" 
-                        value="${b}" 
+                        value="${bUpper}" 
                         ${isChecked ? 'checked' : ''} 
                       />
-                      <span class="filter-checkbox-label">${b}</span>
+                      <span class="filter-checkbox-label">${bUpper}</span>
                       <span class="filter-checkbox-count">(${count})</span>
                     </label>
                   `;
@@ -512,6 +570,51 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
             </div>
           </div>
 
+          <!-- Filtro de Avaliações Reais dos Clientes (Supabase) -->
+          <div class="filter-group">
+            <div class="filter-group-header">
+              <span>Avaliações</span>
+              ${minRating > 0 ? `
+                <button type="button" class="catalog-clear-btn" id="clearRatingFilterBtn" style="font-size: 0.75rem;">Limpar</button>
+              ` : ''}
+            </div>
+            <div class="filter-group-content filter-ratings-group">
+              <button 
+                type="button" 
+                class="filter-rating-row-btn ${minRating === 4 ? 'active' : ''}" 
+                data-min-rating="4"
+                title="Filtrar por 4 estrelas ou mais"
+              >
+                <div class="filter-rating-stars-visual">
+                  <span class="star-gold">★</span>
+                  <span class="star-gold">★</span>
+                  <span class="star-gold">★</span>
+                  <span class="star-gold">★</span>
+                  <span class="star-gray">☆</span>
+                </div>
+                <span class="filter-rating-text">4★ ou mais</span>
+                <span class="filter-checkbox-count">(${count4Plus})</span>
+              </button>
+
+              <button 
+                type="button" 
+                class="filter-rating-row-btn ${minRating === 3 ? 'active' : ''}" 
+                data-min-rating="3"
+                title="Filtrar por 3 estrelas ou mais"
+              >
+                <div class="filter-rating-stars-visual">
+                  <span class="star-gold">★</span>
+                  <span class="star-gold">★</span>
+                  <span class="star-gold">★</span>
+                  <span class="star-gray">☆</span>
+                  <span class="star-gray">☆</span>
+                </div>
+                <span class="filter-rating-text">3★ ou mais</span>
+                <span class="filter-checkbox-count">(${count3Plus})</span>
+              </button>
+            </div>
+          </div>
+
           <div class="mobile-sidebar-footer">
             <button id="applyMobileFiltersBtn" class="btn btn-primary btn-full">
               Aplicar Filtros (${filtered.length})
@@ -524,7 +627,13 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
           <!-- Controles de Ordenação & Quantidade -->
           <div class="catalog-header">
             <div class="catalog-results-count" id="catalogResultsCount">
-              <strong>${filtered.length}</strong> ${filtered.length === 1 ? 'produto encontrado' : 'produtos encontrados'}
+              ${!isDatabaseLoaded ? `
+                <span style="display: inline-flex; align-items: center; gap: 8px; color: #64748b; font-size: 0.84rem;">
+                  <span class="catalog-spinner-dot"></span> A carregar produtos...
+                </span>
+              ` : `
+                <strong>${filtered.length}</strong> ${filtered.length === 1 ? 'produto encontrado' : 'produtos encontrados'}
+              `}
             </div>
 
             <div class="catalog-controls">
@@ -563,8 +672,21 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
             </div>
           </div>
 
-          <!-- Grade de Produtos / Empty State Ampliado -->
-          ${filtered.length === 0 ? `
+          <!-- Grade de Produtos / Loading Skeleton / Empty State -->
+          ${!isDatabaseLoaded ? `
+            <div class="products-grid catalog-skeleton-grid" id="catalogSkeletonGrid">
+              ${Array.from({ length: 8 }).map(() => `
+                <div class="product-card catalog-card-skeleton">
+                  <div class="shimmer-box" style="width: 100%; height: 165px; border-radius: 6px; margin-bottom: 10px;"></div>
+                  <div class="shimmer-box" style="width: 35%; height: 10px; border-radius: 4px; margin-bottom: 6px;"></div>
+                  <div class="shimmer-box" style="width: 80%; height: 14px; border-radius: 4px; margin-bottom: 6px;"></div>
+                  <div class="shimmer-box" style="width: 50%; height: 12px; border-radius: 4px; margin-bottom: 10px;"></div>
+                  <div class="shimmer-box" style="width: 45%; height: 18px; border-radius: 4px; margin-top: auto; margin-bottom: 10px;"></div>
+                  <div class="shimmer-box" style="width: 100%; height: 38px; border-radius: 6px;"></div>
+                </div>
+              `).join('')}
+            </div>
+          ` : filtered.length === 0 ? `
             <div class="catalog-empty-container">
               <div class="catalog-empty-icon-wrap">
                 <div class="catalog-empty-icon-bg">
@@ -588,15 +710,43 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
             </div>
           ` : `
             <div class="${viewMode === 'list' ? 'products-list' : 'products-grid'}" id="catalogProductsGrid"></div>
+
+            ${filtered.length > visibleCount ? `
+              <div class="catalog-pagination-wrap" id="catalogPaginationWrap">
+                <div class="catalog-pagination-info">
+                  <span>A mostrar <strong>${Math.min(visibleCount, filtered.length)}</strong> de <strong>${filtered.length}</strong> produtos</span>
+                  <div class="catalog-pagination-bar">
+                    <div class="catalog-pagination-progress" style="width: ${Math.round((Math.min(visibleCount, filtered.length) / filtered.length) * 100)}%;"></div>
+                  </div>
+                </div>
+                <button type="button" class="catalog-load-more-btn" id="loadMoreBtn">
+                  <span>Ver mais produtos</span>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+              </div>
+            ` : (filtered.length > PAGE_SIZE ? `
+              <div class="catalog-pagination-wrap all-loaded">
+                <div class="catalog-pagination-info">
+                  <span>A mostrar todos os <strong>${filtered.length}</strong> produtos</span>
+                  <div class="catalog-pagination-bar">
+                    <div class="catalog-pagination-progress" style="width: 100%;"></div>
+                  </div>
+                </div>
+                <span class="catalog-all-loaded-text">Visualizou todos os produtos disponíveis no catálogo.</span>
+              </div>
+            ` : '')}
           `}
         </main>
       </div>
     `;
 
-    // Renderiza os Cards de Produtos Reais
+    // Renderiza os Cards de Produtos Reais (fatiados em lotes 4x3)
     const grid = container.querySelector('#catalogProductsGrid');
     if (grid) {
-      filtered.forEach(p => grid.appendChild(createProductCard(p, viewMode)));
+      const pageProducts = filtered.slice(0, visibleCount);
+      pageProducts.forEach(p => grid.appendChild(createProductCard(p, viewMode)));
     }
 
     attachFilterEvents();
@@ -625,6 +775,7 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
     if (sortSelect) {
       sortSelect.onchange = (e) => {
         sortBy = e.target.value;
+        visibleCount = PAGE_SIZE;
         render();
       };
     }
@@ -638,6 +789,7 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
         } else {
           selectedCategories = selectedCategories.filter(c => c !== val);
         }
+        visibleCount = PAGE_SIZE;
         render();
       };
     });
@@ -652,7 +804,10 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
         const val = minInput.value.trim();
         minPrice = val === '' ? 0 : Math.max(0, Number(val));
       };
-      minInput.onchange = () => render();
+      minInput.onchange = () => {
+        visibleCount = PAGE_SIZE;
+        render();
+      };
     }
 
     if (maxInput) {
@@ -663,7 +818,10 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
         const display = container.querySelector('#priceDisplay');
         if (display) display.textContent = formatPrice(maxPrice);
       };
-      maxInput.onchange = () => render();
+      maxInput.onchange = () => {
+        visibleCount = PAGE_SIZE;
+        render();
+      };
     }
 
     if (priceSlider) {
@@ -673,7 +831,10 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
         const display = container.querySelector('#priceDisplay');
         if (display) display.textContent = formatPrice(maxPrice);
       };
-      priceSlider.onchange = () => render();
+      priceSlider.onchange = () => {
+        visibleCount = PAGE_SIZE;
+        render();
+      };
     }
 
     // Checkboxes de Marca
@@ -685,6 +846,7 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
         } else {
           selectedBrands = selectedBrands.filter(b => b.toLowerCase() !== val.toLowerCase());
         }
+        visibleCount = PAGE_SIZE;
         render();
       };
     });
@@ -694,6 +856,7 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
     if (stockCb) {
       stockCb.onchange = () => {
         onlyInStock = stockCb.checked;
+        visibleCount = PAGE_SIZE;
         render();
       };
     }
@@ -702,6 +865,39 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
     if (dealsCb) {
       dealsCb.onchange = () => {
         onlyDeals = dealsCb.checked;
+        visibleCount = PAGE_SIZE;
+        render();
+      };
+    }
+
+    // Filtro de Avaliações Reais dos Clientes
+    container.querySelectorAll('.filter-rating-row-btn').forEach(btn => {
+      btn.onclick = () => {
+        const ratingVal = Number(btn.dataset.minRating || 0);
+        if (minRating === ratingVal) {
+          minRating = 0; // Desmarcar se clicar na mesma nota
+        } else {
+          minRating = ratingVal;
+        }
+        visibleCount = PAGE_SIZE;
+        render();
+      };
+    });
+
+    const clearRatingBtn = container.querySelector('#clearRatingFilterBtn');
+    if (clearRatingBtn) {
+      clearRatingBtn.onclick = () => {
+        minRating = 0;
+        visibleCount = PAGE_SIZE;
+        render();
+      };
+    }
+
+    // Botão Ver Mais Produtos (Lote de 12)
+    const loadMoreBtn = container.querySelector('#loadMoreBtn');
+    if (loadMoreBtn) {
+      loadMoreBtn.onclick = () => {
+        visibleCount += PAGE_SIZE;
         render();
       };
     }
@@ -714,6 +910,7 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
       onlyInStock = false;
       onlyDeals = false;
       minRating = 0;
+      visibleCount = PAGE_SIZE;
       selectedSubcategories = [];
       if (categorySlug) {
         selectedCategories = [categorySlug];
@@ -746,6 +943,7 @@ export function renderCatalogView({ categorySlug = null, subcategorySlug = null,
             window.location.hash = `#/categoria/${categorySlug}/${encodeURIComponent(subVal)}`;
           }
         }
+        visibleCount = PAGE_SIZE;
         render();
       };
     });
