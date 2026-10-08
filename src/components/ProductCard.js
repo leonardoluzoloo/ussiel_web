@@ -107,20 +107,52 @@ export function createProductCard(product, viewMode = 'grid') {
     });
   });
 
-  // Quick Add click handler
+  // Quick Add click handler (apenas adiciona ao carrinho, sem redirecionar)
   const addBtn = card.querySelector('.btn-card-add');
   addBtn.addEventListener('click', (e) => {
     e.stopPropagation();
 
-    // Pick default variant if available
-    const defaultColor = product.variants?.colors?.[0]?.name || '';
-    const defaultStorage = product.variants?.storage?.[0] || '';
-    const itemPrice = (defaultStorage && product.variants?.storagePrices?.[defaultStorage])
-      ? product.variants.storagePrices[defaultStorage]
-      : product.price;
+    try {
+      // Pick default variant if available
+      const defaultColor = product.variants?.colors?.[0]?.name || '';
+      const defaultStorage = product.variants?.storage?.[0] || '';
+      const itemPrice = (defaultStorage && product.variants?.storagePrices?.[defaultStorage])
+        ? product.variants.storagePrices[defaultStorage]
+        : product.price;
 
-    Storage.addToCart({ ...product, price: itemPrice }, 1, { color: defaultColor, storage: defaultStorage });
-    window.location.hash = '/carrinho';
+      Storage.addToCart({ ...product, price: itemPrice }, 1, { color: defaultColor, storage: defaultStorage });
+
+      // Feedback visual momentâneo no botão
+      const originalContent = addBtn.innerHTML;
+      addBtn.innerHTML = `
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        <span>Adicionado</span>
+      `;
+      addBtn.style.background = '#16a34a';
+      addBtn.style.borderColor = '#16a34a';
+
+      setTimeout(() => {
+        addBtn.innerHTML = originalContent;
+        addBtn.style.background = '';
+        addBtn.style.borderColor = '';
+      }, 1400);
+
+      Toast.show({
+        title: 'Adicionado ao Carrinho 🛒',
+        message: `${product.name} foi adicionado ao seu carrinho.`,
+        type: 'success',
+        duration: 2500
+      });
+    } catch (err) {
+      Toast.show({
+        title: 'Atenção ao Adicionar',
+        message: err.message || 'Não foi possível adicionar o produto.',
+        type: 'warning',
+        duration: 3000
+      });
+    }
   });
 
     // Navigation click (no card inteiro e nos elementos data-link)
@@ -240,18 +272,50 @@ export function createProductListCard(product) {
     });
   });
 
-  // Quick Add click handler
+  // Quick Add click handler (apenas adiciona ao carrinho, sem redirecionar)
   const addBtn = card.querySelector('.btn-card-add');
   addBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    const defaultColor = product.variants?.colors?.[0]?.name || '';
-    const defaultStorage = product.variants?.storage?.[0] || '';
-    const itemPrice = (defaultStorage && product.variants?.storagePrices?.[defaultStorage])
-      ? product.variants.storagePrices[defaultStorage]
-      : product.price;
 
-    Storage.addToCart({ ...product, price: itemPrice }, 1, { color: defaultColor, storage: defaultStorage });
-    window.location.hash = '/carrinho';
+    try {
+      const defaultColor = product.variants?.colors?.[0]?.name || '';
+      const defaultStorage = product.variants?.storage?.[0] || '';
+      const itemPrice = (defaultStorage && product.variants?.storagePrices?.[defaultStorage])
+        ? product.variants.storagePrices[defaultStorage]
+        : product.price;
+
+      Storage.addToCart({ ...product, price: itemPrice }, 1, { color: defaultColor, storage: defaultStorage });
+
+      const originalContent = addBtn.innerHTML;
+      addBtn.innerHTML = `
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        <span>Adicionado</span>
+      `;
+      addBtn.style.background = '#16a34a';
+      addBtn.style.borderColor = '#16a34a';
+
+      setTimeout(() => {
+        addBtn.innerHTML = originalContent;
+        addBtn.style.background = '';
+        addBtn.style.borderColor = '';
+      }, 1400);
+
+      Toast.show({
+        title: 'Adicionado ao Carrinho 🛒',
+        message: `${product.name} foi adicionado ao seu carrinho.`,
+        type: 'success',
+        duration: 2500
+      });
+    } catch (err) {
+      Toast.show({
+        title: 'Atenção ao Adicionar',
+        message: err.message || 'Não foi possível adicionar o produto.',
+        type: 'warning',
+        duration: 3000
+      });
+    }
   });
 
     // Navigation click (no card de lista inteiro)
