@@ -139,6 +139,7 @@ function mapCategoriaFromDb(c) {
     image_url: c.imagem_url || '',
     banner_url: c.banner_url || '',
     subcategories: cleanSubs,
+    subcategorias: cleanSubs,
     display_order: c.ordem_exibicao || 1,
     is_active: c.ativo !== false
   };
@@ -1248,6 +1249,7 @@ export const Api = {
               // Prioridade: leitura estrita da tabela relacional 'subcategorias'
               if (subsByCat[cat.id] && subsByCat[cat.id].length > 0) {
                 base.subcategories = subsByCat[cat.id];
+                base.subcategorias = subsByCat[cat.id];
               }
               return base;
             });
@@ -1421,7 +1423,7 @@ export const Api = {
       const upperName = rawName.toUpperCase();
 
       const currentCats = await this.getAll();
-      const parent = currentCats.find(c => c.id === Number(parent_id));
+      const parent = currentCats.find(c => String(c.id) === String(parent_id));
       if (!parent) throw new Error('Categoria pai não encontrada no sistema.');
 
       const existingSubs = Array.isArray(parent.subcategories) ? parent.subcategories : [];
@@ -1482,10 +1484,20 @@ export const Api = {
 
       const updatedSubs = [...existingSubs, newSub];
       parent.subcategories = updatedSubs;
+      parent.subcategorias = updatedSubs;
+
+      // Sincroniza também na coluna subcategorias da tabela 'categorias' para máxima retrocompatibilidade
+      if (isSupabaseConfigured() && supabase) {
+        await supabase
+          .from('categorias')
+          .update({ subcategorias: updatedSubs })
+          .eq('id', parent.id)
+          .catch(() => {});
+      }
 
       const current = getLocalData(LOCAL_STORAGE_KEYS.CATEGORIES, []);
-      setLocalData(LOCAL_STORAGE_KEYS.CATEGORIES, current.map(c => c.id === parent.id ? parent : c));
-      window.dispatchEvent(new CustomEvent('categories-updated', { detail: { category: parent } }));
+      setLocalData(LOCAL_STORAGE_KEYS.CATEGORIES, current.map(c => String(c.id) === String(parent.id) ? parent : c));
+      window.dispatchEvent(new CustomEvent('categories-updated', { detail: { category: parent, subcategory: newSub } }));
       return { subcategory: newSub, category: parent };
     },
 
@@ -1497,7 +1509,7 @@ export const Api = {
       const upperName = rawName.toUpperCase();
 
       const currentCats = await this.getAll();
-      const parent = currentCats.find(c => c.id === Number(category_id));
+      const parent = currentCats.find(c => String(c.id) === String(category_id));
       if (!parent) throw new Error('Categoria pai não encontrada.');
 
       const existingSubs = Array.isArray(parent.subcategories) ? parent.subcategories : [];
@@ -1528,24 +1540,36 @@ export const Api = {
         }
       }
 
+      let updatedTargetSub = null;
       const updatedSubs = existingSubs.map(s => {
         if (String(s.id) === String(subcategory_id)) {
-          return {
+          updatedTargetSub = {
             ...s,
             name: upperName,
             description: description !== undefined ? description.trim() : (s.description || ''),
             display_order: display_order !== undefined ? Number(display_order) : (s.display_order || 1),
             is_active: is_active !== undefined ? Boolean(is_active) : (s.is_active !== false)
           };
+          return updatedTargetSub;
         }
         return s;
       });
 
       parent.subcategories = updatedSubs;
+      parent.subcategorias = updatedSubs;
+
+      if (isSupabaseConfigured() && supabase) {
+        await supabase
+          .from('categorias')
+          .update({ subcategorias: updatedSubs })
+          .eq('id', parent.id)
+          .catch(() => {});
+      }
+
       const current = getLocalData(LOCAL_STORAGE_KEYS.CATEGORIES, []);
-      setLocalData(LOCAL_STORAGE_KEYS.CATEGORIES, current.map(c => c.id === parent.id ? parent : c));
-      window.dispatchEvent(new CustomEvent('categories-updated', { detail: { category: parent } }));
-      return { category: parent };
+      setLocalData(LOCAL_STORAGE_KEYS.CATEGORIES, current.map(c => String(c.id) === String(parent.id) ? parent : c));
+      window.dispatchEvent(new CustomEvent('categories-updated', { detail: { category: parent, subcategory: updatedTargetSub } }));
+      return { category: parent, subcategory: updatedTargetSub };
     },
 
     async deleteSubcategory(category_id, subcategory_id) {
@@ -1562,7 +1586,7 @@ export const Api = {
       }
 
       const currentCats = await this.getAll();
-      const parent = currentCats.find(c => c.id === Number(category_id));
+      const parent = currentCats.find(c => String(c.id) === String(category_id));
       if (!parent) throw new Error('Categoria pai não encontrada.');
 
       // 2. Excluir da tabela oficial 'subcategorias'
@@ -1582,8 +1606,18 @@ export const Api = {
       const updatedSubs = existingSubs.filter(s => String(s.id) !== String(subcategory_id));
 
       parent.subcategories = updatedSubs;
+      parent.subcategorias = updatedSubs;
+
+      if (isSupabaseConfigured() && supabase) {
+        await supabase
+          .from('categorias')
+          .update({ subcategorias: updatedSubs })
+          .eq('id', parent.id)
+          .catch(() => {});
+      }
+
       const current = getLocalData(LOCAL_STORAGE_KEYS.CATEGORIES, []);
-      setLocalData(LOCAL_STORAGE_KEYS.CATEGORIES, current.map(c => c.id === parent.id ? parent : c));
+      setLocalData(LOCAL_STORAGE_KEYS.CATEGORIES, current.map(c => String(c.id) === String(parent.id) ? parent : c));
       window.dispatchEvent(new CustomEvent('categories-updated', { detail: { category: parent } }));
       return { success: true, category: parent };
     }

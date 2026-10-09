@@ -4613,9 +4613,8 @@ export function renderAdminView() {
               <div class="form-group" id="pSubcategoryWrapper">
                 <label id="pSubcategoryLabel" class="admin-form-label" for="pSubcategory">Subcategoria (Marca) *</label>
                 <select id="pSubcategory" class="form-input" style="font-weight: 600;" required>
-                  <option value="">Selecione...</option>
+                  <option value="">Selecione primeiro a categoria...</option>
                 </select>
-                <div id="pSubcategoryNotice" style="margin-top: 2px; font-size: 0.7rem;"></div>
               </div>
 
               <div class="form-group">
@@ -4774,6 +4773,40 @@ export function renderAdminView() {
 
     document.body.appendChild(modal);
 
+    let onCategoriesUpdated = null;
+
+    const closeModal = () => {
+      if (typeof onCategoriesUpdated === 'function') {
+        window.removeEventListener('categories-updated', onCategoriesUpdated);
+      }
+      document.removeEventListener('keydown', handleEsc);
+      modal.remove();
+    };
+
+    const handleEsc = (e) => {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        closeModal();
+      }
+    };
+    document.addEventListener('keydown', handleEsc);
+
+    // Fechar ao clicar no overlay de fundo ou em qualquer botão com .close-modal-btn
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal || e.target.closest('.close-modal-btn')) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeModal();
+      }
+    });
+
+    modal.querySelectorAll('.close-modal-btn').forEach(b => {
+      b.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        closeModal();
+      });
+    });
+
     // Controle Segmented do Status Ativo / Bloqueado
     const statusValInput = modal.querySelector('#pStatus');
     const statusBtns = modal.querySelectorAll('.admin-status-segmented-btn');
@@ -4799,10 +4832,15 @@ export function renderAdminView() {
       });
     });
 
-    // Interatividade Dinâmica do SKU (Geração, Re-geração e Edição via Subcategoria/Marca)
+    // Elementos principais do formulário (declarados no topo para evitar temporal dead zone)
+    const catSelect = modal.querySelector('#pCategory');
+    const subSelect = modal.querySelector('#pSubcategory');
     const skuInput = modal.querySelector('#pSku');
     const nameInput = modal.querySelector('#pName');
     const btnRegenerateSku = modal.querySelector('#btnRegenerateSku');
+    const priceInput = modal.querySelector('#pPrice');
+    const oldPriceInput = modal.querySelector('#pOldPrice');
+    const discountBadge = modal.querySelector('#priceDiscountBadge');
 
     function getSelectedSubcategoryBrand() {
       if (subSelect && subSelect.value) {
@@ -4812,6 +4850,53 @@ export function renderAdminView() {
       return '';
     }
 
+    // População dinâmica das subcategorias vinculadas à categoria selecionada
+    function populateSubcategories(catId, preselectedSubId = null, preselectedSubName = null) {
+      if (!subSelect) return;
+
+      if (!catId) {
+        subSelect.innerHTML = '<option value="">Selecione primeiro a categoria...</option>';
+        subSelect.disabled = true;
+        subSelect.value = '';
+        return;
+      }
+
+      const category = categoriesList.find(c => String(c.id) === String(catId));
+      if (!category) {
+        subSelect.innerHTML = '<option value="">Categoria não encontrada</option>';
+        subSelect.disabled = true;
+        subSelect.value = '';
+        return;
+      }
+
+      const subs = Array.isArray(category?.subcategories)
+        ? category.subcategories
+        : (Array.isArray(category?.subcategorias) ? category.subcategorias : []);
+
+      if (subs.length === 0) {
+        subSelect.disabled = false;
+        subSelect.innerHTML = '<option value="">Nenhuma subcategoria nesta categoria</option>';
+        subSelect.value = '';
+        return;
+      }
+
+      subSelect.disabled = false;
+      subSelect.innerHTML = `<option value="">Selecione a subcategoria...</option>` +
+        subs.map(s => {
+          const isSelected = (preselectedSubId && String(s.id) === String(preselectedSubId)) ||
+            (preselectedSubName && s.name && s.name.toLowerCase() === preselectedSubName.toLowerCase());
+          return `<option value="${s.id}" data-name="${s.name}" ${isSelected ? 'selected' : ''}>${s.name}</option>`;
+        }).join('');
+
+      if (preselectedSubId) {
+        subSelect.value = String(preselectedSubId);
+      } else if (preselectedSubName) {
+        const found = subs.find(s => s.name && s.name.toLowerCase() === preselectedSubName.toLowerCase());
+        if (found) subSelect.value = String(found.id);
+      }
+    }
+
+    // Interatividade Dinâmica do SKU
     let skuManuallyEdited = isEdit;
 
     nameInput?.addEventListener('input', (e) => {
@@ -4834,19 +4919,13 @@ export function renderAdminView() {
       }
     });
 
-    if (!isEdit) {
-      subSelect?.addEventListener('change', () => {
-        if (!skuManuallyEdited && skuInput) {
-          skuInput.value = generateProductSku(getSelectedSubcategoryBrand(), nameInput?.value);
-        }
-      });
-    }
+    subSelect?.addEventListener('change', () => {
+      if (!skuManuallyEdited && skuInput) {
+        skuInput.value = generateProductSku(getSelectedSubcategoryBrand(), nameInput?.value);
+      }
+    });
 
     // Calculadora automática de economia / desconto em tempo real
-    const priceInput = modal.querySelector('#pPrice');
-    const oldPriceInput = modal.querySelector('#pOldPrice');
-    const discountBadge = modal.querySelector('#priceDiscountBadge');
-
     function updateDiscountCalculation() {
       const p = Number(priceInput.value) || 0;
       const old = Number(oldPriceInput.value) || 0;
@@ -4864,84 +4943,65 @@ export function renderAdminView() {
     oldPriceInput?.addEventListener('input', updateDiscountCalculation);
     updateDiscountCalculation();
 
-    const catSelect = modal.querySelector('#pCategory');
-    const subSelect = modal.querySelector('#pSubcategory');
-    const subNotice = modal.querySelector('#pSubcategoryNotice');
-
-    function populateSubcategories(catId, preselectedSubId = null, preselectedSubName = null) {
-      if (!catId) {
-        subSelect.innerHTML = '<option value="">Selecione primeiro a categoria...</option>';
-        subSelect.disabled = true;
-        subSelect.value = '';
-        subNotice.innerHTML = '';
-        return;
+    // Eventos para mudança de categoria com sincronização imediata
+    catSelect?.addEventListener('change', () => {
+      populateSubcategories(catSelect.value);
+      if (!skuManuallyEdited && skuInput) {
+        skuInput.value = generateProductSku(getSelectedSubcategoryBrand(), nameInput?.value);
       }
+    });
 
-      const category = categoriesList.find(c => String(c.id) === String(catId));
-      if (!category) {
-        subSelect.innerHTML = '<option value="">Categoria não encontrada</option>';
-        subSelect.disabled = true;
-        return;
-      }
-
-      const subs = Array.isArray(category?.subcategories) ? category.subcategories : [];
-
-      if (subs.length === 0) {
-        subSelect.disabled = false;
-        subSelect.innerHTML = '<option value="">Sem subcategorias nesta categoria</option>';
-        subNotice.innerHTML = `
-          <span style="color:#b45309; font-size:0.75rem;">
-            Esta categoria ainda não tem subcategorias cadastradas.
-            <button type="button" id="btnQuickAddSub" style="background:none; border:none; color:#2563eb; font-weight:700; cursor:pointer; text-decoration:underline; padding:0; margin-left:4px;">+ Criar subcategoria</button>
-          </span>
-        `;
-        const quickBtn = subNotice.querySelector('#btnQuickAddSub');
-        if (quickBtn) {
-          quickBtn.addEventListener('click', () => {
-            openSubcategoryModal({ parent_id: category.id });
-          });
-        }
-        return;
-      }
-
-      subSelect.disabled = false;
-      subSelect.innerHTML = `<option value="">Selecione a subcategoria...</option>` +
-        subs.map(s => {
-          const isSelected = (preselectedSubId && String(s.id) === String(preselectedSubId)) ||
-            (preselectedSubName && s.name.toLowerCase() === preselectedSubName.toLowerCase());
-          return `<option value="${s.id}" data-name="${s.name}" ${isSelected ? 'selected' : ''}>${s.name}</option>`;
-        }).join('');
-
-      subNotice.innerHTML = '';
-    }
-
-    catSelect.addEventListener('change', () => {
+    catSelect?.addEventListener('input', () => {
       populateSubcategories(catSelect.value);
     });
 
+    // População inicial do select de subcategorias
     if (prod?.category_id) {
       populateSubcategories(prod.category_id, prod.subcategory_id, prod.subcategory_name || prod.subcategory);
+    } else if (catSelect?.value) {
+      populateSubcategories(catSelect.value);
     } else {
       populateSubcategories('');
     }
 
-    const onCategoriesUpdated = () => {
-      const currentCatVal = catSelect.value;
-      const currentSubVal = subSelect.value;
-      catSelect.innerHTML = '<option value="">Selecione a categoria...</option>' +
-        categoriesList.map(c => `
-          <option value="${c.id}" ${String(currentCatVal) === String(c.id) ? 'selected' : ''}>${c.name}</option>
-        `).join('');
+    onCategoriesUpdated = (e) => {
+      if (e?.detail?.category) {
+        const updatedCat = e.detail.category;
+        const idx = categoriesList.findIndex(c => String(c.id) === String(updatedCat.id));
+        if (idx !== -1) {
+          categoriesList[idx] = { ...categoriesList[idx], ...updatedCat };
+        } else {
+          categoriesList.push(updatedCat);
+        }
+      }
+
+      const currentCatVal = catSelect?.value;
+      const createdSubId = e?.detail?.subcategory?.id;
+      const createdSubName = e?.detail?.subcategory?.name;
+      const currentSubVal = createdSubId ? String(createdSubId) : subSelect?.value;
+
+      if (catSelect) {
+        catSelect.innerHTML = '<option value="">Selecione a categoria...</option>' +
+          categoriesList.map(c => `
+            <option value="${c.id}" ${String(currentCatVal) === String(c.id) ? 'selected' : ''}>${c.name}</option>
+          `).join('');
+      }
+
       if (currentCatVal) {
-        populateSubcategories(currentCatVal, currentSubVal);
+        populateSubcategories(currentCatVal, currentSubVal, createdSubName);
       }
     };
     window.addEventListener('categories-updated', onCategoriesUpdated);
 
-    const closeModal = () => {
-      window.removeEventListener('categories-updated', onCategoriesUpdated);
-      modal.remove();
-    };
+    // Garante que o modal sempre consulte categorias frescas em segundo plano
+    Api.categories.getAll().then(freshCats => {
+      if (Array.isArray(freshCats) && freshCats.length > 0) {
+        categoriesList = freshCats;
+        if (catSelect && catSelect.value) {
+          populateSubcategories(catSelect.value, subSelect?.value);
+        }
+      }
+    }).catch(() => {});
 
     // Galeria Multi-Imagens Minimalista
     const initialGallery = (Array.isArray(prod?.gallery) && prod.gallery.length > 0)
@@ -5151,9 +5211,6 @@ export function renderAdminView() {
       specsList.appendChild(createSpecRow('Memória RAM', '', 'Ex: 8 GB'));
       specsList.appendChild(createSpecRow('Armazenamento', '', 'Ex: 256 GB'));
     }
-
-    modal.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', closeModal));
-    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
     modal.querySelector('#productForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -5394,7 +5451,7 @@ export function renderAdminView() {
   }
 
   // 4.1. Modal de Subcategoria
-  function openSubcategoryModal({ parent_id = null, sub = null } = {}) {
+  function openSubcategoryModal({ parent_id = null, sub = null, onSaved = null } = {}) {
     const isEdit = Boolean(sub);
     const selectedParentId = parent_id || (sub ? categoriesList.find(c => (c.subcategories || []).some(s => String(s.id) === String(sub.id)))?.id : '');
     const parentCat = categoriesList.find(c => String(c.id) === String(selectedParentId));
@@ -5489,24 +5546,30 @@ export function renderAdminView() {
       };
 
       try {
+        let savedSub = null;
         if (isEdit) {
-          await Api.categories.updateSubcategory({
+          const res = await Api.categories.updateSubcategory({
             category_id: selectedParentId,
             subcategory_id: sub.id,
             ...payload
           });
+          savedSub = res?.subcategory || sub;
           expandedCategoryIds.add(Number(selectedParentId));
           Toast.show('Subcategoria atualizada com sucesso no banco de dados!', 'success');
         } else {
-          await Api.categories.createSubcategory({
+          const res = await Api.categories.createSubcategory({
             parent_id: parentId,
             ...payload
           });
+          savedSub = res?.subcategory || null;
           expandedCategoryIds.add(Number(parentId));
           Toast.show('Subcategoria vinculada com sucesso no banco de dados!', 'success');
         }
         modal.remove();
         await loadAllData();
+        if (typeof onSaved === 'function') {
+          onSaved(savedSub, parentId || selectedParentId);
+        }
         render();
       } catch (err) {
         saveBtn.disabled = false;
