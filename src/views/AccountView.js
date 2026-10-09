@@ -9,6 +9,7 @@ import { Storage, normalizeOrderStatus } from '../services/storage.js';
 import { Api } from '../services/api.js';
 import { createProductCard } from '../components/ProductCard.js';
 import { Toast } from '../components/Toast.js';
+import { showProductReviewModal } from '../components/ReviewModal.js';
 
 // Lista padrão das 18 províncias de Angola
 const ANGOLA_PROVINCES = [
@@ -17,12 +18,26 @@ const ANGOLA_PROVINCES = [
   'Lunda Sul', 'Malanje', 'Moxico', 'Namibe', 'Uíge', 'Zaire'
 ];
 
-export function renderAccountView(initialTab = 'orders') {
+export function renderAccountView(initialTab = 'orders', initialOrderId = null) {
   const container = document.createElement('div');
   container.className = 'container';
 
   let currentTab = initialTab; // 'orders' | 'profile' | 'wishlist' | 'addresses'
   let profileSubTab = 'data'; // 'data' | 'security'
+  let activeOrderId = initialOrderId || null;
+
+  function formatOrderDateCompact(dateString) {
+    if (!dateString) return 'Data recente';
+    try {
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return 'Data recente';
+      const day = d.getDate();
+      const months = ['jan.', 'fev.', 'mar.', 'abr.', 'mai.', 'jun.', 'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.'];
+      return `${day} de ${months[d.getMonth()]}`;
+    } catch (e) {
+      return formatDate(dateString);
+    }
+  }
   
   // Pré-carregamento imediato dos pedidos do usuário logado para eliminar qualquer delay
   let ordersList = [];
@@ -227,152 +242,385 @@ export function renderAccountView(initialTab = 'orders') {
         <main>
           ${currentTab === 'orders' ? `
             <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
-                <h2 style="font-family: var(--font-display); font-size: 1.35rem; font-weight: 800; color: #0f172a; margin: 0;">
-                  Histórico de Pedidos & Rastreamento
-                </h2>
-                <button class="btn btn-secondary btn-sm" id="refreshOrdersBtn" title="Atualizar status dos pedidos" style="border-radius: 8px; font-weight: 600;">
-                  ${Icons.refresh ? Icons.refresh(14) : '⟳'} Atualizar Status
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; flex-wrap: wrap; gap: 12px;">
+                <div>
+                  <h2 style="font-family: var(--font-display); font-size: 1.45rem; font-weight: 800; color: #0f172a; margin: 0;">
+                    Meus Pedidos & Rastreamento
+                  </h2>
+                  <p style="color: #64748b; font-size: 0.875rem; margin: 3px 0 0 0;">
+                    Acompanhe o estado de entrega em tempo real, consulte faturas e gerencie suas compras.
+                  </p>
+                </div>
+                <button class="btn btn-secondary btn-sm" id="refreshOrdersBtn" title="Sincronizar status com o banco de dados" style="border-radius: 8px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                  ${Icons.refresh ? Icons.refresh(14) : '⟳'} Sincronizar Status
                 </button>
               </div>
 
               ${ordersList.length === 0 ? `
-                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 64px 24px; text-align: center; box-shadow: 0 1px 3px rgba(15,23,42,0.04);">
-                  <div style="margin-bottom: 16px; opacity: 0.35;">
-                    ${Icons.package(48, '#64748b')}
+                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 64px 24px; text-align: center; box-shadow: 0 1px 4px rgba(15,23,42,0.03);">
+                  <div style="width: 64px; height: 64px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; margin: 0 auto 18px auto; color: #94a3b8;">
+                    ${Icons.package(32, 'currentColor')}
                   </div>
-                  <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin-bottom: 8px;">
-                    Nenhum pedido realizado ainda
+                  <h3 style="font-size: 1.2rem; font-weight: 800; color: #0f172a; margin-bottom: 8px;">
+                    Ainda não tem compras registadas
                   </h3>
-                  <p style="color: #64748b; font-size: 0.9375rem; max-width: 420px; margin: 0 auto 24px auto; line-height: 1.6;">
-                    Assim que você finalizar a sua primeira compra, o histórico detalhado com rastreamento em tempo real aparecerá aqui.
+                  <p style="color: #64748b; font-size: 0.9375rem; max-width: 440px; margin: 0 auto 24px auto; line-height: 1.6;">
+                    Assim que concluir uma compra na loja, as suas compras aparecerão em lista aqui com rastreamento detalhado.
                   </p>
-                  <a href="#/catalogo" class="btn btn-primary" style="padding: 11px 26px; border-radius: 8px; font-weight: 700;">
-                    Explorar Produtos
+                  <a href="#/catalogo" class="btn btn-primary" style="padding: 12px 28px; border-radius: 8px; font-weight: 700;">
+                    Explorar Catálogo de Produtos
                   </a>
                 </div>
-              ` : `
-                <div style="display: flex; flex-direction: column; gap: 20px;">
+              ` : !activeOrderId ? `
+                <!-- VISÃO EM LISTA COMPACTA (PEDIDO DO USUÁRIO) -->
+                <div class="orders-compact-list">
                   ${ordersList.map(order => {
-                    const statusIndex = getStatusStepIndex(order.status || order.status_pedido);
-                    const isCancelled = (order.status || order.status_pedido) === 'cancelled' || (order.status || order.status_pedido) === 'cancelado';
-                    const orderCode = order.order_code || order.codigo_pedido || order.id;
                     const items = order.items || order.itens_pedido || [];
+                    const firstItem = items[0] || {};
+                    const firstName = firstItem.product_name || firstItem.name || 'Produto Comprado';
+                    const firstImg = firstItem.product_image || firstItem.image || '';
+                    const extraCount = Math.max(0, items.length - 1);
+                    const orderDate = order.date || order.created_at || order.criado_em;
+                    const orderCode = order.order_code || order.codigo_pedido || order.id;
+                    const canonicalStatus = normalizeOrderStatus(order.status || order.status_pedido);
+
+                    let statusBadgeColor = '#059669';
+                    let statusBadgeBg = '#ecfdf5';
+                    let statusText = 'Entregue';
+                    if (canonicalStatus === 'shipped' || canonicalStatus === 'in_transit') {
+                      statusBadgeColor = '#2563eb';
+                      statusBadgeBg = '#eff6ff';
+                      statusText = 'Em rota de entrega';
+                    } else if (canonicalStatus === 'preparing' || canonicalStatus === 'processing') {
+                      statusBadgeColor = '#d97706';
+                      statusBadgeBg = '#fffbeb';
+                      statusText = 'Em preparação';
+                    } else if (canonicalStatus === 'cancelled') {
+                      statusBadgeColor = '#dc2626';
+                      statusBadgeBg = '#fef2f2';
+                      statusText = 'Cancelado';
+                    } else {
+                      statusBadgeColor = '#475569';
+                      statusBadgeBg = '#f1f5f9';
+                      statusText = 'Pedido recebido';
+                    }
 
                     return `
-                      <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px; box-shadow: 0 1px 3px rgba(15,23,42,0.04);">
-                        <!-- Cabeçalho do Pedido -->
-                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 14px; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
-                          <div>
-                            <span style="font-size: 0.6875rem; text-transform: uppercase; color: #64748b; font-weight: 700; letter-spacing: 0.05em;">Código do Pedido</span>
-                            <div style="font-family: var(--font-display); font-size: 1.15rem; font-weight: 800; color: #0f172a;">${orderCode}</div>
-                            <span style="font-size: 0.8125rem; color: #64748b;">${formatDate(order.date || order.created_at || order.criado_em)}</span>
-                          </div>
-
-                          <div style="text-align: right;">
-                            <span style="font-size: 0.6875rem; text-transform: uppercase; color: #64748b; font-weight: 700;">Total Pago</span>
-                            <div style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 900; color: #0f172a;">${formatPrice(order.total)}</div>
-                            <span style="font-size: 0.75rem; color: #10b981; font-weight: 700;">${order.payment_method || order.paymentMethod || 'Multicaixa'}</span>
+                      <div class="order-list-item-compact" data-select-order-id="${order.id || orderCode}">
+                        <div class="order-item-compact-left">
+                          ${firstImg ? `
+                            <img src="${firstImg}" alt="${firstName}" class="order-item-compact-thumb" />
+                          ` : `
+                            <div class="order-item-compact-thumb" style="display:flex; align-items:center; justify-content:center; color:#94a3b8;">
+                              ${Icons.package(26)}
+                            </div>
+                          `}
+                          <div class="order-item-compact-info">
+                            <div class="order-item-compact-title">
+                              <span>${firstName}</span>
+                              ${extraCount > 0 ? `<span class="order-item-extra-count">+${extraCount} ${extraCount === 1 ? 'outro item' : 'outros itens'}</span>` : ''}
+                            </div>
+                            <div class="order-item-compact-meta">
+                              <span>Comprado em ${formatOrderDateCompact(orderDate)}</span>
+                              <span>|</span>
+                              <strong style="color: #0f172a;">AOA ${formatPrice(order.total).replace('Kz', '').trim()}</strong>
+                            </div>
                           </div>
                         </div>
 
-                        ${isCancelled ? `
-                          <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; color: #991b1b; font-weight: 700; font-size: 0.875rem;">
-                            ⚠️ Este pedido foi cancelado. Se tiver dúvidas, entre em contacto com o suporte.
+                        <div class="order-item-compact-right">
+                          <span style="background: ${statusBadgeBg}; color: ${statusBadgeColor}; font-size: 0.75rem; font-weight: 700; padding: 4px 10px; border-radius: 6px; white-space: nowrap;">
+                            ${statusText}
+                          </span>
+                          ${canonicalStatus === 'delivered' ? `
+                            <button type="button" class="btn-review-item" style="padding: 6px 11px;" data-review-prod-id="${firstItem?.product_id || firstItem?.id || ''}" data-review-prod-name="${firstName}" data-review-prod-img="${firstImg}">
+                              ★ Avaliar
+                            </button>
+                          ` : ''}
+                          <button type="button" class="btn-open-order-details" title="Ver detalhes do pedido">
+                            <span>Ver Detalhes</span>
+                            ${Icons.chevronRight(14)}
+                          </button>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              ` : `
+                <!-- VISÃO DETALHADA DO PEDIDO SELECIONADO -->
+                <div>
+                  <button type="button" class="btn-back-to-orders" id="btnBackToOrdersList">
+                    ${Icons.chevronLeft(16)} Voltar para Todos os Pedidos
+                  </button>
+
+                  ${(() => {
+                    const order = ordersList.find(o => String(o.id) === String(activeOrderId) || String(o.order_code) === String(activeOrderId) || String(o.codigo_pedido) === String(activeOrderId)) || ordersList[0];
+                    if (!order) return '<p>Pedido não encontrado.</p>';
+
+                    const canonicalStatus = normalizeOrderStatus(order.status || order.status_pedido);
+                    const isCancelled = canonicalStatus === 'cancelled';
+                    const orderCode = order.order_code || order.codigo_pedido || order.id;
+                    const items = order.items || order.itens_pedido || [];
+                    const orderDate = order.date || order.created_at || order.criado_em;
+
+                    let currentStepIndex = 0;
+                    if (canonicalStatus === 'delivered') {
+                      currentStepIndex = 4;
+                    } else if (canonicalStatus === 'shipped' || canonicalStatus === 'in_transit') {
+                      currentStepIndex = 3;
+                    } else if (canonicalStatus === 'preparing' || canonicalStatus === 'processing') {
+                      currentStepIndex = 2;
+                    } else if (canonicalStatus === 'confirmed' || (order.payment_status === 'pago')) {
+                      currentStepIndex = 1;
+                    } else {
+                      currentStepIndex = 0;
+                    }
+
+                    const progressPct = isCancelled ? 0 : Math.min(100, (currentStepIndex / 4) * 100);
+                    const isFreeShipping = Number(order.shipping_price || 0) === 0 || Number(order.total || 0) >= 100000;
+
+                    return `
+                      <div class="order-card-enterprise">
+                        <!-- Header do Pedido Padrão Enterprise (Amazon / Mercado Livre) -->
+                        <div class="order-card-header">
+                          <div class="order-header-info-group">
+                            <div class="order-header-col">
+                              <span class="order-header-label">Data da Compra</span>
+                              <span class="order-header-val">${formatDate(orderDate)}</span>
+                            </div>
+
+                            <div class="order-header-col">
+                              <span class="order-header-label">Total Pago</span>
+                              <span class="order-header-val" style="color: #0f172a; font-weight: 900;">
+                                ${formatPrice(order.total)}
+                              </span>
+                            </div>
+
+                            <div class="order-header-col">
+                              <span class="order-header-label">Destinatário</span>
+                              <span class="order-header-val">
+                                ${order.customer_name || user.name || 'Cliente'}
+                              </span>
+                            </div>
+
+                            <div class="order-header-col">
+                              <span class="order-header-label">Nº do Pedido</span>
+                              <span class="order-code-badge" data-copy-order-code="${orderCode}" title="Clique para copiar o código">
+                                <span>${orderCode}</span>
+                                ${Icons.fileText ? Icons.fileText(12, 'currentColor') : '📋'}
+                              </span>
+                            </div>
                           </div>
-                        ` : `
-                          <!-- Timeline Visual do Rastreamento em Tempo Real -->
-                          <div style="margin: 20px 0;">
-                            <div class="order-timeline">
-                              <div class="timeline-step ${statusIndex >= 0 ? 'completed' : ''}">
-                                <div class="timeline-node">${statusIndex >= 1 ? Icons.check(14) : '1'}</div>
-                                <span class="timeline-text">Recebido</span>
+
+                          <div class="order-header-actions">
+                            ${canonicalStatus === 'shipped' || canonicalStatus === 'in_transit' ? `
+                              <button type="button" class="order-header-action-btn btn-confirm-delivery" data-order-id="${order.id}" data-order-code="${orderCode}" style="background: #16a34a; border-color: #16a34a; color: #ffffff; font-weight: 800;">
+                                ✓ Confirmar Recebimento
+                              </button>
+                            ` : ''}
+                            <button type="button" class="order-header-action-btn btn-view-invoice-action" data-order-code="${orderCode}">
+                              ${Icons.fileText ? Icons.fileText(14, '#2563eb') : '📄'}
+                              <span>Ver Fatura / Recibo</span>
+                            </button>
+                            <a href="https://wa.me/244923179192?text=Ol%C3%A1%20NovaTech%2C%20preciso%20de%20informa%C3%A7%C3%B5es%20sobre%20o%20meu%20pedido%20${orderCode}" target="_blank" class="order-header-action-btn" title="Falar com o suporte no WhatsApp">
+                              ${Icons.whatsapp ? Icons.whatsapp(14, '#10b981') : '💬'}
+                              <span>Ajuda</span>
+                            </a>
+                          </div>
+                        </div>
+
+                        ${!isCancelled ? `
+                          <!-- Linha do Tempo Logística Real e Contínua (Enterprise) -->
+                          <div class="order-tracker-box">
+                            <div class="order-timeline-track">
+                              <div class="order-timeline-line-bg"></div>
+                              <div class="order-timeline-line-fill" style="width: ${progressPct}%;"></div>
+
+                              <!-- Etapa 1: Pedido Recebido -->
+                              <div class="order-step-node-wrap ${currentStepIndex >= 0 ? 'done' : ''} ${currentStepIndex === 0 ? 'current' : ''}">
+                                <div class="order-step-node">
+                                  ${currentStepIndex > 0 ? Icons.check(14, '#ffffff') : '1'}
+                                </div>
+                                <span class="order-step-title">Pedido Registado</span>
+                                <span class="order-step-time">${formatDate(orderDate)}</span>
                               </div>
-                              <div class="timeline-step ${statusIndex >= 1 ? 'completed' : statusIndex === 0 ? 'active' : ''}">
-                                <div class="timeline-node">${statusIndex >= 2 ? Icons.check(14) : '2'}</div>
-                                <span class="timeline-text">Pagamento</span>
+
+                              <!-- Etapa 2: Pagamento -->
+                              <div class="order-step-node-wrap ${currentStepIndex >= 1 ? 'done' : ''} ${currentStepIndex === 1 ? 'current' : ''}">
+                                <div class="order-step-node">
+                                  ${currentStepIndex > 1 ? Icons.check(14, '#ffffff') : '2'}
+                                </div>
+                                <span class="order-step-title">Pagamento</span>
+                                <span class="order-step-time">${order.payment_status === 'pago' ? 'Confirmado' : 'Na Entrega'}</span>
                               </div>
-                              <div class="timeline-step ${statusIndex >= 2 ? 'completed' : statusIndex === 1 ? 'active' : ''}">
-                                <div class="timeline-node">${statusIndex >= 3 ? Icons.check(14) : '3'}</div>
-                                <span class="timeline-text">Preparação</span>
+
+                              <!-- Etapa 3: Preparação -->
+                              <div class="order-step-node-wrap ${currentStepIndex >= 2 ? 'done' : ''} ${currentStepIndex === 2 ? 'current' : ''}">
+                                <div class="order-step-node">
+                                  ${currentStepIndex > 2 ? Icons.check(14, '#ffffff') : '3'}
+                                </div>
+                                <span class="order-step-title">Preparação</span>
+                                <span class="order-step-time">${currentStepIndex >= 2 ? 'Concluída' : 'Pendente'}</span>
                               </div>
-                              <div class="timeline-step ${statusIndex >= 3 ? 'completed' : statusIndex === 2 ? 'active' : ''}">
-                                <div class="timeline-node">${statusIndex >= 4 ? Icons.check(14) : '4'}</div>
-                                <span class="timeline-text">Enviado</span>
+
+                              <!-- Etapa 4: Em Rota -->
+                              <div class="order-step-node-wrap ${currentStepIndex >= 3 ? 'done' : ''} ${currentStepIndex === 3 ? 'current' : ''}">
+                                <div class="order-step-node">
+                                  ${currentStepIndex > 3 ? Icons.check(14, '#ffffff') : '4'}
+                                </div>
+                                <span class="order-step-title">Em Rota</span>
+                                <span class="order-step-time">Luanda</span>
                               </div>
-                              <div class="timeline-step ${statusIndex >= 4 ? 'completed' : statusIndex === 3 ? 'active' : ''}">
-                                <div class="timeline-node">${statusIndex >= 5 ? Icons.check(14) : '5'}</div>
-                                <span class="timeline-text">Em Trânsito</span>
-                              </div>
-                              <div class="timeline-step ${statusIndex === 5 ? 'completed' : ''}">
-                                <div class="timeline-node">${statusIndex === 5 ? Icons.check(14) : '6'}</div>
-                                <span class="timeline-text">Entregue</span>
+
+                              <!-- Etapa 5: Entregue -->
+                              <div class="order-step-node-wrap ${currentStepIndex === 4 ? 'done' : ''}">
+                                <div class="order-step-node">
+                                  ${currentStepIndex === 4 ? Icons.check(14, '#ffffff') : '5'}
+                                </div>
+                                <span class="order-step-title">Entregue</span>
+                                <span class="order-step-time">${currentStepIndex === 4 ? 'Finalizado' : 'Aguardando'}</span>
                               </div>
                             </div>
                           </div>
-                        `}
+                        ` : ''}
 
-                        <!-- Endereço de Entrega Registrado no Pedido -->
-                        <div style="background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; font-size: 0.8125rem; color: #475569;">
-                          <strong style="color: #0f172a;">📍 Local de Entrega:</strong> ${order.shipping_address || order.endereco_entrega || 'Endereço fornecido no checkout'}
-                          ${order.ponto_referencia ? `<br /><strong style="color: #0f172a;">Ponto de Referência:</strong> ${order.ponto_referencia}` : ''}
-                        </div>
+                        <!-- Corpo do Pedido: Itens & Dados Reais -->
+                        <div class="order-body-content">
+                          <!-- Lista de Produtos da Encomenda -->
+                          <div style="font-size: 0.8125rem; font-weight: 800; text-transform: uppercase; color: #475569; letter-spacing: 0.03em; margin-bottom: 10px;">
+                            Itens Comprados (${items.length}):
+                          </div>
 
-                        <!-- Itens do Pedido -->
-                        <div style="background: #ffffff; border: 1px solid #f1f5f9; border-radius: 8px; padding: 14px;">
-                          <div style="font-size: 0.8125rem; font-weight: 700; color: #0f172a; margin-bottom: 10px;">Itens da Encomenda (${items.length}):</div>
-                          <div style="display: flex; flex-direction: column; gap: 10px;">
+                          <div class="order-items-list">
                             ${items.map(item => {
                               const name = item.product_name || item.name || 'Produto';
                               const img = item.product_image || item.image || '';
                               const price = Number(item.unit_price || item.price || 0);
                               const qty = Number(item.quantity || 1);
+                              const prodId = item.product_id || item.id;
 
                               return `
-                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-                                  <div style="display: flex; align-items: center; gap: 12px;">
+                                <div class="order-product-row">
+                                  <div class="order-product-main">
                                     ${img ? `
-                                      <img src="${img}" alt="${name}" style="width: 42px; height: 42px; object-fit: contain; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px;" />
+                                      <img src="${img}" alt="${name}" class="order-product-thumb" />
                                     ` : `
-                                      <div style="width: 42px; height: 42px; background: #f1f5f9; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #94a3b8;">
-                                        ${Icons.package(18)}
+                                      <div class="order-product-thumb" style="display:flex; align-items:center; justify-content:center; color:#94a3b8;">
+                                        ${Icons.package(24)}
                                       </div>
                                     `}
-                                    <div>
-                                      <div style="font-size: 0.875rem; font-weight: 600; color: #0f172a;">${name}</div>
-                                      <div style="font-size: 0.75rem; color: #64748b;">${qty} unidade(s) • ${formatPrice(price)}</div>
+                                    <div class="order-product-info">
+                                      <a href="${prodId ? `#/produto/${prodId}` : '#/catalogo'}" class="order-product-name">
+                                        ${name}
+                                      </a>
+                                      <span class="order-product-meta">
+                                        Quantidade: <strong>${qty} un</strong> • Preço unitário: ${formatPrice(price)}
+                                      </span>
                                     </div>
                                   </div>
-                                  <span style="font-weight: 700; font-size: 0.875rem; color: #0f172a;">${formatPrice(price * qty)}</span>
+
+                                  <div class="order-product-pricing">
+                                    <span class="order-product-total">${formatPrice(price * qty)}</span>
+                                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+                                      ${canonicalStatus === 'delivered' ? `
+                                        <button type="button" class="btn-review-item" data-review-prod-id="${prodId || ''}" data-review-prod-name="${name}" data-review-prod-img="${img}">
+                                          ★ Avaliar Produto
+                                        </button>
+                                      ` : ''}
+                                      <button type="button" class="btn-buy-again" data-buy-item-name="${name}" data-buy-item-price="${price}" data-buy-item-img="${img}" data-buy-item-id="${prodId || ''}">
+                                        ${Icons.cart ? Icons.cart(12, 'currentColor') : '🛒'} Comprar Novamente
+                                      </button>
+                                    </div>
+                                  </div>
                                 </div>
                               `;
                             }).join('')}
                           </div>
-                        </div>
 
-                        <!-- Ações do Cliente / Confirmação de Entrega -->
-                        ${normalizeOrderStatus(order.status || order.status_pedido) === 'shipped' ? `
-                          <div style="margin-top: 14px; padding: 14px 16px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
-                            <div>
-                              <div style="font-weight: 800; color: #1e40af; font-size: 0.9375rem; display: flex; align-items: center; gap: 6px;">
-                                🚚 Sua encomenda está a caminho do seu endereço!
+                          ${canonicalStatus === 'delivered' ? `
+                            <!-- Card Estético de Convite para Avaliação da Compra -->
+                            <div class="order-review-invite-card">
+                              <div class="order-review-invite-left">
+                                <div class="order-review-invite-badge">★</div>
+                                <div>
+                                  <h4 class="order-review-invite-title">O que achou da sua compra?</h4>
+                                  <p class="order-review-invite-desc">Compartilhe sua experiência sobre o artigo recebido para ajudar outros clientes em Luanda.</p>
+                                </div>
                               </div>
-                              <p style="color: #3b82f6; font-size: 0.8125rem; margin: 2px 0 0 0;">
-                                Quando receber o pacote em mãos, clique no botão ao lado para confirmar o recebimento.
-                              </p>
+                              <div>
+                                <button type="button" class="btn-review-invite-trigger" data-review-prod-id="${items[0]?.product_id || items[0]?.id || ''}" data-review-prod-name="${items[0]?.product_name || items[0]?.name || 'Produto'}" data-review-prod-img="${items[0]?.product_image || items[0]?.image || ''}">
+                                  ★ Avaliar ${items.length === 1 ? 'Produto' : 'Artigos Comprados'}
+                                </button>
+                              </div>
                             </div>
-                            <button class="btn btn-primary btn-confirm-delivery" data-order-id="${order.id}" data-order-code="${orderCode}" style="background: #16a34a; border-color: #16a34a; padding: 9px 18px; font-weight: 800; font-size: 0.875rem; border-radius: 8px; white-space: nowrap;">
-                              ✓ Confirmar Recebimento
-                            </button>
+                          ` : ''}
+
+                          <!-- Grid de 2 Colunas: Entrega em Luanda & Resumo Financeiro Real -->
+                          <div class="order-details-grid">
+                            <!-- Coluna 1: Endereço Real de Entrega em Luanda -->
+                            <div class="order-details-col">
+                              <span class="order-details-title">
+                                ${Icons.mapPin(14, 'var(--primary-600)')}
+                                Local de Entrega em Luanda
+                              </span>
+                              <div>
+                                <strong style="color: #0f172a;">Destinatário:</strong> ${order.customer_name || user.name || 'Cliente'}
+                              </div>
+                              <div>
+                                <strong style="color: #0f172a;">Endereço:</strong> ${order.shipping_address || order.endereco_entrega || 'Morada indicada no checkout'}
+                              </div>
+                              ${order.ponto_referencia ? `
+                                <div>
+                                  <strong style="color: #0f172a;">Ponto de Referência:</strong> ${order.ponto_referencia}
+                                </div>
+                              ` : ''}
+                              <div>
+                                <strong style="color: #0f172a;">Contacto do Estafeta:</strong> ${order.customer_phone || user.phone || '+244 923 179 192'}
+                              </div>
+                              <div style="color: #64748b; font-size: 0.75rem; margin-top: 4px;">
+                                Modalidade: Entrega ao Domicílio em Luanda (24h a 48h úteis)
+                              </div>
+                            </div>
+
+                            <!-- Coluna 2: Discriminação Financeira Real do Banco -->
+                            <div class="order-details-col">
+                              <span class="order-details-title">
+                                ${Icons.creditCard(14, 'var(--primary-600)')}
+                                Resumo do Pagamento
+                              </span>
+                              <table class="order-summary-table">
+                                <tr>
+                                  <td class="label">Subtotal dos Itens:</td>
+                                  <td class="val">${formatPrice(order.subtotal || (order.total - (order.shipping_price || 0)))}</td>
+                                </tr>
+                                <tr>
+                                  <td class="label">Custo de Entrega:</td>
+                                  <td class="val">
+                                    ${isFreeShipping ? '<span style="color:#059669; font-weight:700;">Grátis (Luanda)</span>' : formatPrice(order.shipping_price || 3500)}
+                                  </td>
+                                </tr>
+                                ${order.discount > 0 ? `
+                                  <tr>
+                                    <td class="label">Desconto Aplicado:</td>
+                                    <td class="val" style="color: #16a34a;">-${formatPrice(order.discount)}</td>
+                                  </tr>
+                                ` : ''}
+                                <tr class="total-row">
+                                  <td class="label" style="color: #0f172a;">Total:</td>
+                                  <td class="val">${formatPrice(order.total)}</td>
+                                </tr>
+                              </table>
+                              <div style="margin-top: 6px; font-size: 0.75rem; color: #475569;">
+                                <strong>Método:</strong> ${order.payment_method || 'Pagamento na Entrega (TPA / Dinheiro)'}
+                                <br />
+                                <strong>Status:</strong> <span style="color: ${order.payment_status === 'pago' ? '#059669' : '#d97706'}; font-weight: 700;">${order.payment_status === 'pago' ? '✓ Pago / Concluído' : '⏳ Aguardando / Na Entrega'}</span>
+                              </div>
+                            </div>
                           </div>
-                        ` : normalizeOrderStatus(order.status || order.status_pedido) === 'delivered' ? `
-                          <div style="margin-top: 14px; padding: 10px 16px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; color: #065f46; font-weight: 700; font-size: 0.8125rem; display: flex; align-items: center; gap: 8px;">
-                            <span>★ Encomenda entregue e finalizada com sucesso. Obrigado por comprar na loja!</span>
-                          </div>
-                        ` : ''}
+                        </div>
                       </div>
                     `;
-                  }).join('')}
+                  })()}
                 </div>
               `}
             </div>
@@ -669,6 +917,94 @@ export function renderAccountView(initialTab = 'orders') {
       };
     });
 
+    // Abrir Visão Detalhada ao Clicar no Item da Lista Compacta
+    container.querySelectorAll('[data-select-order-id]').forEach(card => {
+      card.onclick = () => {
+        const orderId = card.getAttribute('data-select-order-id');
+        if (orderId) {
+          activeOrderId = orderId;
+          render();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      };
+    });
+
+    // Voltar para a Lista Compacta de Pedidos
+    const backBtn = container.querySelector('#btnBackToOrdersList');
+    if (backBtn) {
+      backBtn.onclick = () => {
+        activeOrderId = null;
+        render();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+    }
+
+    // Copiar Código do Pedido com Toast
+    container.querySelectorAll('[data-copy-order-code]').forEach(badge => {
+      badge.onclick = (e) => {
+        e.stopPropagation();
+        const code = badge.getAttribute('data-copy-order-code');
+        if (code) {
+          navigator.clipboard.writeText(code).then(() => {
+            Toast.show(`Código do pedido ${code} copiado!`, 'success');
+          }).catch(() => {
+            Toast.show(`Pedido: ${code}`, 'info');
+          });
+        }
+      };
+    });
+
+    // Comprar Novamente (Adiciona produto ao carrinho)
+    container.querySelectorAll('.btn-buy-again').forEach(btn => {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        const name = btn.getAttribute('data-buy-item-name') || 'Produto';
+        const price = Number(btn.getAttribute('data-buy-item-price') || 0);
+        const img = btn.getAttribute('data-buy-item-img') || '';
+        const id = btn.getAttribute('data-buy-item-id') || Date.now();
+
+        Storage.addToCart({ id, name, price, image: img }, 1);
+        Toast.show(`"${name}" foi adicionado ao seu carrinho de compras!`, 'success');
+      };
+    });
+
+    // Abrir Modal Estético de Avaliação de Produto
+    container.querySelectorAll('[data-review-prod-id]').forEach(btn => {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const productId = btn.getAttribute('data-review-prod-id');
+        const productName = btn.getAttribute('data-review-prod-name') || 'Produto';
+        const productImage = btn.getAttribute('data-review-prod-img') || '';
+        showProductReviewModal({ productId, productName, productImage });
+      };
+    });
+
+    // Visualizar Recibo / Fatura Comercial (Dados 100% Reais)
+    container.querySelectorAll('.btn-view-invoice-action').forEach(btn => {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        const code = btn.getAttribute('data-order-code');
+        const idx = btn.getAttribute('data-order-idx');
+        let order = null;
+        if (code) {
+          order = ordersList.find(o => String(o.order_code) === String(code) || String(o.codigo_pedido) === String(code) || String(o.id) === String(code));
+        }
+        if (!order && idx !== null && idx !== undefined && ordersList[Number(idx)]) {
+          order = ordersList[Number(idx)];
+        }
+        if (!order && activeOrderId) {
+          order = ordersList.find(o => String(o.id) === String(activeOrderId) || String(o.order_code) === String(activeOrderId) || String(o.codigo_pedido) === String(activeOrderId));
+        }
+        if (!order) {
+          order = ordersList[0];
+        }
+        if (order) {
+          showInvoiceModal(order, Storage.getUser());
+        }
+      };
+    });
+
     // Confirmação de recebimento pelo cliente (FASE 10)
     container.querySelectorAll('.btn-confirm-delivery').forEach(btn => {
       btn.onclick = async (e) => {
@@ -835,4 +1171,182 @@ export function renderAccountView(initialTab = 'orders') {
 
   render();
   return container;
+}
+
+
+
+// ===================================================================
+// MODAL DE FATURA COMERCIAL & RECIBO OFICIAL (ENTERPRISE E-COMMERCE)
+// ===================================================================
+function showInvoiceModal(order, user = {}) {
+  const existing = document.querySelector('.invoice-modal-overlay');
+  if (existing) existing.remove();
+
+  const orderCode = order.order_code || order.codigo_pedido || order.id;
+  const orderDate = order.date || order.created_at || order.criado_em;
+  const items = order.items || order.itens_pedido || [];
+  const isPaid = order.payment_status === 'pago';
+  const isFreeShipping = Number(order.shipping_price || 0) === 0 || Number(order.total || 0) >= 100000;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'invoice-modal-overlay';
+  overlay.innerHTML = `
+    <div class="invoice-modal-card" id="invoicePrintArea">
+      <!-- Top Header da Fatura -->
+      <div class="invoice-header">
+        <div>
+          <div style="font-family: var(--font-display); font-size: 1.4rem; font-weight: 900; color: #0f172a; letter-spacing: -0.02em;">
+            NOVA<span style="color: var(--primary-600);">TECH</span> ANGOLA
+          </div>
+          <div style="font-size: 0.75rem; color: #64748b; margin-top: 2px;">
+            Comprovativo Oficial de Compra • Loja Online
+          </div>
+          <div style="font-size: 0.75rem; color: #64748b;">
+            Luanda, Angola • contacto@novatech.co.ao • +244 923 179 192
+          </div>
+        </div>
+
+        <div style="text-align: right;">
+          <span class="badge" style="background: ${isPaid ? '#ecfdf5' : '#fffbeb'}; color: ${isPaid ? '#065f46' : '#92400e'}; border: 1px solid ${isPaid ? '#a7f3d0' : '#fde68a'}; font-size: 0.75rem; font-weight: 800; padding: 4px 10px; border-radius: 6px;">
+            ${isPaid ? '✓ PAGAMENTO LIQUIDADO' : '⏳ PAGAMENTO PENDENTE'}
+          </span>
+          <div style="font-family: monospace; font-size: 0.95rem; font-weight: 800; color: #0f172a; margin-top: 6px;">
+            ${orderCode}
+          </div>
+          <div style="font-size: 0.75rem; color: #64748b;">
+            Data: ${formatDate(orderDate)}
+          </div>
+        </div>
+      </div>
+
+      <!-- Corpo da Fatura -->
+      <div class="invoice-body">
+        <!-- Dados do Cliente e Envio -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 0.8125rem;">
+          <div>
+            <span style="font-weight: 800; text-transform: uppercase; color: #64748b; font-size: 0.6875rem; display: block; margin-bottom: 4px;">
+              CLIENTE / DESTINATÁRIO
+            </span>
+            <div style="font-weight: 800; color: #0f172a; font-size: 0.9375rem;">
+              ${order.customer_name || user.name || 'Cliente'}
+            </div>
+            ${(order.customer_email || user.email) ? `
+              <div style="color: #475569; margin-top: 2px;">
+                ${order.customer_email || user.email}
+              </div>
+            ` : ''}
+            ${(order.customer_phone || user.phone) ? `
+              <div style="color: #475569;">
+                Tel: ${order.customer_phone || user.phone}
+              </div>
+            ` : ''}
+          </div>
+
+          <div>
+            <span style="font-weight: 800; text-transform: uppercase; color: #64748b; font-size: 0.6875rem; display: block; margin-bottom: 4px;">
+              ENDEREÇO DE ENTREGA (LUANDA)
+            </span>
+            <div style="color: #0f172a; font-weight: 700;">
+              ${order.shipping_address || 'Morada indicada na encomenda'}
+            </div>
+            ${order.ponto_referencia ? `
+              <div style="color: #64748b; font-size: 0.75rem; margin-top: 2px;">
+                Ref: ${order.ponto_referencia}
+              </div>
+            ` : ''}
+            <div style="color: #64748b; font-size: 0.75rem; margin-top: 4px;">
+              Método: ${order.payment_method || 'Pagamento na Entrega (TPA / Dinheiro)'}
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabela de Itens Comprados -->
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 0.875rem;">
+          <thead>
+            <tr style="border-bottom: 2px solid #e2e8f0; text-align: left; color: #64748b; font-size: 0.75rem; text-transform: uppercase;">
+              <th style="padding: 10px 8px;">Descrição do Artigo</th>
+              <th style="padding: 10px 8px; text-align: center;">Qtd</th>
+              <th style="padding: 10px 8px; text-align: right;">Preço Unit.</th>
+              <th style="padding: 10px 8px; text-align: right;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map(item => {
+              const name = item.product_name || item.name || 'Produto';
+              const price = Number(item.unit_price || item.price || 0);
+              const qty = Number(item.quantity || 1);
+              return `
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                  <td style="padding: 12px 8px; font-weight: 600; color: #0f172a;">
+                    ${name}
+                  </td>
+                  <td style="padding: 12px 8px; text-align: center; color: #475569;">
+                    ${qty}
+                  </td>
+                  <td style="padding: 12px 8px; text-align: right; color: #475569;">
+                    ${formatPrice(price)}
+                  </td>
+                  <td style="padding: 12px 8px; text-align: right; font-weight: 800; color: #0f172a;">
+                    ${formatPrice(price * qty)}
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+
+        <!-- Resumo Financeiro da Fatura -->
+        <div style="display: flex; justify-content: flex-end;">
+          <div style="width: 100%; max-width: 320px; font-size: 0.875rem;">
+            <div style="display: flex; justify-content: space-between; padding: 4px 0; color: #64748b;">
+              <span>Subtotal:</span>
+              <strong style="color: #0f172a;">${formatPrice(order.subtotal || (order.total - (order.shipping_price || 0)))}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 4px 0; color: #64748b;">
+              <span>Frete / Entrega em Luanda:</span>
+              <strong style="color: #0f172a;">
+                ${isFreeShipping ? '<span style="color:#059669;">Grátis</span>' : formatPrice(order.shipping_price || 0)}
+              </strong>
+            </div>
+            ${order.discount > 0 ? `
+              <div style="display: flex; justify-content: space-between; padding: 4px 0; color: #16a34a;">
+                <span>Desconto Especial:</span>
+                <strong>-${formatPrice(order.discount)}</strong>
+              </div>
+            ` : ''}
+            <div style="display: flex; justify-content: space-between; padding: 10px 0 4px 0; margin-top: 6px; border-top: 2px solid #0f172a; font-size: 1.15rem; font-weight: 900; color: #0f172a;">
+              <span>Total Pago:</span>
+              <span>${formatPrice(order.total)}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Termo de Garantia e Autenticidade -->
+        <div style="margin-top: 28px; padding: 12px 16px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; font-size: 0.75rem; color: #166534; line-height: 1.5;">
+          🛡️ <strong>Garantia Oficial NovaTech:</strong> Todos os artigos possuem garantia de 3 meses (90 dias) contra defeitos de fabricação a partir da data de receção da encomenda. Guarde este comprovativo.
+        </div>
+      </div>
+
+      <!-- Ações do Rodapé -->
+      <div class="invoice-footer">
+        <button type="button" class="btn btn-secondary" id="closeInvoiceBtn" style="font-size: 0.875rem;">
+          Fechar
+        </button>
+        <button type="button" class="btn btn-primary" id="printInvoiceBtn" style="font-size: 0.875rem; display: inline-flex; align-items: center; gap: 6px;">
+          🖨️ Imprimir / Guardar PDF
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#closeInvoiceBtn').onclick = () => overlay.remove();
+  overlay.onclick = (e) => {
+    if (e.target === overlay) overlay.remove();
+  };
+
+  overlay.querySelector('#printInvoiceBtn').onclick = () => {
+    window.print();
+  };
 }

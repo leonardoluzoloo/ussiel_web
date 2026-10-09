@@ -492,19 +492,19 @@ function mapUsuarioFromDb(u) {
 // Configurações padrão iniciais
 const DEFAULT_SETTINGS = {
   store_name: 'NovaTech Angola',
-  slogan: 'Loja de Tecnologia, Smartphones e Eletrônicos Premium',
+  slogan: 'Sua Loja Online de Variedades e Compras em Angola',
   currency: 'Kz',
   phone: '+244 923 179 192',
   whatsapp: '+244 923 179 192',
   email: 'contacto@novatech.co.ao',
   provincia: 'Luanda',
   cidade: 'Luanda',
-  bairro: 'Talatona',
-  rua: 'Av. Luanda Sul',
-  endereco: 'Talatona Shopping & Maianga, Loja 12',
-  ponto_referencia: 'Próximo ao Belas Shopping',
+  bairro: 'Luanda',
+  rua: 'Luanda',
+  endereco: 'Atendimento 100% online com entregas em Luanda',
+  ponto_referencia: 'Luanda, Angola',
   opening_hours: 'Seg - Sáb: 08:30 às 19:30 | Dom: 10:00 às 16:00',
-  free_shipping_threshold: 1000000,
+  free_shipping_threshold: 100000,
   shipping_price_normal: 3500,
   shipping_price_express: 6500,
   bank_holder: 'NovaTech Comércio & Serviços, Lda',
@@ -512,8 +512,8 @@ const DEFAULT_SETTINGS = {
   bank_iban: 'AO06 0040 0000 1234 5678 9012 3',
   mcx_phone: '+244 923 179 192',
   allow_out_of_stock_orders: false,
-  delivery_policy: 'Entregamos em Luanda em até 24h para envio normal ou até 4h para envio expresso. Províncias em 48h a 72h via transportadora parceira certificada.',
-  return_policy: 'Garantia oficial de 12 meses para equipamentos novos com selo e fatura. Trocas imediatas em caso de defeito de fabrico até 15 dias após o recebimento.',
+  delivery_policy: 'Entregas actualmente disponíveis exclusivamente na província de Luanda (prazos de 24h a 48h úteis). Frete grátis a partir de 100.000 Kz.',
+  return_policy: 'Garantia de 3 meses (90 dias) contra defeitos de fabrico. Trocas e assistência técnica garantidas.',
   terms_policy: 'Todas as compras são processadas em Kwanzas (Kz) com suporte a Multicaixa Express, Transferência Bancária Imediata e Pagamento na Entrega.'
 };
 

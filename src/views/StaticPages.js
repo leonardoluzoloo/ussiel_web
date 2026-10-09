@@ -5,38 +5,228 @@ import { Storage } from '../services/storage.js';
 
 export function renderAboutView() {
   const el = document.createElement('div');
-  el.className = 'container';
+  el.className = 'about-view-wrapper';
+  el.style.cssText = 'width: 100%; min-height: 100vh; background: #fafafa; color: #1e293b; padding: 24px 16px 80px 16px; box-sizing: border-box;';
+
   el.innerHTML = `
-    <div class="static-page-card" style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 36px 32px; margin: 32px auto 48px auto; max-width: 960px; box-shadow: var(--shadow-sm);">
-      <span class="badge" style="background: var(--primary-600); color: #ffffff; margin-bottom: 12px; display: inline-block;">SOBRE A NOVATECH</span>
-      <h1 style="font-family: var(--font-display); font-size: 2.25rem; font-weight: 900; margin-bottom: 16px;">
-        A Maior Referência em Tecnologia & Eletrônicos em Angola
-      </h1>
-      <p style="font-size: 1.0625rem; color: var(--text-secondary); line-height: 1.8; margin-bottom: 24px;">
-        Fundada em Luanda com o compromisso de democratizar o acesso à tecnologia topo de gama, a <strong>NovaTech Angola</strong> é pioneira no comércio eletrônico profissional de tecnologia, oferecendo marcas globais como Apple, Samsung, Sony, Dell, Microsoft e Asus com garantia oficial e suporte humanizado.
-      </p>
+    <div style="max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 40px;">
+      
+      <!-- NAVEGAÇÃO SUPERIOR SUTIL -->
+      <nav style="display: flex; align-items: center; gap: 8px; font-size: 0.8125rem; color: #64748b; padding-top: 8px;">
+        <a href="#/" style="color: #64748b; text-decoration: none;">Início</a>
+        <span style="opacity: 0.4;">/</span>
+        <span style="color: #0f172a; font-weight: 600;">Sobre Nós</span>
+      </nav>
 
-      <div class="about-mission-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 28px;">
-        <div style="background: #f8fafc; padding: 24px; border-radius: var(--radius-md); border-left: 4px solid var(--primary-600);">
-          <h3 style="font-weight: 800; margin-bottom: 8px;">Nossa Missão</h3>
-          <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6;">
-            Entregar inovação e velocidade para transformar a vida e os negócios dos angolanos através de produtos autênticos e entrega ultrarrápida.
+      <!-- APRESENTAÇÃO PRINCIPAL (SEM BORDAS, SÓBRIA E HUMANA) -->
+      <section style="display: flex; flex-direction: column; gap: 18px; max-width: 860px;">
+        <span style="font-size: 0.8125rem; font-weight: 700; color: #2563eb; letter-spacing: 0.05em; text-transform: uppercase;">
+          Quem Somos
+        </span>
+        <h1 style="font-family: var(--font-display, sans-serif); font-size: clamp(2rem, 4vw, 3rem); font-weight: 800; color: #0f172a; line-height: 1.2; letter-spacing: -0.02em; margin: 0;">
+          A sua loja online de compras e variedades em Angola
+        </h1>
+        <p style="font-size: 1.0625rem; color: #475569; line-height: 1.8; margin: 0;">
+          A <strong>NovaTech</strong> é uma loja de comércio eletrónico angolana criada para que você possa comprar com tranquilidade sem sair de casa. Reunimos num único catálogo artigos de diversos departamentos — incluindo perfumes originais, jóias e ouro autêntico, vestuário, calçado, utilidades para o lar, beleza e artigos de tecnologia do dia a dia.
+        </p>
+        <p style="font-size: 0.9375rem; color: #64748b; line-height: 1.7; margin: 0;">
+          Trabalhamos com fornecedores de confiança, preços transparentes em Kwanzas e pagamento prático por Multicaixa Express ou transferência bancária. O nosso compromisso é simples: você escolhe o produto na plataforma e nós cuidamos da entrega direta na sua morada, com seriedade e acompanhamento real.
+        </p>
+      </section>
+
+      <!-- PONTOS DE CONFIANÇA (SEM BORDAS, CARDS NEUTROS E ELEGANTES) -->
+      <section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+        <div style="background: #ffffff; padding: 22px 20px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03); display: flex; flex-direction: column; gap: 6px;">
+          <div style="width: 36px; height: 36px; border-radius: 10px; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center; margin-bottom: 4px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+          </div>
+          <strong style="color: #0f172a; font-size: 0.9375rem;">Artigos Originais</strong>
+          <span style="font-size: 0.8125rem; color: #64748b; line-height: 1.5;">Trabalhamos apenas com produtos legítimos, de boa procedência e com descrição fiel.</span>
+        </div>
+
+        <div style="background: #ffffff; padding: 22px 20px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03); display: flex; flex-direction: column; gap: 6px;">
+          <div style="width: 36px; height: 36px; border-radius: 10px; background: #fef3c7; color: #d97706; display: flex; align-items: center; justify-content: center; margin-bottom: 4px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+          </div>
+          <strong style="color: #0f172a; font-size: 0.9375rem;">Variedade de Artigos</strong>
+          <span style="font-size: 0.8125rem; color: #64748b; line-height: 1.5;">Perfumaria, ouro, vestuário, utilidades, eletrónicos e itens para a sua rotina.</span>
+        </div>
+
+        <div style="background: #ffffff; padding: 22px 20px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03); display: flex; flex-direction: column; gap: 6px;">
+          <div style="width: 36px; height: 36px; border-radius: 10px; background: #ecfdf5; color: #059669; display: flex; align-items: center; justify-content: center; margin-bottom: 4px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11"/><path d="M14 9h4l4 4v4c0 .6-.4 1-1 1h-2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>
+          </div>
+          <strong style="color: #0f172a; font-size: 0.9375rem;">Entregas em Angola</strong>
+          <span style="font-size: 0.8125rem; color: #64748b; line-height: 1.5;">Atendimento em Luanda e expedição segura para as restantes províncias.</span>
+        </div>
+
+        <div style="background: #ffffff; padding: 22px 20px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03); display: flex; flex-direction: column; gap: 6px;">
+          <div style="width: 36px; height: 36px; border-radius: 10px; background: #f1f5f9; color: #475569; display: flex; align-items: center; justify-content: center; margin-bottom: 4px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+          </div>
+          <strong style="color: #0f172a; font-size: 0.9375rem;">Pagamento Seguro</strong>
+          <span style="font-size: 0.8125rem; color: #64748b; line-height: 1.5;">Multicaixa Express com notificação direta e transferências bancárias protegidas.</span>
+        </div>
+      </section>
+
+      <!-- OS 3 PILARES: MISSÃO, VISÃO E OBJECTIVOS (SEM BORDAS, LINGUAGEM HUMANA) -->
+      <section style="display: flex; flex-direction: column; gap: 20px;">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Princípios</span>
+          <h2 style="font-family: var(--font-display, sans-serif); font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">
+            A nossa forma de trabalhar
+          </h2>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px;">
+          
+          <!-- MISSÃO -->
+          <div style="background: #ffffff; padding: 28px 24px; border-radius: 18px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03); display: flex; flex-direction: column; gap: 10px;">
+            <span style="font-size: 0.75rem; font-weight: 700; color: #2563eb; text-transform: uppercase;">Missão</span>
+            <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0;">
+              Simplificar as suas compras
+            </h3>
+            <p style="font-size: 0.875rem; color: #475569; line-height: 1.7; margin: 0;">
+              Proporcionar aos angolanos uma experiência de compra online segura e conveniente, oferecendo uma grande variedade de produtos autênticos com pagamento em Kwanzas e entrega garantida na morada indicada.
+            </p>
+          </div>
+
+          <!-- VISÃO -->
+          <div style="background: #ffffff; padding: 28px 24px; border-radius: 18px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03); display: flex; flex-direction: column; gap: 10px;">
+            <span style="font-size: 0.75rem; font-weight: 700; color: #059669; text-transform: uppercase;">Visão</span>
+            <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0;">
+              Ser a loja online de preferência
+            </h3>
+            <p style="font-size: 0.875rem; color: #475569; line-height: 1.7; margin: 0;">
+              Ser a primeira opção de compra para quem busca diversidade e confiança em Angola, construindo relações duradouras com os nossos clientes através de seriedade, atendimento atencioso e pontualidade.
+            </p>
+          </div>
+
+          <!-- OBJECTIVOS -->
+          <div style="background: #ffffff; padding: 28px 24px; border-radius: 18px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03); display: flex; flex-direction: column; gap: 10px;">
+            <span style="font-size: 0.75rem; font-weight: 700; color: #d97706; text-transform: uppercase;">Objectivos</span>
+            <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0;">
+              Expandir categorias e agilizar entregas
+            </h3>
+            <p style="font-size: 0.875rem; color: #475569; line-height: 1.7; margin: 0;">
+              Manter o catálogo sempre atualizado com produtos úteis e procurados, assegurar que cada item seja entregue em perfeito estado e estreitar prazos de entrega em Luanda e nas restantes províncias.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- VARIEDADE DE PRODUTOS: LOJA DE DIVERSOS (SEM BORDA) -->
+      <section style="background: #ffffff; padding: 36px 28px; border-radius: 20px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03); display: flex; flex-direction: column; gap: 24px;">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Categorias</span>
+          <h2 style="font-family: var(--font-display, sans-serif); font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">
+            O que você encontra na nossa loja
+          </h2>
+          <p style="font-size: 0.875rem; color: #64748b; margin: 0;">
+            Não somos uma loja focada apenas num segmento. O nosso objetivo é que você encontre diversas opções para uso pessoal, para a sua família ou para oferecer como presente.
           </p>
         </div>
-        <div style="background: #f8fafc; padding: 24px; border-radius: var(--radius-md); border-left: 4px solid var(--accent-emerald);">
-          <h3 style="font-weight: 800; margin-bottom: 8px;">Nossa Visão</h3>
-          <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6;">
-            Ser reconhecida como a plataforma de compras tecnológicas mais confiável, moderna e transparente de toda a África Austral.
-          </p>
-        </div>
-      </div>
 
-      <h2 style="font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; margin-bottom: 12px;">Nosso Showroom Físico</h2>
-      <p style="font-size: 0.9375rem; color: var(--text-secondary); line-height: 1.6;">
-        Visite o nosso espaço em <strong>Talatona, Luanda - Angola</strong>. Aberto de Segunda a Sábado das 08:30 às 19:30 e Domingos das 10:00 às 16:00.
-      </p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px;">
+          
+          <div style="background: #f8fafc; padding: 20px; border-radius: 14px; display: flex; flex-direction: column; gap: 8px;">
+            <strong style="color: #0f172a; font-size: 0.9375rem;">Perfumes & Cosmética</strong>
+            <p style="font-size: 0.8125rem; color: #64748b; line-height: 1.6; margin: 0;">
+              Fragrâncias masculinas e femininas importadas, perfumes árabes consagrados, cremes e artigos de cuidados pessoais com fragrâncias duradouras.
+            </p>
+          </div>
+
+          <div style="background: #f8fafc; padding: 20px; border-radius: 14px; display: flex; flex-direction: column; gap: 8px;">
+            <strong style="color: #0f172a; font-size: 0.9375rem;">Ouro & Joalharia</strong>
+            <p style="font-size: 0.8125rem; color: #64748b; line-height: 1.6; margin: 0;">
+              Cordões, pulseiras, anéis, brincos e peças em ouro autêntico e semijoias com acabamento fino e envio discreto e seguro.
+            </p>
+          </div>
+
+          <div style="background: #f8fafc; padding: 20px; border-radius: 14px; display: flex; flex-direction: column; gap: 8px;">
+            <strong style="color: #0f172a; font-size: 0.9375rem;">Moda, Calçado & Malas</strong>
+            <p style="font-size: 0.8125rem; color: #64748b; line-height: 1.6; margin: 0;">
+              Roupas, sapatos, tênis, carteiras, malas de viagem e acessórios para o dia a dia e momentos especiais.
+            </p>
+          </div>
+
+          <div style="background: #f8fafc; padding: 20px; border-radius: 14px; display: flex; flex-direction: column; gap: 8px;">
+            <strong style="color: #0f172a; font-size: 0.9375rem;">Casa, Decoração & Utilidades</strong>
+            <p style="font-size: 0.8125rem; color: #64748b; line-height: 1.6; margin: 0;">
+              Artigos práticos para o lar, utensílios de cozinha, iluminação, presentes e facilidades para a sua casa.
+            </p>
+          </div>
+
+          <div style="background: #f8fafc; padding: 20px; border-radius: 14px; display: flex; flex-direction: column; gap: 8px;">
+            <strong style="color: #0f172a; font-size: 0.9375rem;">Eletrónicos & Acessórios</strong>
+            <p style="font-size: 0.8125rem; color: #64748b; line-height: 1.6; margin: 0;">
+              Telemóveis, fones sem fios, colunas de som, carregadores rápidos, relógios inteligentes e periféricos com garantia.
+            </p>
+          </div>
+
+          <div style="background: #f8fafc; padding: 20px; border-radius: 14px; display: flex; flex-direction: column; gap: 8px;">
+            <strong style="color: #0f172a; font-size: 0.9375rem;">E Muito Mais</strong>
+            <p style="font-size: 0.8125rem; color: #64748b; line-height: 1.6; margin: 0;">
+              Novas opções e produtos adicionados frequentemente para você encontrar tudo o que precisa sem precisar procurar em vários lugares.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ATENDIMENTO 100% ONLINE E LOGÍSTICA (SEM SHOWROOM FÍSICO) -->
+      <section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; align-items: stretch;">
+        
+        <div style="background: #0f172a; color: #ffffff; padding: 32px 28px; border-radius: 20px; display: flex; flex-direction: column; justify-content: space-between; gap: 20px;">
+          <div>
+            <span style="font-size: 0.6875rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Operação 100% Online</span>
+            <h3 style="font-family: var(--font-display, sans-serif); font-size: 1.45rem; font-weight: 800; margin: 6px 0 10px 0; line-height: 1.3;">
+              Foco exclusivo em vendas online e entregas
+            </h3>
+            <p style="font-size: 0.875rem; color: #cbd5e1; line-height: 1.7; margin: 0;">
+              Optamos por não manter showroom físico aberto ao público para concentrar todos os nossos recursos na qualidade do catálogo, em preços mais acessíveis e numa logística rápida que leva a sua compra diretamente até você.
+            </p>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 16px;">
+            <div>
+              <strong style="font-size: 0.9375rem; color: #ffffff; display: block;">Luanda</strong>
+              <span style="font-size: 0.75rem; color: #94a3b8;">Entrega ao domicílio em 24h a 48h</span>
+            </div>
+            <div>
+              <strong style="font-size: 0.9375rem; color: #ffffff; display: block;">Outras Províncias</strong>
+              <span style="font-size: 0.75rem; color: #94a3b8;">Envio seguro com parceiros de transporte</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="background: #ffffff; padding: 32px 28px; border-radius: 20px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03); display: flex; flex-direction: column; justify-content: space-between; gap: 20px;">
+          <div>
+            <span style="font-size: 0.6875rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Atendimento</span>
+            <h3 style="font-family: var(--font-display, sans-serif); font-size: 1.45rem; font-weight: 800; color: #0f172a; margin: 6px 0 10px 0; line-height: 1.3;">
+              Apoio direto à sua disposição
+            </h3>
+            <p style="font-size: 0.875rem; color: #475569; line-height: 1.7; margin: 0;">
+              Se tiver dúvidas sobre algum produto, tamanhos, detalhes de perfumes ou sobre o estado da sua encomenda, a nossa equipa atende diretamente pelo WhatsApp e telefone para ajudar em tudo o que precisar.
+            </p>
+          </div>
+
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <a href="#/catalogo" class="btn btn-primary" style="padding: 10px 20px; font-weight: 600; font-size: 0.8125rem; border-radius: 10px; text-decoration: none;">
+              Ver Catálogo
+            </a>
+            <a href="https://wa.me/244923179192" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding: 10px 18px; font-weight: 600; font-size: 0.8125rem; border-radius: 10px; text-decoration: none; color: #047857; background: #ecfdf5;">
+              Falar pelo WhatsApp
+            </a>
+          </div>
+        </div>
+
+      </section>
+
     </div>
   `;
+
   return el;
 }
 
@@ -78,7 +268,7 @@ export function renderContactView() {
         };
         render();
       }
-    } catch {}
+    } catch { }
   }
 
   syncSettings();
@@ -264,12 +454,38 @@ export function renderFAQView() {
   el.className = 'container';
 
   const faqs = [
-    { q: 'Quais são as formas de pagamento aceitas em Angola?', a: 'Aceitamos Multicaixa Express (com notificação direta no app), Transferência Bancária Imediata (IBAN dos bancos BAI, BFA e BIC com envio do comprovativo), Pagamento por Referência Multicaixa e Pagamento na Entrega por TPA em Luanda.' },
-    { q: 'Qual é o prazo de entrega em Luanda?', a: 'Para Luanda (Talatona, Belas, Maianga, Morro Bento, Kilamba, etc.), os pedidos normais são entregues em 24h a 48h. Temos também a modalidade Expressa Mesmo Dia para compras finalizadas até às 13h.' },
-    { q: 'Vocês realizam entregas para outras províncias?', a: 'Sim! Entregamos em Benguela, Huambo, Huíla, Cabinda, Cuanza Sul e todas as demais províncias de Angola via parceiros logísticos com prazo de 3 a 5 dias úteis.' },
-    { q: 'Os produtos possuem garantia oficial?', a: 'Todos os produtos vendidos pela NovaTech possuem 12 meses de garantia integral contra defeitos de fabricação, com cobertura e assistência técnica em Luanda.' },
-    { q: 'Como funciona o Frete Grátis?', a: 'Compras a partir de Kz 1.000.000 (um milhão de Kwanzas) contam com Frete Grátis automático para toda a província de Luanda.' },
-    { q: 'Posso retirar o produto pessoalmente na loja?', a: 'Com certeza! Selecione a opção "Levantamento na Loja NovaTech" durante o checkout e retire gratuitamente no nosso Showroom em Talatona, Luanda - Angola.' }
+    {
+      q: 'Onde a NovaTech realiza entregas?',
+      a: 'Nesta fase, as nossas entregas estão disponíveis <strong>exclusivamente na província de Luanda</strong> (incluindo Talatona, Belas, Maianga, Kilamba, Viana, Cazenga, Morro Bento, Centro da Cidade e arredores). Estamos a preparar a expansão logística para as demais províncias em breve.'
+    },
+    {
+      q: 'Como funciona o Frete Grátis?',
+      a: 'Oferecemos <strong>Frete Grátis automático</strong> para qualquer compra a partir de <strong>Kz 100.000</strong> (cem mil Kwanzas) dentro da província de Luanda. Para valores inferiores, a taxa de envio é calculada de forma acessível na finalização da compra.'
+    },
+    {
+      q: 'Qual é o prazo de entrega em Luanda?',
+      a: 'Para Luanda, o prazo habitual de entrega é de <strong>24h a 48h úteis</strong> após a confirmação do pagamento. A nossa equipa de estafetas entra em contacto por telefone ou WhatsApp antes de se deslocar à sua morada.'
+    },
+    {
+      q: 'Qual é a garantia dos produtos?',
+      a: 'Todos os produtos vendidos na NovaTech possuem <strong>3 meses (90 dias) de garantia</strong> contra defeitos de fabrico. Caso o seu produto apresente qualquer problema de fábrica nesse período, oferecemos suporte directo para reparação ou troca.'
+    },
+    {
+      q: 'Quais são as formas de pagamento aceites?',
+      a: 'Aceitamos pagamentos práticos e seguros em Angola: <strong>Multicaixa Express</strong> (com validação imediata pelo app), <strong>Transferência Bancária / Depósito</strong> (BAI, BFA, BIC, com envio do comprovativo) e <strong>Pagamento por TPA na Entrega</strong> em Luanda.'
+    },
+    {
+      q: 'Quais tipos de produtos posso comprar na NovaTech?',
+      a: 'Somos uma loja online completa de variedades: comercializamos perfumes e cosméticos, peças em ouro e joalharia, artigos de moda e calçado, produtos para o lar, eletrónicos e acessórios diversos.'
+    },
+    {
+      q: 'A loja possui espaço físico para levantamento?',
+      a: 'Operamos como uma <strong>loja 100% online</strong>, o que nos permite oferecer maior variedade e preços mais competitivos. Não dispomos de loja física de atendimento ao público; todas as encomendas são entregues diretamente na morada ou local de trabalho indicado.'
+    },
+    {
+      q: 'Como posso acompanhar o estado da minha encomenda?',
+      a: 'Pode acompanhar o estado do pedido diretamente no site na aba <strong>Minha Conta > Meus Pedidos</strong> ou entrar em contacto com o nosso apoio ao cliente no <strong>WhatsApp (+244 923 179 192)</strong> informando o número da sua encomenda.'
+    }
   ];
 
   el.innerHTML = `
@@ -278,7 +494,7 @@ export function renderFAQView() {
         Perguntas Frequentes (FAQ)
       </h1>
       <p style="color: var(--text-secondary); margin-bottom: 32px;">
-        Tudo o que você precisa saber sobre compras, entregas e garantias na NovaTech Angola.
+        Tudo o que precisa saber sobre compras, entregas e garantias na NovaTech Angola.
       </p>
 
       <div style="display: flex; flex-direction: column; gap: 12px;">
@@ -316,24 +532,28 @@ export function renderPolicyView(type) {
   let content = '';
 
   if (type === 'entrega') {
-    title = 'Política de Envio e Entregas em Angola';
+    title = 'Política de Envio e Entregas em Luanda';
     content = `
-      <p>A NovaTech Angola realiza entregas rápidas e seguras em Luanda e em todas as 18 províncias de Angola.</p>
-      <h3 style="margin: 16px 0 8px 0; font-weight: 700;">1. Prazos para Luanda</h3>
-      <p>Entregas padrão ocorrem em 24h a 48h úteis após a confirmação do pagamento. Entregas expressas no mesmo dia são válidas para pedidos concluídos até às 13:00.</p>
-      <h3 style="margin: 16px 0 8px 0; font-weight: 700;">2. Províncias</h3>
-      <p>Benguela, Huíla, Huambo, Cabinda: 3 a 5 dias úteis através de transporte aéreo ou rodoviário parceiro devidamente assegurado.</p>
-      <h3 style="margin: 16px 0 8px 0; font-weight: 700;">3. Rastreamento</h3>
-      <p>Você receberá o código de rastreamento por e-mail e WhatsApp para acompanhar o seu estafeta em tempo real.</p>
+      <p>A NovaTech Angola realiza entregas rápidas, cómodas e seguras directamente ao seu endereço.</p>
+      <h3 style="margin: 16px 0 8px 0; font-weight: 700;">1. Área de Cobertura</h3>
+      <p>Actualmente, as nossas entregas operam <strong>exclusivamente na província de Luanda</strong> (Talatona, Belas, Maianga, Kilamba, Viana, Cazenga, Morro Bento, Centro da Cidade e demais zonas metropolitanas). O envio para as restantes províncias de Angola estará disponível em breve.</p>
+      <h3 style="margin: 16px 0 8px 0; font-weight: 700;">2. Frete Grátis a Partir de Kz 100.000</h3>
+      <p>Todas as compras com valor igual ou superior a <strong>Kz 100.000</strong> (cem mil Kwanzas) contam com <strong>Frete Grátis automático</strong> para qualquer endereço em Luanda.</p>
+      <h3 style="margin: 16px 0 8px 0; font-weight: 700;">3. Prazos de Entrega</h3>
+      <p>As encomendas normais são entregues no prazo de <strong>24h a 48h úteis</strong> após a confirmação do pagamento. O nosso estafeta entra em contacto telefónico ou via WhatsApp antes da deslocação para coordenar a entrega.</p>
+      <h3 style="margin: 16px 0 8px 0; font-weight: 700;">4. Rastreio e Apoio</h3>
+      <p>Pode acompanhar o estado da encomenda no seu painel de cliente ou solicitar informações directamente pelo nosso WhatsApp de suporte.</p>
     `;
   } else if (type === 'devolucao') {
     title = 'Política de Garantia e Devolução';
     content = `
-      <p>A sua satisfação é a nossa prioridade número um.</p>
-      <h3 style="margin: 16px 0 8px 0; font-weight: 700;">1. Garantia Oficial de 12 Meses</h3>
-      <p>Todos os aparelhos eletrônicos novos contam com 1 ano de garantia contra defeitos técnicos.</p>
-      <h3 style="margin: 16px 0 8px 0; font-weight: 700;">2. Prazo de Troca Imediata</h3>
-      <p>Em caso de avaria constatada nos primeiros 15 dias após o recebimento, efetuamos a troca imediata por um aparelho novo em stock.</p>
+      <p>A sua satisfação e confiança são fundamentais para nós.</p>
+      <h3 style="margin: 16px 0 8px 0; font-weight: 700;">1. Garantia de 3 Meses (90 Dias)</h3>
+      <p>Todos os artigos vendidos pela NovaTech possuem <strong>3 meses de garantia</strong> contra defeitos de fabricação a partir da data de receção da encomenda.</p>
+      <h3 style="margin: 16px 0 8px 0; font-weight: 700;">2. Trocas e Resolução de Avarias</h3>
+      <p>Caso o artigo apresente anomalia ou defeito de fabrico nos primeiros 7 dias após o recebimento, garantimos prioridade máxima na troca por um artigo novo em stock ou reembolso integral, mediante apresentação da encomenda completa.</p>
+      <h3 style="margin: 16px 0 8px 0; font-weight: 700;">3. Condições Gerais</h3>
+      <p>A garantia não cobre danos decorrentes de mau uso, quedas, contacto acidental com líquidos em artigos não resistentes ou intervenção técnica não autorizada.</p>
     `;
   } else {
     title = 'Termos de Serviço & Privacidade';

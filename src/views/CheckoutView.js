@@ -42,7 +42,7 @@ export function renderCheckoutView() {
     phone: '+244 923 179 192',
     whatsapp: '+244 923 179 192',
     email: 'contacto@novatech.co.ao',
-    free_shipping_threshold: 1000000,
+    free_shipping_threshold: 100000,
     shipping_price_normal: 3500,
     shipping_price_express: 6500,
     bank_holder: 'NovaTech Comércio & Serviços, Lda',

@@ -56,14 +56,14 @@ export function createFooter() {
           </div>
           
           <p class="footer-desc">
-            A sua principal referência em tecnologia, smartphones topo de gama, computadores profissionais e gaming em Luanda. Garantia oficial e assistência técnica especializada.
+            Sua loja online em Angola com ampla variedade de produtos: perfumes, ouro, moda, cosméticos, utilidades e tecnologia com entregas rápidas e compra 100% segura.
           </p>
 
           <div class="footer-contacts-list">
-            <a href="https://maps.google.com/?q=Talatona,Luanda" target="_blank" class="footer-contact-link">
-              <span class="footer-contact-icon">${Icons.mapPin(16, '#38bdf8')}</span>
-              <span>Talatona, Luanda - Angola</span>
-            </a>
+            <div class="footer-contact-link">
+              <span class="footer-contact-icon">${Icons.truck ? Icons.truck(16, '#38bdf8') : '📦'}</span>
+              <span>Loja 100% Online • Entregas em Luanda</span>
+            </div>
             <a href="tel:+244923179192" class="footer-contact-link">
               <span class="footer-contact-icon">${Icons.phone(16, '#38bdf8')}</span>
               <span>+244 923 179 192</span>
@@ -75,42 +75,29 @@ export function createFooter() {
           </div>
         </div>
 
-        <!-- Col 1: A Loja -->
+        <!-- Col 1: Institucional -->
         <div class="footer-col">
-          <h4 class="footer-col-title">A Loja</h4>
+          <h4 class="footer-col-title">Institucional</h4>
           <ul class="footer-links-list">
             <li><a href="#/sobre" class="footer-link">Sobre Nós</a></li>
-            <li><a href="#/contacto" class="footer-link">Nossas Lojas</a></li>
-            <li><a href="#/politica-entrega" class="footer-link">Entregas em Luanda</a></li>
-            <li><a href="#/catalogo" class="footer-link">Catálogo Completo</a></li>
-          </ul>
-        </div>
-
-        <!-- Col 2: Compras -->
-        <div class="footer-col">
-          <h4 class="footer-col-title">Compras</h4>
-          <ul class="footer-links-list">
-            <li><a href="#/" class="footer-link">Início</a></li>
-            <li><a href="#/ofertas" class="footer-link">Ofertas da Semana</a></li>
+            <li><a href="#/catalogo" class="footer-link">Catálogo de Produtos</a></li>
+            <li><a href="#/ofertas" class="footer-link">Ofertas & Promoções</a></li>
             <li><a href="#/novidades" class="footer-link">Lançamentos</a></li>
-            <li><a href="#/favoritos" class="footer-link">Meus Favoritos</a></li>
-            <li><a href="#/carrinho" class="footer-link">Carrinho de Compras</a></li>
           </ul>
         </div>
 
-        <!-- Col 3: Atendimento -->
+        <!-- Col 2: Atendimento & Ajuda -->
         <div class="footer-col">
           <h4 class="footer-col-title">Atendimento</h4>
           <ul class="footer-links-list">
             <li><a href="https://wa.me/244923179192" target="_blank" class="footer-link">Suporte WhatsApp</a></li>
-            <li><a href="tel:+244923179192" class="footer-link">Central Telefônica</a></li>
+            <li><a href="#/contacto" class="footer-link">Fale Conosco</a></li>
             <li><a href="#/faq" class="footer-link">Dúvidas Frequentes (FAQ)</a></li>
             <li><a href="#/minha-conta/pedidos" class="footer-link">Rastrear Encomenda</a></li>
-            <li><a href="#/contacto" class="footer-link">Fale Conosco</a></li>
           </ul>
         </div>
 
-        <!-- Col 4: Políticas & Segurança -->
+        <!-- Col 3: Políticas -->
         <div class="footer-col">
           <h4 class="footer-col-title">Políticas</h4>
           <ul class="footer-links-list">

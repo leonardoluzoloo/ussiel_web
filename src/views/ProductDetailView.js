@@ -4,6 +4,7 @@ import { Storage } from '../services/storage.js';
 import { Toast } from '../components/Toast.js';
 import { createProductCard } from '../components/ProductCard.js';
 import { Api, findIdByStableUid } from '../services/api.js';
+import { showProductReviewModal } from '../components/ReviewModal.js';
 
 export function renderProductDetailView(productSlug) {
   const container = document.createElement('div');
@@ -259,6 +260,23 @@ export function renderProductDetailView(productSlug) {
       : 0;
     const hasReviews = totalReviewsCount > 0 && calculatedRating > 0;
 
+    // Estatísticas reais de distribuição de estrelas para o modal
+    const starCounts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    productReviews.forEach(r => {
+      const note = Math.min(5, Math.max(1, Math.round(Number(r.rating || r.avaliacao || 5))));
+      starCounts[note] = (starCounts[note] || 0) + 1;
+    });
+    const revTotal = productReviews.length;
+    const pct5 = revTotal > 0 ? Math.round((starCounts[5] / revTotal) * 100) : 0;
+    const pct4 = revTotal > 0 ? Math.round((starCounts[4] / revTotal) * 100) : 0;
+    const pct3 = revTotal > 0 ? Math.round((starCounts[3] / revTotal) * 100) : 0;
+    const pct2 = revTotal > 0 ? Math.round((starCounts[2] / revTotal) * 100) : 0;
+    const pct1 = revTotal > 0 ? Math.round((starCounts[1] / revTotal) * 100) : 0;
+
+    const displayReviewCount = totalReviewsCount > 100
+      ? `${Math.floor(totalReviewsCount / 100) * 100}+`
+      : totalReviewsCount;
+
     const productDesc = (product.description && product.description !== 'undefined' && product.description !== 'null' && product.description.trim() !== '')
       ? product.description
       : ((product.descricao && product.descricao !== 'undefined' && product.descricao !== 'null' && product.descricao.trim() !== '')
@@ -336,7 +354,7 @@ export function renderProductDetailView(productSlug) {
             <div class="stars" style="display: inline-flex; gap: 2px;">${renderStars(calculatedRating)}</div>
             ${hasReviews ? `
               <span style="font-weight: 700; font-size: 0.84rem; color: #0f172a;">${calculatedRating.toFixed(1)}</span>
-              <span style="font-size: 0.78rem; color: #64748b;">(${totalReviewsCount} ${totalReviewsCount === 1 ? 'comentário' : 'comentários'})</span>
+              <button type="button" id="openReviewsTopLinkBtn" style="background: none; border: none; padding: 0; font-size: 0.78rem; color: #2563eb; cursor: pointer; text-decoration: underline;" title="Ver todas as avaliações">(${totalReviewsCount} ${totalReviewsCount === 1 ? 'comentário' : 'comentários'})</button>
             ` : `
               <span style="font-size: 0.84rem; color: #94a3b8; font-weight: 500;">0.0</span>
               <span style="font-size: 0.78rem; color: #94a3b8;">(0 avaliações)</span>
@@ -561,123 +579,159 @@ export function renderProductDetailView(productSlug) {
           </div>
           <!-- Seção de Avaliações dos Clientes (Integrada na mesma borda dos dados acima) -->
           <div class="pdp-reviews-section" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #f1f5f9;">
-            <!-- Cabeçalho de Avaliações (sem linha horizontal divisória) -->
-            <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 12px;">
+            <!-- Cabeçalho de Avaliações -->
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 12px;">
               <div>
-                <h3 style="font-size: 1.125rem; font-weight: 800; color: #0f172a; margin: 0 0 4px 0;">
-                  Avaliações dos Clientes
-                </h3>
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                  <h3 style="font-size: 1.125rem; font-weight: 800; color: #0f172a; margin: 0;">
+                    Avaliações dos Clientes
+                  </h3>
+                  ${hasReviews ? `
+                    <button type="button" id="openAllReviewsModalBtn" style="background: none; border: none; padding: 0; color: var(--primary-600); font-size: 0.875rem; font-weight: 700; cursor: pointer; text-decoration: underline;" title="Ver todas as avaliações">
+                      Ver todas
+                    </button>
+                  ` : ''}
+                </div>
+
                 ${hasReviews ? `
-                  <div style="display: flex; align-items: center; gap: 10px; margin-top: 4px;">
+                  <div style="display: flex; align-items: center; gap: 10px; margin-top: 4px; cursor: pointer;" id="openModalFromSummaryRow" title="Clique para ver o resumo completo e todas as avaliações">
                     <div class="stars">${renderStars(calculatedRating)}</div>
                     <span style="font-weight: 800; font-size: 0.9375rem; color: #0f172a;">${calculatedRating.toFixed(1)} / 5.0</span>
                     <span style="font-size: 0.8125rem; color: #64748b;">(${totalReviewsCount} ${totalReviewsCount === 1 ? 'avaliação' : 'avaliações'})</span>
                   </div>
                 ` : `
-                  <p style="font-size: 0.875rem; color: #64748b; margin: 0;">Ainda não há avaliações para este produto.</p>
+                  <p style="font-size: 0.875rem; color: #64748b; margin: 4px 0 0 0;">Ainda não há avaliações para este produto.</p>
                 `}
               </div>
 
-              ${hasPurchasedProduct ? `
-                <button class="btn btn-primary btn-sm" id="openReviewFormBtn" style="display: flex; align-items: center; gap: 8px; font-weight: 700;">
-                  ${Icons.edit(15)}
-                  <span>${hasReviews ? 'Avaliar Produto' : 'Seja o primeiro a avaliar'}</span>
-                </button>
-              ` : ''}
+              <button class="btn btn-primary btn-sm" id="openReviewFormBtn" style="display: flex; align-items: center; gap: 8px; font-weight: 700;">
+                ${Icons.edit(15)}
+                <span>${hasReviews ? 'Avaliar Produto' : 'Seja o primeiro a avaliar'}</span>
+              </button>
             </div>
-
-            <!-- Form de Avaliação para Comprador Verificado -->
-            ${hasPurchasedProduct ? `
-              <div id="reviewFormBox" style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; padding: 18px; border-radius: 10px; margin-top: 14px; margin-bottom: 16px;">
-                <h4 style="font-weight: 700; font-size: 0.9375rem; color: #0f172a; margin-bottom: 12px;">Deixe a sua opinião sobre este produto</h4>
-                <div style="display: flex; flex-direction: column; gap: 14px;">
-                  <input type="text" id="newReviewName" placeholder="Seu nome completo" class="form-input" value="${(Storage.getUser()?.name || '').replace(/"/g, '&quot;')}" />
-                  <div style="display: flex; flex-direction: column; gap: 6px;">
-                    <label style="font-size: 0.8125rem; font-weight: 600; color: #0f172a;">Sua nota</label>
-                    <div id="reviewStarPicker" style="display: flex; gap: 6px; cursor: pointer;">
-                      ${[1,2,3,4,5].map(s => `
-                        <span class="review-star-pick" data-star="${s}" style="font-size: 1.5rem; color: ${s <= reviewRating ? '#f59e0b' : '#d1d5db'}; transition: color 0.15s; user-select: none;">★</span>
-                      `).join('')}
-                    </div>
-                    <input type="hidden" id="newReviewRating" value="${reviewRating}" />
-                  </div>
-                  <textarea id="newReviewComment" rows="3" placeholder="Conte a sua experiência com o produto..." class="form-input" style="height: auto; padding: 12px; font-size: 0.875rem;"></textarea>
-                  <button class="btn btn-primary btn-sm" id="submitReviewBtn" style="align-self: flex-start; font-weight: 700;">
-                    Publicar Avaliação
-                  </button>
-                </div>
-              </div>
-            ` : ''}
-
-            <!-- Lista de Avaliações na Página (Exibe 1 avaliação se houver) -->
-            ${hasReviews ? `
-              <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 14px;">
-                <!-- Primeira Avaliação em Destaque -->
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px;">
-                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; flex-wrap: wrap; gap: 8px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                      <strong style="color: #0f172a; font-size: 0.875rem;">${product.reviews[0].author}</strong>
-                      <span style="font-size: 0.6875rem; background: #ecfdf5; color: #047857; padding: 2px 6px; border-radius: 4px; font-weight: 700; border: 1px solid #a7f3d0;">Compra Verificada</span>
-                    </div>
-                    <span style="font-size: 0.75rem; color: #64748b;">${formatDate(product.reviews[0].date)}</span>
-                  </div>
-                  <div class="stars" style="margin-bottom: 6px;">${renderStars(product.reviews[0].rating || 5)}</div>
-                  <p style="font-size: 0.875rem; color: #334155; line-height: 1.6; margin: 0;">${product.reviews[0].comment}</p>
-                </div>
-
-                <!-- Botão Ver Mais Avaliações (se houver mais de 1) -->
-                ${(product.reviews || []).length > 1 ? `
-                  <div style="margin-top: 4px; text-align: center;">
-                    <button type="button" class="btn btn-secondary" id="openAllReviewsModalBtn" style="padding: 10px 20px; font-size: 0.8125rem; font-weight: 700; border-radius: 8px; width: 100%;">
-                      Ver todas as avaliações (${product.reviews.length})
-                    </button>
-                  </div>
-                ` : ''}
-              </div>
-            ` : ''}
           </div>
         </div>
       </div>
 
-      <!-- Modal com Todas as Avaliações dos Clientes -->
-      <div class="pdp-details-modal-overlay" id="pdpAllReviewsModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 99999; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box;">
-        <div class="pdp-details-modal-box" style="background: #ffffff; border-radius: 14px; width: 100%; max-width: 760px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.25); border: 1px solid #e2e8f0; overflow: hidden;">
-          <!-- Header do Modal de Avaliações -->
-          <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid #f1f5f9; background: #ffffff;">
-            <div>
-              <div style="display: flex; align-items: center; gap: 10px;">
-                <h3 style="font-size: 1.125rem; font-weight: 800; color: #0f172a; margin: 0;">Avaliações dos Clientes</h3>
+      <!-- Modal com Todas as Avaliações dos Clientes (Design Enterprise Refatorado) -->
+      <div class="pdp-reviews-modal-overlay" id="pdpAllReviewsModal" style="display: none;">
+        <div class="pdp-reviews-modal-box" id="pdpAllReviewsModalBox">
+          <!-- 1. Cabeçalho Otimizado e Compacto -->
+          <div class="pdp-reviews-modal-header">
+            <div class="pdp-reviews-modal-title-group">
+              <div class="pdp-reviews-modal-heading-row">
+                <h3 class="pdp-reviews-modal-title">Avaliações dos clientes</h3>
                 ${hasReviews ? `
-                  <span style="font-size: 0.8125rem; font-weight: 700; background: #f1f5f9; color: #0f172a; padding: 3px 8px; border-radius: 6px;">★ ${calculatedRating.toFixed(1)} (${totalReviewsCount})</span>
+                  <span class="pdp-reviews-modal-score-badge">★ ${calculatedRating.toFixed(1)} (${totalReviewsCount})</span>
                 ` : ''}
               </div>
-              <p style="font-size: 0.8125rem; color: #64748b; margin: 2px 0 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 480px;">${product.name || 'Produto'}</p>
+              <p class="pdp-reviews-modal-product-name">${product.name || 'Produto'}</p>
             </div>
-            <button type="button" id="closeAllReviewsModalBtn" aria-label="Fechar" style="background: #f1f5f9; border: none; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; color: #64748b; cursor: pointer; transition: all 0.15s; flex-shrink: 0;">
+            <button type="button" id="closeAllReviewsModalBtn" class="pdp-reviews-modal-close-btn" aria-label="Fechar modal de avaliações">
               ${Icons.close(16)}
             </button>
           </div>
 
-          <!-- Lista Completa de Avaliações -->
-          <div style="padding: 24px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px;">
-            ${(product.reviews || []).map(r => `
-              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; flex-wrap: wrap; gap: 8px;">
-                  <div style="display: flex; align-items: center; gap: 8px;">
-                    <strong style="color: #0f172a; font-size: 0.875rem;">${r.author}</strong>
-                    <span style="font-size: 0.6875rem; background: #ecfdf5; color: #047857; padding: 2px 6px; border-radius: 4px; font-weight: 700; border: 1px solid #a7f3d0;">Compra Verificada</span>
-                  </div>
-                  <span style="font-size: 0.75rem; color: #64748b;">${formatDate(r.date)}</span>
-                </div>
-                <div class="stars" style="margin-bottom: 6px;">${renderStars(r.rating || 5)}</div>
-                <p style="font-size: 0.875rem; color: #334155; line-height: 1.6; margin: 0;">${r.comment}</p>
+          <!-- 2. Área de Resumo & Distribuição de Notas (5 a 1 Estrela) -->
+          <div class="pdp-reviews-summary-section">
+            <div class="pdp-reviews-score-hero">
+              <div class="pdp-reviews-score-big">${calculatedRating > 0 ? calculatedRating.toFixed(1) : '0.0'}</div>
+              <div class="stars">${renderStars(calculatedRating)}</div>
+              <div class="pdp-reviews-score-sub">
+                ${totalReviewsCount} ${totalReviewsCount === 1 ? 'avaliação real' : 'avaliações reais'}
               </div>
-            `).join('')}
+            </div>
+
+            <!-- Distribuição em Barras Proporcionais -->
+            <div class="pdp-reviews-bars-col">
+              <div class="pdp-reviews-bar-row" data-quick-star="5" title="Filtrar por 5 estrelas">
+                <span class="pdp-reviews-bar-label">5 ★</span>
+                <div class="pdp-reviews-bar-track">
+                  <div class="pdp-reviews-bar-fill" style="width: ${pct5}%;"></div>
+                </div>
+                <span class="pdp-reviews-bar-count">${pct5}% (${starCounts[5]})</span>
+              </div>
+              <div class="pdp-reviews-bar-row" data-quick-star="4" title="Filtrar por 4 estrelas">
+                <span class="pdp-reviews-bar-label">4 ★</span>
+                <div class="pdp-reviews-bar-track">
+                  <div class="pdp-reviews-bar-fill" style="width: ${pct4}%;"></div>
+                </div>
+                <span class="pdp-reviews-bar-count">${pct4}% (${starCounts[4]})</span>
+              </div>
+              <div class="pdp-reviews-bar-row" data-quick-star="3" title="Filtrar por 3 estrelas">
+                <span class="pdp-reviews-bar-label">3 ★</span>
+                <div class="pdp-reviews-bar-track">
+                  <div class="pdp-reviews-bar-fill" style="width: ${pct3}%;"></div>
+                </div>
+                <span class="pdp-reviews-bar-count">${pct3}% (${starCounts[3]})</span>
+              </div>
+              <div class="pdp-reviews-bar-row" data-quick-star="2" title="Filtrar por 2 estrelas">
+                <span class="pdp-reviews-bar-label">2 ★</span>
+                <div class="pdp-reviews-bar-track">
+                  <div class="pdp-reviews-bar-fill" style="width: ${pct2}%;"></div>
+                </div>
+                <span class="pdp-reviews-bar-count">${pct2}% (${starCounts[2]})</span>
+              </div>
+              <div class="pdp-reviews-bar-row" data-quick-star="1" title="Filtrar por 1 estrela">
+                <span class="pdp-reviews-bar-label">1 ★</span>
+                <div class="pdp-reviews-bar-track">
+                  <div class="pdp-reviews-bar-fill" style="width: ${pct1}%;"></div>
+                </div>
+                <span class="pdp-reviews-bar-count">${pct1}% (${starCounts[1]})</span>
+              </div>
+            </div>
           </div>
 
-          <!-- Rodapé do Modal -->
-          <div style="padding: 12px 24px; border-top: 1px solid #f1f5f9; background: #f8fafc; display: flex; justify-content: flex-end;">
-            <button type="button" id="closeAllReviewsModalFooterBtn" class="btn btn-secondary" style="padding: 8px 20px; font-size: 0.875rem; font-weight: 700; border-radius: 8px;">
+          <!-- 3. Barra de Ferramentas: Filtros Rápidos por Estrelas e Ordenação -->
+          <div class="pdp-reviews-toolbar">
+            <div class="pdp-reviews-chips-group" id="pdpReviewChips">
+              <button type="button" class="pdp-reviews-filter-chip active" data-filter-rating="all">
+                Todas (${productReviews.length})
+              </button>
+              <button type="button" class="pdp-reviews-filter-chip" data-filter-rating="5">
+                5★ (${starCounts[5]})
+              </button>
+              <button type="button" class="pdp-reviews-filter-chip" data-filter-rating="4">
+                4★ (${starCounts[4]})
+              </button>
+              <button type="button" class="pdp-reviews-filter-chip" data-filter-rating="3">
+                3★ (${starCounts[3]})
+              </button>
+              <button type="button" class="pdp-reviews-filter-chip" data-filter-rating="2">
+                2★ (${starCounts[2]})
+              </button>
+              <button type="button" class="pdp-reviews-filter-chip" data-filter-rating="1">
+                1★ (${starCounts[1]})
+              </button>
+              <button type="button" class="pdp-reviews-filter-chip" id="chipOnlyCommentsBtn">
+                💬 Com texto
+              </button>
+              <button type="button" class="pdp-reviews-filter-chip" id="btnClearReviewFilters" style="display: none; background: #fee2e2; border-color: #fecaca; color: #dc2626;">
+                ✕ Limpar filtros
+              </button>
+            </div>
+
+            <div class="pdp-reviews-sort-wrap">
+              <label for="pdpSortReviewsSelect">Ordenar:</label>
+              <select id="pdpSortReviewsSelect" class="pdp-reviews-sort-select">
+                <option value="recent">Mais recentes</option>
+                <option value="highest">Maior nota</option>
+                <option value="lowest">Menor nota</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 4. Lista com Rolagem Interna Independente -->
+          <div class="pdp-reviews-scroll-list" id="pdpReviewsListContainer">
+            <!-- Renderizado dinamicamente via JS com paginação e filtros -->
+          </div>
+
+          <!-- 5. Rodapé do Modal -->
+          <div class="pdp-reviews-modal-footer">
+            <div style="font-size: 0.8125rem; color: #64748b;" id="pdpReviewsResultsCounter">
+              ${totalReviewsCount} ${totalReviewsCount === 1 ? 'avaliação' : 'avaliações'}
+            </div>
+            <button type="button" id="closeAllReviewsModalFooterBtn" class="btn btn-secondary" style="padding: 7px 18px; font-size: 0.8125rem; font-weight: 700; border-radius: 8px;">
               Fechar
             </button>
           </div>
@@ -968,87 +1022,26 @@ export function renderProductDetailView(productSlug) {
       };
     }
 
-    // Review form toggle
+    // Botão Avaliar Produto -> abre o mesmo Modal Estético Enterprise da área de pedidos
     const openReviewBtn = container.querySelector('#openReviewFormBtn');
-    const reviewBox = container.querySelector('#reviewFormBox');
-    if (openReviewBtn && reviewBox) {
+    if (openReviewBtn) {
       openReviewBtn.onclick = () => {
-        reviewBox.style.display = reviewBox.style.display === 'none' ? 'block' : 'none';
-      };
-    }
-
-    // Seleção de estrelas no form
-    const starPicker = container.querySelector('#reviewStarPicker');
-    if (starPicker) {
-      starPicker.querySelectorAll('.review-star-pick').forEach(star => {
-        star.onmouseenter = () => {
-          const hoverVal = Number(star.dataset.star);
-          starPicker.querySelectorAll('.review-star-pick').forEach(s => {
-            s.style.color = Number(s.dataset.star) <= hoverVal ? '#f59e0b' : '#d1d5db';
-          });
-        };
-        star.onmouseleave = () => {
-          starPicker.querySelectorAll('.review-star-pick').forEach(s => {
-            s.style.color = Number(s.dataset.star) <= reviewRating ? '#f59e0b' : '#d1d5db';
-          });
-        };
-        star.onclick = () => {
-          reviewRating = Number(star.dataset.star);
-          const ratingInput = container.querySelector('#newReviewRating');
-          if (ratingInput) ratingInput.value = reviewRating;
-          starPicker.querySelectorAll('.review-star-pick').forEach(s => {
-            s.style.color = Number(s.dataset.star) <= reviewRating ? '#f59e0b' : '#d1d5db';
-          });
-        };
-      });
-    }
-
-    const submitReviewBtn = container.querySelector('#submitReviewBtn');
-    if (submitReviewBtn) {
-      submitReviewBtn.onclick = async () => {
-        if (!hasPurchasedProduct) {
-          Toast.show({ title: 'Ação não permitida', message: 'Apenas compradores verificados deste produto podem enviar avaliações.', type: 'warning' });
+        const curUser = Storage.getUser();
+        if (!curUser) {
+          Toast.show('Por favor, faça login na sua conta para avaliar este produto.', 'warning');
+          window.location.hash = '/login';
           return;
         }
 
-        const name = container.querySelector('#newReviewName').value.trim();
-        const comment = container.querySelector('#newReviewComment').value.trim();
-        const ratingVal = Number(container.querySelector('#newReviewRating')?.value || reviewRating);
-
-        if (!name || !comment) {
-          Toast.show({ title: 'Preencha o seu nome e comentário', type: 'warning' });
-          return;
-        }
-
-        submitReviewBtn.disabled = true;
-        submitReviewBtn.textContent = 'Publicando...';
-
-        try {
-          // Salvar no Supabase como fonte de verdade
-          const newReview = await Api.reviews.create({
-            productId: product.id,
-            author: name,
-            comment,
-            rating: ratingVal
-          });
-
-          // Atualizar estado local com os dados frescos do banco
-          if (!Array.isArray(product.reviews)) product.reviews = [];
-          product.reviews.unshift(newReview);
-          product.reviewCount = product.reviews.length;
-          // Recalcular rating médio localmente
-          if (product.reviews.length > 0) {
-            product.rating = Number((product.reviews.reduce((sum, r) => sum + (r.rating || 5), 0) / product.reviews.length).toFixed(1));
+        showProductReviewModal({
+          productId: product.id,
+          productName: product.name,
+          productImage: currentImage || product.image || '',
+          onSuccess: async () => {
+            await syncProduct();
+            render();
           }
-
-          Toast.show({ title: 'Avaliação publicada com sucesso! 🎉', message: 'Obrigado pelo seu feedback.', type: 'success' });
-          reviewRating = 5; // reset
-          render();
-        } catch (err) {
-          Toast.show({ title: 'Erro ao publicar avaliação', message: err.message, type: 'error' });
-          submitReviewBtn.disabled = false;
-          submitReviewBtn.textContent = 'Publicar Avaliação';
-        }
+        });
       };
     }
 
@@ -1059,16 +1052,212 @@ export function renderProductDetailView(productSlug) {
       };
     }
 
-    // Modal Todas as Avaliações (Abertura e Fechamento)
+    // Modal Todas as Avaliações (Abertura, Filtros, Ordenação, Paginação e Fechamento)
     const openAllReviewsModalBtn = container.querySelector('#openAllReviewsModalBtn');
     const allReviewsModal = container.querySelector('#pdpAllReviewsModal');
     const closeAllReviewsModalBtn = container.querySelector('#closeAllReviewsModalBtn');
     const closeAllReviewsModalFooterBtn = container.querySelector('#closeAllReviewsModalFooterBtn');
+    const reviewsListContainer = container.querySelector('#pdpReviewsListContainer');
+    const chipsContainer = container.querySelector('#pdpReviewChips');
+    const sortSelect = container.querySelector('#pdpSortReviewsSelect');
+    const resultsCounter = container.querySelector('#pdpReviewsResultsCounter');
+    const clearFiltersBtn = container.querySelector('#btnClearReviewFilters');
+    const chipOnlyCommentsBtn = container.querySelector('#chipOnlyCommentsBtn');
+
+    let currentRatingFilter = 'all'; // 'all' | 5 | 4 | 3 | 2 | 1
+    let currentSort = 'recent'; // 'recent' | 'highest' | 'lowest'
+    let currentOnlyComments = false;
+    let visibleCount = 6;
+
+    function renderModalReviews() {
+      if (!reviewsListContainer) return;
+
+      const rawList = Array.isArray(product.reviews) ? product.reviews : [];
+
+      // 1. Filtragem
+      let filtered = rawList.filter(r => {
+        if (currentRatingFilter !== 'all') {
+          const rRating = Math.min(5, Math.max(1, Math.round(Number(r.rating || r.avaliacao || 5))));
+          if (rRating !== Number(currentRatingFilter)) return false;
+        }
+        if (currentOnlyComments) {
+          if (!r.comment || !r.comment.trim()) return false;
+        }
+        return true;
+      });
+
+      // 2. Ordenação
+      filtered.sort((a, b) => {
+        if (currentSort === 'highest') {
+          return (Number(b.rating || 5)) - (Number(a.rating || 5));
+        } else if (currentSort === 'lowest') {
+          return (Number(a.rating || 5)) - (Number(b.rating || 5));
+        } else {
+          // 'recent'
+          const dateA = new Date(a.date || a.criado_em || 0).getTime();
+          const dateB = new Date(b.date || b.criado_em || 0).getTime();
+          return dateB - dateA;
+        }
+      });
+
+      // Atualizar contador e botão de limpar filtros
+      const hasActiveFilters = currentRatingFilter !== 'all' || currentOnlyComments || currentSort !== 'recent';
+      if (clearFiltersBtn) {
+        clearFiltersBtn.style.display = hasActiveFilters ? 'inline-flex' : 'none';
+      }
+      if (resultsCounter) {
+        resultsCounter.textContent = `Mostrando ${Math.min(visibleCount, filtered.length)} de ${filtered.length} ${filtered.length === 1 ? 'avaliação' : 'avaliações'} ${hasActiveFilters ? '(filtrado)' : ''}`;
+      }
+
+      // 3. Renderização
+      if (filtered.length === 0) {
+        reviewsListContainer.innerHTML = `
+          <div style="text-align: center; padding: 48px 16px; color: #64748b;">
+            <div style="font-size: 2.2rem; margin-bottom: 8px;">🔍</div>
+            <h4 style="font-size: 1rem; font-weight: 800; color: #0f172a; margin-bottom: 6px;">Nenhuma avaliação encontrada</h4>
+            <p style="font-size: 0.8125rem; max-width: 360px; margin: 0 auto 16px auto; line-height: 1.5;">Não encontramos comentários com os filtros selecionados. Tente ajustar os critérios.</p>
+            <button type="button" class="btn btn-secondary btn-sm" id="emptyClearFiltersBtn" style="font-weight: 700; border-radius: 8px;">
+              Limpar todos os filtros
+            </button>
+          </div>
+        `;
+        const emptyClear = reviewsListContainer.querySelector('#emptyClearFiltersBtn');
+        if (emptyClear) {
+          emptyClear.onclick = () => resetModalFilters();
+        }
+        return;
+      }
+
+      const pagedItems = filtered.slice(0, visibleCount);
+
+      reviewsListContainer.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          ${pagedItems.map(r => {
+            const initialLetters = (r.author || 'C').split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'C';
+            return `
+              <div class="pdp-review-item-card">
+                <div class="pdp-review-user-row">
+                  <div class="pdp-review-user-profile">
+                    <div class="pdp-review-avatar-circle">
+                      ${initialLetters}
+                    </div>
+                    <div class="pdp-review-user-meta">
+                      <div class="pdp-review-user-name-wrap">
+                        <span class="pdp-review-user-name">${r.author || 'Cliente'}</span>
+                        ${r.verified ? `
+                          <span class="pdp-review-badge-verified">✓ Compra Verificada</span>
+                        ` : ''}
+                      </div>
+                    </div>
+                  </div>
+                  <span class="pdp-review-date-text">${formatDate(r.date || r.criado_em)}</span>
+                </div>
+                <div class="pdp-review-stars-row">
+                  <div class="stars">${renderStars(r.rating || 5)}</div>
+                  <span style="font-weight: 800; font-size: 0.75rem; color: #0f172a;">${Number(r.rating || 5).toFixed(1)}</span>
+                </div>
+                ${r.comment ? `
+                  <p class="pdp-review-text-content">${r.comment}</p>
+                ` : `
+                  <p class="pdp-review-text-content" style="color: #94a3b8; font-style: italic;">(Avaliação realizada sem comentário em texto)</p>
+                `}
+              </div>
+            `;
+          }).join('')}
+
+          ${filtered.length > visibleCount ? `
+            <div class="pdp-reviews-loadmore-wrap">
+              <button type="button" class="pdp-reviews-btn-loadmore" id="btnLoadMoreModalReviews">
+                Carregar mais avaliações (restam ${filtered.length - visibleCount})
+              </button>
+            </div>
+          ` : ''}
+        </div>
+      `;
+
+      const loadMoreBtn = reviewsListContainer.querySelector('#btnLoadMoreModalReviews');
+      if (loadMoreBtn) {
+        loadMoreBtn.onclick = () => {
+          visibleCount += 6;
+          renderModalReviews();
+        };
+      }
+    }
+
+    function resetModalFilters() {
+      currentRatingFilter = 'all';
+      currentSort = 'recent';
+      currentOnlyComments = false;
+      visibleCount = 6;
+      if (sortSelect) sortSelect.value = 'recent';
+      if (chipsContainer) {
+        chipsContainer.querySelectorAll('.pdp-reviews-filter-chip').forEach(c => {
+          c.classList.remove('active');
+          if (c.getAttribute('data-filter-rating') === 'all') c.classList.add('active');
+        });
+      }
+      if (chipOnlyCommentsBtn) {
+        chipOnlyCommentsBtn.classList.remove('active');
+      }
+      renderModalReviews();
+    }
+
+    // Chips de filtro por nota
+    if (chipsContainer) {
+      chipsContainer.querySelectorAll('[data-filter-rating]').forEach(chip => {
+        chip.onclick = () => {
+          chipsContainer.querySelectorAll('[data-filter-rating]').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          currentRatingFilter = chip.getAttribute('data-filter-rating');
+          visibleCount = 6;
+          renderModalReviews();
+        };
+      });
+    }
+
+    // Filtro por barras de progresso do resumo (5★ a 1★)
+    allReviewsModal?.querySelectorAll('[data-quick-star]').forEach(bar => {
+      bar.onclick = () => {
+        const targetStar = bar.getAttribute('data-quick-star');
+        currentRatingFilter = targetStar;
+        visibleCount = 6;
+        if (chipsContainer) {
+          chipsContainer.querySelectorAll('[data-filter-rating]').forEach(c => {
+            c.classList.toggle('active', c.getAttribute('data-filter-rating') === targetStar);
+          });
+        }
+        renderModalReviews();
+      };
+    });
+
+    // Filtro com texto
+    if (chipOnlyCommentsBtn) {
+      chipOnlyCommentsBtn.onclick = () => {
+        currentOnlyComments = !currentOnlyComments;
+        chipOnlyCommentsBtn.classList.toggle('active', currentOnlyComments);
+        visibleCount = 6;
+        renderModalReviews();
+      };
+    }
+
+    // Ordenação
+    if (sortSelect) {
+      sortSelect.onchange = () => {
+        currentSort = sortSelect.value;
+        visibleCount = 6;
+        renderModalReviews();
+      };
+    }
+
+    if (clearFiltersBtn) {
+      clearFiltersBtn.onclick = resetModalFilters;
+    }
 
     const openAllReviewsModal = () => {
       if (allReviewsModal) {
         allReviewsModal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
+        renderModalReviews();
       }
     };
 
@@ -1082,11 +1271,30 @@ export function renderProductDetailView(productSlug) {
     if (openAllReviewsModalBtn) openAllReviewsModalBtn.onclick = openAllReviewsModal;
     if (closeAllReviewsModalBtn) closeAllReviewsModalBtn.onclick = closeAllReviewsModal;
     if (closeAllReviewsModalFooterBtn) closeAllReviewsModalFooterBtn.onclick = closeAllReviewsModal;
+
+    const openTopLinkBtn = container.querySelector('#openReviewsTopLinkBtn');
+    if (openTopLinkBtn) openTopLinkBtn.onclick = openAllReviewsModal;
+
+    const openSummaryRow = container.querySelector('#openModalFromSummaryRow');
+    if (openSummaryRow) openSummaryRow.onclick = openAllReviewsModal;
+    
+    // Fechar ao clicar no overlay de fundo
     if (allReviewsModal) {
       allReviewsModal.onclick = (e) => {
         if (e.target === allReviewsModal) closeAllReviewsModal();
       };
+      const modalBox = allReviewsModal.querySelector('#pdpAllReviewsModalBox');
+      if (modalBox) {
+        modalBox.onclick = (e) => e.stopPropagation();
+      }
     }
+
+    // Fechar com tecla Escape
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && allReviewsModal && allReviewsModal.style.display !== 'none') {
+        closeAllReviewsModal();
+      }
+    });
   }
 
   render();

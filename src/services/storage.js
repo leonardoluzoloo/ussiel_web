@@ -65,7 +65,7 @@ const STORAGE_KEYS = {
   } catch {}
 })();
 
-export const FREE_SHIPPING_THRESHOLD = 1000000; // Kz 1.000.000 for free shipping
+export const FREE_SHIPPING_THRESHOLD = 100000; // Kz 100.000 for free shipping
 
 // Mapeador e normalizador canônico de status de pedidos (PT <-> EN)
 export function normalizeOrderStatus(status) {
