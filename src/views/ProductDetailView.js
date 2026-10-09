@@ -632,57 +632,7 @@ export function renderProductDetailView(productSlug) {
             </button>
           </div>
 
-          <!-- 2. Área de Resumo & Distribuição de Notas (5 a 1 Estrela) -->
-          <div class="pdp-reviews-summary-section">
-            <div class="pdp-reviews-score-hero">
-              <div class="pdp-reviews-score-big">${calculatedRating > 0 ? calculatedRating.toFixed(1) : '0.0'}</div>
-              <div class="stars">${renderStars(calculatedRating)}</div>
-              <div class="pdp-reviews-score-sub">
-                ${totalReviewsCount} ${totalReviewsCount === 1 ? 'avaliação real' : 'avaliações reais'}
-              </div>
-            </div>
-
-            <!-- Distribuição em Barras Proporcionais -->
-            <div class="pdp-reviews-bars-col">
-              <div class="pdp-reviews-bar-row" data-quick-star="5" title="Filtrar por 5 estrelas">
-                <span class="pdp-reviews-bar-label">5 ★</span>
-                <div class="pdp-reviews-bar-track">
-                  <div class="pdp-reviews-bar-fill" style="width: ${pct5}%;"></div>
-                </div>
-                <span class="pdp-reviews-bar-count">${pct5}% (${starCounts[5]})</span>
-              </div>
-              <div class="pdp-reviews-bar-row" data-quick-star="4" title="Filtrar por 4 estrelas">
-                <span class="pdp-reviews-bar-label">4 ★</span>
-                <div class="pdp-reviews-bar-track">
-                  <div class="pdp-reviews-bar-fill" style="width: ${pct4}%;"></div>
-                </div>
-                <span class="pdp-reviews-bar-count">${pct4}% (${starCounts[4]})</span>
-              </div>
-              <div class="pdp-reviews-bar-row" data-quick-star="3" title="Filtrar por 3 estrelas">
-                <span class="pdp-reviews-bar-label">3 ★</span>
-                <div class="pdp-reviews-bar-track">
-                  <div class="pdp-reviews-bar-fill" style="width: ${pct3}%;"></div>
-                </div>
-                <span class="pdp-reviews-bar-count">${pct3}% (${starCounts[3]})</span>
-              </div>
-              <div class="pdp-reviews-bar-row" data-quick-star="2" title="Filtrar por 2 estrelas">
-                <span class="pdp-reviews-bar-label">2 ★</span>
-                <div class="pdp-reviews-bar-track">
-                  <div class="pdp-reviews-bar-fill" style="width: ${pct2}%;"></div>
-                </div>
-                <span class="pdp-reviews-bar-count">${pct2}% (${starCounts[2]})</span>
-              </div>
-              <div class="pdp-reviews-bar-row" data-quick-star="1" title="Filtrar por 1 estrela">
-                <span class="pdp-reviews-bar-label">1 ★</span>
-                <div class="pdp-reviews-bar-track">
-                  <div class="pdp-reviews-bar-fill" style="width: ${pct1}%;"></div>
-                </div>
-                <span class="pdp-reviews-bar-count">${pct1}% (${starCounts[1]})</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 3. Barra de Ferramentas: Filtros Rápidos por Estrelas e Ordenação -->
+          <!-- 2. Barra de Ferramentas: Filtros Rápidos por Estrelas e Ordenação -->
           <div class="pdp-reviews-toolbar">
             <div class="pdp-reviews-chips-group" id="pdpReviewChips">
               <button type="button" class="pdp-reviews-filter-chip active" data-filter-rating="all">
@@ -1215,20 +1165,7 @@ export function renderProductDetailView(productSlug) {
       });
     }
 
-    // Filtro por barras de progresso do resumo (5★ a 1★)
-    allReviewsModal?.querySelectorAll('[data-quick-star]').forEach(bar => {
-      bar.onclick = () => {
-        const targetStar = bar.getAttribute('data-quick-star');
-        currentRatingFilter = targetStar;
-        visibleCount = 6;
-        if (chipsContainer) {
-          chipsContainer.querySelectorAll('[data-filter-rating]').forEach(c => {
-            c.classList.toggle('active', c.getAttribute('data-filter-rating') === targetStar);
-          });
-        }
-        renderModalReviews();
-      };
-    });
+
 
     // Filtro com texto
     if (chipOnlyCommentsBtn) {
