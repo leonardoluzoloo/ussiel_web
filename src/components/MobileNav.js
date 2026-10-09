@@ -80,7 +80,7 @@ export function setupMobileNav() {
     if (userBtn) {
       userBtn.onclick = () => {
         if (Storage.getUser()) {
-          window.location.hash = '/minha-conta';
+          window.location.hash = '/minha-conta/pedidos';
         } else {
           window.location.hash = '/login';
         }
@@ -209,7 +209,7 @@ export function setupMobileNav() {
       userProfileTrigger.onclick = () => {
         closeDrawer();
         if (Storage.getUser()) {
-          window.location.hash = '/minha-conta';
+          window.location.hash = '/minha-conta/pedidos';
         } else {
           window.location.hash = '/login';
         }
