@@ -2,6 +2,7 @@ import { Icons } from '../utils/icons.js';
 import { Storage } from '../services/storage.js';
 import { Api } from '../services/api.js';
 import { Toast } from './Toast.js';
+import { compressImageFile } from '../utils/imageUpload.js';
 
 // ===================================================================
 // MODAL ESTÉTICO DE AVALIAÇÃO DE PRODUTO (COMPARTILHADO)
@@ -11,6 +12,7 @@ export function showProductReviewModal({ productId, productName, productImage, o
   if (existing) existing.remove();
 
   let selectedRating = 5;
+  let attachedPhotos = []; // Lista de fotos anexadas em Base64 compactado
   const ratingLabels = {
     1: '★☆☆☆☆ 1 estrela • Muito Ruim',
     2: '★★☆☆☆ 2 estrelas • Ruim',
@@ -65,6 +67,28 @@ export function showProductReviewModal({ productId, productName, productImage, o
             Seu Comentário ou Avaliação
           </label>
           <textarea id="reviewCommentText" rows="3" class="form-input" placeholder="Conte como foi sua experiência com este produto (qualidade, acabamento, funcionamento)..." style="height: auto; padding: 12px; font-size: 0.875rem; resize: vertical; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%; box-sizing: border-box;"></textarea>
+        </div>
+
+        <!-- Seção de Anexo de Fotos Reais -->
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <label style="font-size: 0.8125rem; font-weight: 700; color: #0f172a; margin: 0;">
+              Fotos do Produto <span style="font-weight: 400; color: #64748b; font-size: 0.75rem;">(opcional, até 4 fotos)</span>
+            </label>
+            <span id="reviewPhotoCountLabel" style="font-size: 0.75rem; color: #64748b; font-weight: 600;">0/4</span>
+          </div>
+
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;" id="reviewPhotoPreviewsContainer">
+            <button type="button" id="reviewAddPhotoTriggerBtn" class="review-photo-add-btn" title="Adicionar foto real do produto">
+              <span style="font-size: 1.25rem;">📷</span>
+              <span style="font-size: 0.6875rem; font-weight: 700;">Foto</span>
+            </button>
+            <input type="file" id="reviewPhotoFileInput" accept="image/jpeg,image/png,image/webp,image/jpg" multiple style="display: none;" />
+            <div id="reviewPhotoThumbnailsList" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
+          </div>
+          <p id="reviewPhotoHelperText" style="font-size: 0.71875rem; color: #94a3b8; margin: 4px 0 0 0;">
+            Anexe fotos reais do produto recebido para ajudar outros clientes em Luanda.
+          </p>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px;">
@@ -122,6 +146,81 @@ export function showProductReviewModal({ productId, productName, productImage, o
     };
   }
 
+  // Gerenciamento de Fotos Anexadas
+  const addPhotoTriggerBtn = overlay.querySelector('#reviewAddPhotoTriggerBtn');
+  const photoFileInput = overlay.querySelector('#reviewPhotoFileInput');
+  const thumbnailsList = overlay.querySelector('#reviewPhotoThumbnailsList');
+  const photoCountLabel = overlay.querySelector('#reviewPhotoCountLabel');
+
+  function renderThumbnails() {
+    if (!thumbnailsList) return;
+    thumbnailsList.innerHTML = attachedPhotos.map((src, idx) => `
+      <div class="review-photo-thumb-item" style="position: relative; width: 68px; height: 68px; border-radius: 8px; overflow: hidden; border: 1px solid #cbd5e1; background: #0f172a;">
+        <img src="${src}" alt="Foto ${idx + 1}" style="width: 100%; height: 100%; object-fit: cover;" />
+        <button type="button" data-remove-photo="${idx}" class="review-photo-thumb-remove" title="Remover esta foto" style="position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%; background: rgba(15, 23, 42, 0.75); color: #ffffff; border: none; font-size: 11px; display: flex; align-items: center; justify-content: center; cursor: pointer;">&times;</button>
+      </div>
+    `).join('');
+
+    if (photoCountLabel) {
+      photoCountLabel.textContent = `${attachedPhotos.length}/4`;
+    }
+
+    if (addPhotoTriggerBtn) {
+      addPhotoTriggerBtn.style.display = attachedPhotos.length >= 4 ? 'none' : 'inline-flex';
+    }
+
+    thumbnailsList.querySelectorAll('[data-remove-photo]').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const removeIdx = Number(btn.getAttribute('data-remove-photo'));
+        attachedPhotos.splice(removeIdx, 1);
+        renderThumbnails();
+      };
+    });
+  }
+
+  if (addPhotoTriggerBtn && photoFileInput) {
+    addPhotoTriggerBtn.onclick = () => {
+      photoFileInput.value = '';
+      photoFileInput.click();
+    };
+
+    photoFileInput.onchange = async (e) => {
+      const files = Array.from(e.target.files || []);
+      if (files.length === 0) return;
+
+      if (attachedPhotos.length + files.length > 4) {
+        Toast.show('Você pode anexar no máximo 4 fotos por avaliação.', 'warning');
+      }
+
+      const availableSlots = 4 - attachedPhotos.length;
+      const filesToProcess = files.slice(0, availableSlots);
+
+      addPhotoTriggerBtn.disabled = true;
+      const originalText = addPhotoTriggerBtn.innerHTML;
+      addPhotoTriggerBtn.innerHTML = '<span style="font-size:0.6875rem;">...</span>';
+
+      try {
+        for (const file of filesToProcess) {
+          const compressed = await compressImageFile(file, {
+            maxWidth: 1000,
+            maxHeight: 1000,
+            quality: 0.8
+          });
+          if (compressed?.dataUrl) {
+            attachedPhotos.push(compressed.dataUrl);
+          }
+        }
+      } catch (err) {
+        Toast.show(err.message || 'Erro ao processar imagem.', 'error');
+      } finally {
+        addPhotoTriggerBtn.disabled = false;
+        addPhotoTriggerBtn.innerHTML = originalText;
+        renderThumbnails();
+      }
+    };
+  }
+
   const closeFn = () => {
     overlay.remove();
     document.removeEventListener('keydown', handleKeydown);
@@ -166,9 +265,10 @@ export function showProductReviewModal({ productId, productName, productImage, o
         author,
         comment,
         rating: selectedRating,
-        email
+        email,
+        photos: attachedPhotos
       });
-      Toast.show('Muito obrigado! Sua avaliação foi enviada com sucesso.', 'success');
+      Toast.show('Muito obrigado! Sua avaliação com foto foi enviada com sucesso.', 'success');
       closeFn();
       if (typeof onSuccess === 'function') {
         onSuccess(newReview);

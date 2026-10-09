@@ -653,6 +653,9 @@ export function renderProductDetailView(productSlug) {
               <button type="button" class="pdp-reviews-filter-chip" data-filter-rating="1">
                 1★ (${starCounts[1]})
               </button>
+              <button type="button" class="pdp-reviews-filter-chip" id="chipOnlyPhotosBtn">
+                📷 Com fotos
+              </button>
               <button type="button" class="pdp-reviews-filter-chip" id="chipOnlyCommentsBtn">
                 💬 Com texto
               </button>
@@ -1013,11 +1016,42 @@ export function renderProductDetailView(productSlug) {
     const resultsCounter = container.querySelector('#pdpReviewsResultsCounter');
     const clearFiltersBtn = container.querySelector('#btnClearReviewFilters');
     const chipOnlyCommentsBtn = container.querySelector('#chipOnlyCommentsBtn');
+    const chipOnlyPhotosBtn = container.querySelector('#chipOnlyPhotosBtn');
 
     let currentRatingFilter = 'all'; // 'all' | 5 | 4 | 3 | 2 | 1
     let currentSort = 'recent'; // 'recent' | 'highest' | 'lowest'
     let currentOnlyComments = false;
+    let currentOnlyPhotos = false;
     let visibleCount = 6;
+
+    function showReviewPhotoLightbox(imgSrc) {
+      const existing = document.querySelector('.review-lightbox-overlay');
+      if (existing) existing.remove();
+
+      const overlay = document.createElement('div');
+      overlay.className = 'review-lightbox-overlay';
+      overlay.innerHTML = `
+        <div class="review-lightbox-card">
+          <button type="button" class="review-lightbox-close" id="closeReviewLightboxBtn" aria-label="Fechar">&times;</button>
+          <img src="${imgSrc}" alt="Foto ampliada da avaliação" />
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      const closeFn = () => {
+        overlay.remove();
+        document.removeEventListener('keydown', handleKeydown);
+      };
+      const handleKeydown = (e) => {
+        if (e.key === 'Escape') closeFn();
+      };
+      document.addEventListener('keydown', handleKeydown);
+
+      overlay.querySelector('#closeReviewLightboxBtn').onclick = closeFn;
+      overlay.onclick = (e) => {
+        if (e.target === overlay) closeFn();
+      };
+    }
 
     function renderModalReviews() {
       if (!reviewsListContainer) return;
@@ -1032,6 +1066,10 @@ export function renderProductDetailView(productSlug) {
         }
         if (currentOnlyComments) {
           if (!r.comment || !r.comment.trim()) return false;
+        }
+        if (currentOnlyPhotos) {
+          const revPhotos = Array.isArray(r.photos) ? r.photos : (Array.isArray(r.fotos) ? r.fotos : []);
+          if (revPhotos.length === 0) return false;
         }
         return true;
       });
@@ -1051,7 +1089,7 @@ export function renderProductDetailView(productSlug) {
       });
 
       // Atualizar contador e botão de limpar filtros
-      const hasActiveFilters = currentRatingFilter !== 'all' || currentOnlyComments || currentSort !== 'recent';
+      const hasActiveFilters = currentRatingFilter !== 'all' || currentOnlyComments || currentOnlyPhotos || currentSort !== 'recent';
       if (clearFiltersBtn) {
         clearFiltersBtn.style.display = hasActiveFilters ? 'inline-flex' : 'none';
       }
@@ -1084,6 +1122,7 @@ export function renderProductDetailView(productSlug) {
         <div style="display: flex; flex-direction: column; gap: 14px;">
           ${pagedItems.map(r => {
             const initialLetters = (r.author || 'C').split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'C';
+            const revPhotos = Array.isArray(r.photos) ? r.photos : (Array.isArray(r.fotos) ? r.fotos : []);
             return `
               <div class="pdp-review-item-card">
                 <div class="pdp-review-user-row">
@@ -1111,6 +1150,15 @@ export function renderProductDetailView(productSlug) {
                 ` : `
                   <p class="pdp-review-text-content" style="color: #94a3b8; font-style: italic;">(Avaliação realizada sem comentário em texto)</p>
                 `}
+                ${revPhotos.length > 0 ? `
+                  <div class="pdp-review-photos-grid" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
+                    ${revPhotos.map((photoUrl, pIdx) => `
+                      <div class="pdp-review-photo-item" data-zoom-photo="${photoUrl}" title="Clique para ampliar a foto do cliente (${pIdx + 1})">
+                        <img src="${photoUrl}" alt="Foto da avaliação" style="width: 100%; height: 100%; object-fit: cover;" />
+                      </div>
+                    `).join('')}
+                  </div>
+                ` : ''}
               </div>
             `;
           }).join('')}
@@ -1125,6 +1173,15 @@ export function renderProductDetailView(productSlug) {
         </div>
       `;
 
+      // Zoom em fotos anexadas ao clicar
+      reviewsListContainer.querySelectorAll('[data-zoom-photo]').forEach(thumb => {
+        thumb.onclick = (e) => {
+          e.stopPropagation();
+          const src = thumb.getAttribute('data-zoom-photo');
+          if (src) showReviewPhotoLightbox(src);
+        };
+      });
+
       const loadMoreBtn = reviewsListContainer.querySelector('#btnLoadMoreModalReviews');
       if (loadMoreBtn) {
         loadMoreBtn.onclick = () => {
@@ -1138,6 +1195,7 @@ export function renderProductDetailView(productSlug) {
       currentRatingFilter = 'all';
       currentSort = 'recent';
       currentOnlyComments = false;
+      currentOnlyPhotos = false;
       visibleCount = 6;
       if (sortSelect) sortSelect.value = 'recent';
       if (chipsContainer) {
@@ -1148,6 +1206,9 @@ export function renderProductDetailView(productSlug) {
       }
       if (chipOnlyCommentsBtn) {
         chipOnlyCommentsBtn.classList.remove('active');
+      }
+      if (chipOnlyPhotosBtn) {
+        chipOnlyPhotosBtn.classList.remove('active');
       }
       renderModalReviews();
     }
@@ -1165,7 +1226,15 @@ export function renderProductDetailView(productSlug) {
       });
     }
 
-
+    // Filtro com fotos
+    if (chipOnlyPhotosBtn) {
+      chipOnlyPhotosBtn.onclick = () => {
+        currentOnlyPhotos = !currentOnlyPhotos;
+        chipOnlyPhotosBtn.classList.toggle('active', currentOnlyPhotos);
+        visibleCount = 6;
+        renderModalReviews();
+      };
+    }
 
     // Filtro com texto
     if (chipOnlyCommentsBtn) {

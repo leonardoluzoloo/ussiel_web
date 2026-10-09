@@ -3541,6 +3541,8 @@ export const Api = {
               rating: r.nota,
               verified: r.verificado,
               approved: r.aprovado,
+              photos: Array.isArray(r.fotos) ? r.fotos : (Array.isArray(r.imagens) ? r.imagens : []),
+              fotos: Array.isArray(r.fotos) ? r.fotos : (Array.isArray(r.imagens) ? r.imagens : []),
               date: r.criado_em
             }));
           }
@@ -3554,9 +3556,9 @@ export const Api = {
     },
 
     /**
-     * Submete uma nova avaliação diretamente ao Supabase.
+     * Submete uma nova avaliação diretamente ao Supabase com suporte a fotos.
      */
-    async create({ productId, author, comment, rating = 5, email = '' }) {
+    async create({ productId, author, comment, rating = 5, email = '', photos = [], fotos = [] }) {
       const prodId = Number(productId);
       if (!prodId) throw new Error('ID do produto inválido.');
       if (!author || !author.trim()) throw new Error('Informe o seu nome para publicar a avaliação.');
@@ -3584,6 +3586,8 @@ export const Api = {
         }
       } catch {}
 
+      const cleanPhotos = Array.isArray(photos) && photos.length > 0 ? photos : (Array.isArray(fotos) ? fotos : []);
+
       const payload = {
         produto_id: prodId,
         usuario_id: userId,
@@ -3592,14 +3596,27 @@ export const Api = {
         comentario: comment.trim(),
         nota: Number(rating),
         verificado: isVerified,
-        aprovado: true
+        aprovado: true,
+        fotos: cleanPhotos
       };
 
-      const { data, error } = await supabase
-        .from('avaliacoes')
-        .insert(payload)
-        .select()
-        .single();
+      let data = null;
+      let error = null;
+
+      // 1. Tenta inserir com o campo fotos
+      const res = await supabase.from('avaliacoes').insert(payload).select().single();
+      data = res.data;
+      error = res.error;
+
+      // 2. Fallback caso a migration de fotos ainda não tenha sido executada no banco
+      if (error && (error.message?.includes('column "fotos"') || error.message?.includes('fotos'))) {
+        console.warn('Aviso: Coluna fotos não encontrada em avaliacoes no Supabase. Inserindo sem fotos:', error.message);
+        const fallbackPayload = { ...payload };
+        delete fallbackPayload.fotos;
+        const fallbackRes = await supabase.from('avaliacoes').insert(fallbackPayload).select().single();
+        data = fallbackRes.data;
+        error = fallbackRes.error;
+      }
 
       if (error) {
         console.error('Erro ao inserir avaliação no Supabase:', error);
@@ -3615,6 +3632,8 @@ export const Api = {
         rating: data.nota,
         verified: data.verificado,
         approved: data.aprovado,
+        photos: Array.isArray(data.fotos) ? data.fotos : cleanPhotos,
+        fotos: Array.isArray(data.fotos) ? data.fotos : cleanPhotos,
         date: data.criado_em
       };
     },
@@ -3642,6 +3661,8 @@ export const Api = {
               rating: r.nota,
               verified: r.verificado,
               approved: r.aprovado,
+              photos: Array.isArray(r.fotos) ? r.fotos : [],
+              fotos: Array.isArray(r.fotos) ? r.fotos : [],
               date: r.criado_em
             }));
           }
