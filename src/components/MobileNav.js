@@ -117,14 +117,14 @@ export function setupMobileNav() {
         </button>
       </div>
 
-      <!-- Links Rápidos no Mobile (Rastrear Encomenda) -->
+      <!-- Links Rápidos no Mobile (Meus Pedidos) -->
       <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-light); background: var(--bg-alt, #f8fafc); display: flex; flex-direction: column; gap: 8px;">
-        <a href="#/pedidos" class="mobile-cat-header" style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 10px 14px; text-decoration: none; color: var(--text-main); font-weight: 700; font-size: 0.875rem;">
-          <div class="mobile-cat-left">
-            <span class="mobile-cat-icon" style="color: var(--primary-600);">${Icons.package(18)}</span>
-            <span>Rastrear Encomendas</span>
+        <a href="#/pedidos" class="mobile-cat-header" style="background: #ffffff; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 12px 14px; text-decoration: none; color: var(--text-main); font-weight: 700; font-size: 0.9375rem; display: flex; align-items: center; justify-content: space-between;">
+          <div class="mobile-cat-left" style="display: flex; align-items: center; gap: 10px;">
+            <span class="mobile-cat-icon" style="color: var(--primary-600);">${Icons.package(20)}</span>
+            <span>Meus Pedidos</span>
           </div>
-          <span style="font-size: 0.75rem; color: var(--primary-600); font-weight: 800;">Acompanhar →</span>
+          <span style="font-size: 0.8125rem; color: #64748b; font-weight: 700;">→</span>
         </a>
       </div>
 

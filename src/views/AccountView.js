@@ -192,16 +192,7 @@ export function renderAccountView(initialTab = 'orders', initialOrderId = null) 
     }
 
     container.innerHTML = `
-      <div style="margin-top: 28px; margin-bottom: 24px;">
-        <h1 style="font-family: var(--font-display); font-size: 1.875rem; font-weight: 900; color: #0f172a; margin-bottom: 4px;">
-          Área do Cliente
-        </h1>
-        <p style="color: #64748b; font-size: 0.9375rem; margin: 0;">
-          Gerencie os seus pedidos, dados pessoais, endereço de entrega e produtos favoritos.
-        </p>
-      </div>
-
-      <div class="admin-layout">
+      <div class="admin-layout" style="margin-top: 20px;">
         <!-- Menu Lateral do Cliente -->
         <aside class="admin-sidebar">
           <div style="text-align: center; padding-bottom: 18px; border-bottom: 1px solid #e2e8f0; margin-bottom: 14px;">
@@ -242,17 +233,17 @@ export function renderAccountView(initialTab = 'orders', initialOrderId = null) 
         <main>
           ${currentTab === 'orders' ? `
             <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; flex-wrap: wrap; gap: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 10px;">
                 <div>
-                  <h2 style="font-family: var(--font-display); font-size: 1.45rem; font-weight: 800; color: #0f172a; margin: 0;">
-                    Meus Pedidos & Rastreamento
-                  </h2>
-                  <p style="color: #64748b; font-size: 0.875rem; margin: 3px 0 0 0;">
-                    Acompanhe o estado de entrega em tempo real, consulte faturas e gerencie suas compras.
+                  <h1 style="font-family: var(--font-display); font-size: 1.5rem; font-weight: 900; color: #0f172a; margin: 0; letter-spacing: -0.01em;">
+                    Meus Pedidos
+                  </h1>
+                  <p style="color: #64748b; font-size: 0.8125rem; margin: 2px 0 0 0;">
+                    Acompanhe as suas compras e entregas em tempo real.
                   </p>
                 </div>
-                <button class="btn btn-secondary btn-sm" id="refreshOrdersBtn" title="Sincronizar status com o banco de dados" style="border-radius: 8px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
-                  ${Icons.refresh ? Icons.refresh(14) : '⟳'} Sincronizar Status
+                <button class="btn btn-secondary btn-sm" id="refreshOrdersBtn" title="Sincronizar status com o banco de dados" style="border-radius: 8px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.8125rem;">
+                  ${Icons.refresh ? Icons.refresh(14) : '⟳'} Sincronizar
                 </button>
               </div>
 
