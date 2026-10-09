@@ -2950,13 +2950,21 @@ export const Api = {
         throw new Error(`Status operacional inválido: ${newStatus}. Valores permitidos: ${VALID_STATUSES.join(', ')}`);
       }
 
+      // Regra: se o pedido já está finalizado como entregue, não pode sofrer alterações
+      const currentList = await this.getAll();
+      const existingOrder = currentList.find(o => String(o.id) === String(orderId));
+      if (existingOrder && (existingOrder.status === 'delivered' || existingOrder.status_pedido === 'delivered')) {
+        throw new Error('Este pedido já foi finalizado como Entregue e não permite mais alterações operacionais.');
+      }
+
       const updateData = { status_pedido: canonicalStatus };
       
-      // Regra de Negócio: Se o pedido está entregue ou confirmado, o pagamento é concluído/pago.
-      // Se cancelado, pagamento é cancelado. Ou se fornecido explicitamente pelo admin, usa o valor escolhido.
+      // Regra de Negócio: Se o pedido for dado como entregue, OBRIGATORIAMENTE o status do pagamento é concluído ('pago')
       let finalPaymentStatus = explicitPaymentStatus;
-      if (!finalPaymentStatus) {
-        if (canonicalStatus === 'delivered' || canonicalStatus === 'confirmed') {
+      if (canonicalStatus === 'delivered') {
+        finalPaymentStatus = 'pago';
+      } else if (!finalPaymentStatus) {
+        if (canonicalStatus === 'confirmed') {
           finalPaymentStatus = 'pago';
         } else if (canonicalStatus === 'cancelled') {
           finalPaymentStatus = 'cancelado';

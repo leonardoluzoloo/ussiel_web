@@ -2669,8 +2669,8 @@ export function renderAdminView() {
               </table>
             </div>
 
-            <!-- Mobile: Cards de Estoque -->
-            <div class="admin-mobile-card-list admin-mobile-only">
+            <!-- Mobile: Grade de Estoque com 2 Colunas -->
+            <div class="admin-stock-mobile-grid admin-mobile-only">
               ${filtered.map(p => {
       const stock = p.stock || 0;
       const minStock = p.stock_min || 2;
@@ -2678,41 +2678,44 @@ export function renderAdminView() {
       const isLow = stock > 0 && stock <= minStock;
 
       return `
-                  <div class="admin-res-card product-row-clickable" data-id="${p.id}" style="padding:14px; border:1px solid #e2e8f0; border-radius:12px; background:#fff; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.02); box-sizing:border-box; width:100%; cursor: pointer;">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; gap:8px;">
-                      <div style="display:flex; gap:10px; align-items:center; min-width:0; flex:1;">
-                        ${p.image ? `
-                          <img src="${p.image}" alt="${p.name}" style="width:44px; height:44px; object-fit:contain; border-radius:8px; border:1px solid #e2e8f0; background:#fff; flex-shrink:0;" />
-                        ` : ''}
-                        <div style="min-width:0;">
-                          <strong style="color:#0f172a; font-size:0.9375rem; display:block; word-break:break-word;">${p.name}</strong>
-                          <span style="font-family:ui-monospace, monospace; font-size:0.75rem; color:#64748b; background:#f1f5f9; padding:1px 6px; border-radius:4px; border:1px solid #e2e8f0;">ID ${p.id}</span>
-                        </div>
-                      </div>
-                      <div style="flex-shrink:0;">
+                  <div class="admin-stock-grid-card product-row-clickable" data-id="${p.id}">
+                    <div class="admin-stock-card-thumb">
+                      ${p.image ? `
+                        <img src="${p.image}" alt="${p.name}" />
+                      ` : `
+                        <div class="admin-stock-card-no-img">Sem foto</div>
+                      `}
+                      <div class="admin-stock-card-badge">
                         ${isOut ? `
-                          <span class="badge" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; font-size:0.6875rem; font-weight:700; padding:3px 8px; border-radius:6px;">SEM ESTOQUE</span>
+                          <span class="badge badge-stock-out">SEM ESTOQUE</span>
                         ` : (isLow ? `
-                          <span class="badge" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-size:0.6875rem; font-weight:700; padding:3px 8px; border-radius:6px;">BAIXO</span>
+                          <span class="badge badge-stock-low">BAIXO</span>
                         ` : `
-                          <span class="badge" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; font-size:0.6875rem; font-weight:700; padding:3px 8px; border-radius:6px;">NORMAL</span>
+                          <span class="badge badge-stock-ok">NORMAL</span>
                         `)}
                       </div>
                     </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #f1f5f9; padding-top:8px; font-size:0.875rem;">
-                      <span style="color:#64748b;">Saldo em Estoque:</span>
-                      <strong style="color:#0f172a; font-size:0.95rem;">${stock} unidades</strong>
+
+                    <div class="admin-stock-card-body">
+                      <strong class="admin-stock-card-name" title="${p.name}">${p.name}</strong>
+                      <span class="admin-stock-card-id">ID ${p.id}</span>
+
+                      <div class="admin-stock-metric-row">
+                        <span class="metric-label">Estoque:</span>
+                        <strong class="metric-val ${isOut ? 'text-danger' : (isLow ? 'text-warning' : '')}">${stock} un</strong>
+                      </div>
+                      <div class="admin-stock-metric-row sub-metric">
+                        <span class="metric-label">Mínimo:</span>
+                        <span class="metric-val">${minStock} un</span>
+                      </div>
                     </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; font-size:0.8125rem; color:#64748b;">
-                      <span>Estoque Mínimo:</span>
-                      <span>${minStock} unidades</span>
-                    </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid #f1f5f9;">
-                      <button type="button" class="btn btn-secondary btn-sm quick-add-stock-btn" data-id="${p.id}" data-name="${p.name}" style="font-size:0.8125rem; font-weight:600; padding:7px 12px; justify-content:center; border-radius:8px;">
-                        Ajustar Saldo
+
+                    <div class="admin-stock-card-actions" onclick="event.stopPropagation()">
+                      <button type="button" class="btn btn-secondary btn-sm quick-add-stock-btn" data-id="${p.id}" data-name="${p.name}">
+                        Ajustar
                       </button>
-                      <button type="button" class="btn btn-secondary btn-sm edit-product-btn" data-id="${p.id}" style="font-size:0.8125rem; font-weight:600; padding:7px 12px; justify-content:center; border-radius:8px;">
-                        Editar Produto
+                      <button type="button" class="btn btn-secondary btn-sm edit-product-btn" data-id="${p.id}">
+                        Editar
                       </button>
                     </div>
                   </div>
@@ -4293,35 +4296,64 @@ export function renderAdminView() {
 
           <!-- 4. Alteração de Status & Notas -->
           <div class="admin-card-panel">
-            <div class="admin-panel-header">
+            <div class="admin-panel-header" style="display: flex; justify-content: space-between; align-items: center;">
               <span class="admin-panel-title">Status Operacional & Pagamento</span>
+              ${isDelivered ? `
+                <span class="badge" style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-size: 0.6875rem; font-weight: 700; padding: 2px 8px; border-radius: 4px;">
+                  🔒 SOMENTE VISUALIZAÇÃO
+                </span>
+              ` : ''}
             </div>
+
+            ${isDelivered ? `
+              <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; margin-bottom: 10px; font-size: 0.75rem; color: #047857; font-weight: 600;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                <span>Pedido Entregue e Concluído — O registro está finalizado e não permite alterações.</span>
+              </div>
+            ` : ''}
+
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
               <div class="form-group" style="margin-bottom: 0;">
                 <label class="form-label" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; color: #475569;">Status do Pedido:</label>
-                <select id="modalOrderStatusSelect" class="form-input" style="height: 33px; font-size: 0.8125rem; padding: 4px 8px;">
-                  <option value="received" ${(order.status === 'received' || order.status_pedido === 'received') ? 'selected' : ''}>Recebido</option>
-                  <option value="confirmed" ${(order.status === 'confirmed' || order.status_pedido === 'confirmed') ? 'selected' : ''}>Confirmado</option>
-                  <option value="preparing" ${(order.status === 'preparing' || order.status_pedido === 'preparing') ? 'selected' : ''}>Em Separação</option>
-                  <option value="shipped" ${(order.status === 'shipped' || order.status_pedido === 'shipped') ? 'selected' : ''}>Enviado</option>
-                  <option value="delivered" ${(order.status === 'delivered' || order.status_pedido === 'delivered') ? 'selected' : ''}>Entregue</option>
-                  <option value="cancelled" ${(order.status === 'cancelled' || order.status_pedido === 'cancelled') ? 'selected' : ''}>Cancelado</option>
-                </select>
+                ${isDelivered ? `
+                  <select id="modalOrderStatusSelect" class="form-input" style="height: 33px; font-size: 0.8125rem; padding: 4px 8px; background: #f8fafc; color: #047857; font-weight: 700; cursor: not-allowed;" disabled>
+                    <option value="delivered" selected>Entregue</option>
+                  </select>
+                ` : `
+                  <select id="modalOrderStatusSelect" class="form-input" style="height: 33px; font-size: 0.8125rem; padding: 4px 8px;">
+                    <option value="received" ${(order.status === 'received' || order.status_pedido === 'received') ? 'selected' : ''}>Recebido</option>
+                    <option value="confirmed" ${(order.status === 'confirmed' || order.status_pedido === 'confirmed') ? 'selected' : ''}>Confirmado</option>
+                    <option value="preparing" ${(order.status === 'preparing' || order.status_pedido === 'preparing') ? 'selected' : ''}>Em Separação</option>
+                    <option value="shipped" ${(order.status === 'shipped' || order.status_pedido === 'shipped') ? 'selected' : ''}>Enviado</option>
+                    <option value="delivered" selected>Entregue</option>
+                    <option value="cancelled" ${(order.status === 'cancelled' || order.status_pedido === 'cancelled') ? 'selected' : ''}>Cancelado</option>
+                  </select>
+                `}
               </div>
 
               <div class="form-group" style="margin-bottom: 0;">
                 <label class="form-label" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; color: #475569;">Status do Pagamento:</label>
-                <select id="modalOrderPaymentStatusSelect" class="form-input" style="height: 33px; font-size: 0.8125rem; padding: 4px 8px;">
-                  <option value="pago" ${(order.payment_status === 'paid' || order.payment_status === 'pago' || order.status_pagamento === 'pago') ? 'selected' : ''}>Concluído / Pago</option>
-                  <option value="pendente" ${(order.payment_status === 'pending' || order.payment_status === 'pendente' || order.status_pagamento === 'pendente' || (!order.payment_status && !order.status_pagamento)) ? 'selected' : ''}>Pendente</option>
-                  <option value="cancelado" ${(order.payment_status === 'cancelled' || order.payment_status === 'failed' || order.payment_status === 'cancelado' || order.status_pagamento === 'cancelado') ? 'selected' : ''}>Cancelado / Recusado</option>
-                </select>
+                ${isDelivered ? `
+                  <select id="modalOrderPaymentStatusSelect" class="form-input" style="height: 33px; font-size: 0.8125rem; padding: 4px 8px; background: #f8fafc; color: #047857; font-weight: 700; cursor: not-allowed;" disabled>
+                    <option value="pago" selected>Concluído / Pago</option>
+                  </select>
+                ` : `
+                  <select id="modalOrderPaymentStatusSelect" class="form-input" style="height: 33px; font-size: 0.8125rem; padding: 4px 8px;">
+                    <option value="pago" ${(order.payment_status === 'paid' || order.payment_status === 'pago' || order.status_pagamento === 'pago') ? 'selected' : ''}>Concluído / Pago</option>
+                    <option value="pendente" ${(order.payment_status === 'pending' || order.payment_status === 'pendente' || order.status_pagamento === 'pendente' || (!order.payment_status && !order.status_pagamento)) ? 'selected' : ''}>Pendente</option>
+                    <option value="cancelado" ${(order.payment_status === 'cancelled' || order.payment_status === 'failed' || order.payment_status === 'cancelado' || order.status_pagamento === 'cancelado') ? 'selected' : ''}>Cancelado / Recusado</option>
+                  </select>
+                `}
               </div>
+            </div>
+
+            <div id="deliveredObligatoryNotice" style="display: none; align-items: center; gap: 6px; padding: 7px 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 0.75rem; color: #166534; font-weight: 600; margin-bottom: 8px;">
+              <span>✓ Obrigatoriedade: Pedido Entregue exige Pagamento Concluído. Ao salvar, o pedido ficará bloqueado para edição posterior.</span>
             </div>
 
             <div class="form-group" style="margin-bottom: 0;">
               <label class="form-label" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; color: #475569;">Notas Internas / Rastreio:</label>
-              <input type="text" id="modalOrderNotesInput" class="form-input" style="height: 33px; font-size: 0.8125rem; padding: 4px 8px;" placeholder="Ex: Código de rastreio, notas..." value="${order.admin_notes || order.notas_admin || ''}" />
+              <input type="text" id="modalOrderNotesInput" class="form-input" style="height: 33px; font-size: 0.8125rem; padding: 4px 8px; ${isDelivered ? 'background: #f8fafc; cursor: not-allowed;' : ''}" placeholder="${isDelivered ? 'Nenhuma nota informada' : 'Ex: Código de rastreio, notas...'}" value="${order.admin_notes || order.notas_admin || ''}" ${isDelivered ? 'disabled' : ''} />
             </div>
 
             ${history.length > 0 ? `
@@ -4339,9 +4371,11 @@ export function renderAdminView() {
           <!-- Rodapé de Ações do Modal -->
           <div class="admin-modal-footer" style="padding: 10px 16px; background: #ffffff; border-top: 1px solid #e2e8f0; margin-top: 4px; border-radius: 8px; display: flex; justify-content: flex-end; align-items: center; gap: 8px;">
             <button type="button" class="btn btn-secondary btn-sm close-modal-btn" style="height: 33px; padding: 0 16px; font-weight: 600;">Fechar</button>
-            <button type="button" id="saveOrderStatusBtn" class="btn btn-primary btn-sm" style="height: 33px; padding: 0 18px; font-weight: 600;">
-              Salvar Alterações
-            </button>
+            ${!isDelivered ? `
+              <button type="button" id="saveOrderStatusBtn" class="btn btn-primary btn-sm" style="height: 33px; padding: 0 18px; font-weight: 600;">
+                Salvar Alterações
+              </button>
+            ` : ''}
           </div>
         </div>
       </div>
@@ -4352,40 +4386,54 @@ export function renderAdminView() {
     modal.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', () => modal.remove()));
     modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 
-    // Se o usuário selecionar status 'delivered', altera automaticamente o select de pagamento para 'pago'
     const orderStatusSelect = modal.querySelector('#modalOrderStatusSelect');
     const paymentStatusSelect = modal.querySelector('#modalOrderPaymentStatusSelect');
-    if (orderStatusSelect && paymentStatusSelect) {
+    const deliveredNotice = modal.querySelector('#deliveredObligatoryNotice');
+
+    if (!isDelivered && orderStatusSelect && paymentStatusSelect) {
       orderStatusSelect.addEventListener('change', () => {
-        if (orderStatusSelect.value === 'delivered' || orderStatusSelect.value === 'confirmed') {
+        if (orderStatusSelect.value === 'delivered') {
           paymentStatusSelect.value = 'pago';
-        } else if (orderStatusSelect.value === 'cancelled') {
-          paymentStatusSelect.value = 'cancelado';
+          paymentStatusSelect.disabled = true;
+          if (deliveredNotice) deliveredNotice.style.display = 'flex';
+        } else {
+          paymentStatusSelect.disabled = false;
+          if (deliveredNotice) deliveredNotice.style.display = 'none';
+          if (orderStatusSelect.value === 'confirmed') {
+            paymentStatusSelect.value = 'pago';
+          } else if (orderStatusSelect.value === 'cancelled') {
+            paymentStatusSelect.value = 'cancelado';
+          }
         }
       });
     }
 
-    modal.querySelector('#saveOrderStatusBtn').addEventListener('click', async () => {
-      const saveBtn = modal.querySelector('#saveOrderStatusBtn');
-      const newStatus = modal.querySelector('#modalOrderStatusSelect').value;
-      const newPaymentStatus = modal.querySelector('#modalOrderPaymentStatusSelect')?.value || null;
-      const notes = modal.querySelector('#modalOrderNotesInput')?.value.trim() || '';
+    const saveBtn = modal.querySelector('#saveOrderStatusBtn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async () => {
+        const newStatus = orderStatusSelect.value;
+        let newPaymentStatus = paymentStatusSelect ? paymentStatusSelect.value : null;
+        if (newStatus === 'delivered') {
+          newPaymentStatus = 'pago';
+        }
+        const notes = modal.querySelector('#modalOrderNotesInput')?.value.trim() || '';
 
-      saveBtn.disabled = true;
-      saveBtn.innerHTML = 'Salvando...';
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = 'Salvando...';
 
-      try {
-        await Api.orders.updateStatus(order.id, newStatus, notes, newPaymentStatus);
-        Toast.show('Status do pedido e pagamento atualizados!', 'success');
-        modal.remove();
-        await loadAllData();
-        render();
-      } catch (err) {
-        Toast.show(err.message || 'Erro ao atualizar pedido.', 'error');
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = 'Salvar Alterações';
-      }
-    });
+        try {
+          await Api.orders.updateStatus(order.id, newStatus, notes, newPaymentStatus);
+          Toast.show(newStatus === 'delivered' ? 'Pedido entregue e finalizado com sucesso!' : 'Status do pedido atualizado!', 'success');
+          modal.remove();
+          await loadAllData();
+          render();
+        } catch (err) {
+          Toast.show(err.message || 'Erro ao atualizar pedido.', 'error');
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = 'Salvar Alterações';
+        }
+      });
+    }
   }
 
   // Modal de Detalhes do Cliente
