@@ -108,7 +108,23 @@ export const Storage = {
   getCart() {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.CART);
-      return data ? JSON.parse(data) : [];
+      const list = data ? JSON.parse(data) : [];
+      if (!Array.isArray(list)) return [];
+      let needsResave = false;
+      const sanitized = list.map(item => {
+        if (!item) return item;
+        const qty = Number(item.quantity) || 1;
+        // Higienização automática: se a quantidade foi corrompida por loops antigos (>= 999), redefine para 1
+        if (qty >= 999 || qty < 1) {
+          needsResave = true;
+          return { ...item, quantity: 1 };
+        }
+        return item;
+      });
+      if (needsResave) {
+        try { localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(sanitized)); } catch {}
+      }
+      return sanitized;
     } catch {
       return [];
     }
@@ -126,7 +142,7 @@ export const Storage = {
   addToCart(product, quantity = 1, selectedVariant = {}, options = {}) {
     const cart = this.getCart();
     const variantKey = `${product.id}-${selectedVariant.color || ''}-${selectedVariant.storage || ''}`;
-    const maxStock = product.stock !== undefined ? Number(product.stock) : 999;
+    const maxStock = (product.stock !== undefined && product.stock !== null && !isNaN(Number(product.stock))) ? Number(product.stock) : 50;
     const allowNoStock = Boolean(product.allow_out_of_stock_sales);
     const addQty = Math.max(1, Number(quantity) || 1);
 

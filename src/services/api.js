@@ -3933,6 +3933,10 @@ export const Api = {
           .filter(row => row && row.produto_id && !isNaN(Number(row.produto_id)))
           .map(row => {
             const prod = row.produtos;
+            let rawQty = Number(row.quantidade) || 1;
+            // Higienização de integridade: se a quantidade foi corrompida por loops antigos (>= 999), redefine para 1
+            if (rawQty >= 999 || rawQty < 1) rawQty = 1;
+            const stockLimit = prod?.stock !== undefined ? Math.max(1, Number(prod.stock)) : 50;
             return {
               key: row.variante_chave,
               id: Number(row.produto_id),
@@ -3941,8 +3945,8 @@ export const Api = {
               price: prod?.price !== undefined ? Number(prod.price) : (Number(row.preco) || 0),
               image: row.imagem || prod?.image || '',
               variant: row.variante || {},
-              quantity: Math.max(1, Number(row.quantidade) || 1),
-              stock: prod?.stock !== undefined ? Number(prod.stock) : 999
+              quantity: Math.min(stockLimit, rawQty),
+              stock: prod?.stock !== undefined ? Number(prod.stock) : 50
             };
           });
       } catch (err) {
@@ -3984,7 +3988,7 @@ export const Api = {
           usuario_id: dbUserId,
           produto_id: Number(item.id),
           variante_chave: String(item.key),
-          quantidade: Math.max(1, Number(item.quantity) || 1),
+          quantidade: Math.max(1, Math.min(50, Number(item.quantity) || 1)),
           preco: Number(item.price) || 0,
           nome: (item.name || '').trim().toUpperCase(),
           imagem: item.image || '',
@@ -4006,46 +4010,62 @@ export const Api = {
       }
     },
 
+    _isMergingCart: false,
+
     async mergeAndSync() {
-      const dbUserId = await this._getDbUserId();
-      if (!dbUserId) return Storage.getCart();
+      if (this._isMergingCart) return Storage.getCart();
+      this._isMergingCart = true;
 
-      const localCart = Storage.getCart();
-      const dbCart = await this.getDbCart();
+      try {
+        const dbUserId = await this._getDbUserId();
+        if (!dbUserId) return Storage.getCart();
 
-      // Se não há carrinho no banco e há local, envia o local para o banco
-      if (dbCart.length === 0 && localCart.length > 0) {
-        await this.saveDbCart(localCart);
-        return localCart;
-      }
+        const localCart = Storage.getCart();
+        const dbCart = await this.getDbCart();
 
-      // Se há carrinho no banco e não há local, restaura o do banco
-      if (dbCart.length > 0 && localCart.length === 0) {
-        Storage.saveCart(dbCart, { skipDbSync: true });
-        return dbCart;
-      }
-
-      // Se ambos têm itens: mescla inteligente por chave de variante
-      const mergedMap = new Map();
-
-      dbCart.forEach(item => {
-        mergedMap.set(item.key, { ...item });
-      });
-
-      localCart.forEach(localItem => {
-        if (mergedMap.has(localItem.key)) {
-          const existing = mergedMap.get(localItem.key);
-          const maxStock = localItem.stock || existing.stock || 999;
-          existing.quantity = Math.min(maxStock, existing.quantity + localItem.quantity);
-        } else {
-          mergedMap.set(localItem.key, { ...localItem });
+        // Se não há carrinho no banco e há local, envia o local para o banco
+        if (dbCart.length === 0 && localCart.length > 0) {
+          await this.saveDbCart(localCart);
+          return localCart;
         }
-      });
 
-      const mergedCart = Array.from(mergedMap.values());
-      Storage.saveCart(mergedCart, { skipDbSync: true });
-      await this.saveDbCart(mergedCart);
-      return mergedCart;
+        // Se há carrinho no banco e não há local, restaura o do banco
+        if (dbCart.length > 0 && localCart.length === 0) {
+          Storage.saveCart(dbCart, { skipDbSync: true });
+          return dbCart;
+        }
+
+        // Se ambos têm itens: NÃO SOMA as quantidades em cascata (evita loop exponencial de login)
+        const mergedMap = new Map();
+
+        dbCart.forEach(item => {
+          let cleanQty = Number(item.quantity) || 1;
+          if (cleanQty >= 999 || cleanQty < 1) cleanQty = 1;
+          mergedMap.set(item.key, { ...item, quantity: cleanQty });
+        });
+
+        localCart.forEach(localItem => {
+          let cleanLocalQty = Number(localItem.quantity) || 1;
+          if (cleanLocalQty >= 999 || cleanLocalQty < 1) cleanLocalQty = 1;
+
+          if (mergedMap.has(localItem.key)) {
+            const existing = mergedMap.get(localItem.key);
+            const maxStock = Math.min(50, localItem.stock || existing.stock || 50);
+            // Em vez de somar e duplicar, mantém a quantidade coerente e sanitizada
+            const chosenQty = Math.max(cleanLocalQty, Number(existing.quantity) || 1);
+            existing.quantity = Math.min(maxStock, chosenQty);
+          } else {
+            mergedMap.set(localItem.key, { ...localItem, quantity: cleanLocalQty });
+          }
+        });
+
+        const mergedCart = Array.from(mergedMap.values());
+        Storage.saveCart(mergedCart, { skipDbSync: true });
+        await this.saveDbCart(mergedCart);
+        return mergedCart;
+      } finally {
+        this._isMergingCart = false;
+      }
     },
 
     async clearDbCart() {
@@ -4123,11 +4143,18 @@ if (typeof window !== 'undefined') {
   });
 
   // Ao carregar ou alterar sessão de usuário, sincroniza favoritos e carrinho do banco com merge inteligente
+  let _isUserSyncing = false;
   window.addEventListener('user-updated', async (e) => {
     try {
       if (e.detail?.user) {
-        await Api.wishlist.mergeAndSync();
-        await Api.cart.mergeAndSync();
+        if (_isUserSyncing) return;
+        _isUserSyncing = true;
+        try {
+          await Api.wishlist.mergeAndSync();
+          await Api.cart.mergeAndSync();
+        } finally {
+          _isUserSyncing = false;
+        }
       }
     } catch {}
   });
