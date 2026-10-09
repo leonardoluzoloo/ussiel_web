@@ -11728,17 +11728,19 @@ main,
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Lightbox de Foto de Avaliação */
+/* Lightbox de Foto de Avaliação (Frente de Tudo, Navegação Pro) */
 .review-lightbox-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.9);
-  backdrop-filter: blur(4px);
-  z-index: 10000;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 9999999 !important;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: 24px;
+  box-sizing: border-box;
   animation: fadeIn 0.2s ease;
 }
 
@@ -11749,34 +11751,97 @@ main,
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  user-select: none;
 }
 
 .review-lightbox-card img {
-  max-width: 100%;
-  max-height: 85vh;
+  max-width: 85vw;
+  max-height: 80vh;
   object-fit: contain;
   border-radius: 12px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  transition: opacity 0.15s ease;
 }
 
 .review-lightbox-close {
   position: absolute;
-  top: -40px;
+  top: -46px;
   right: 0;
   background: rgba(255, 255, 255, 0.2);
   color: #ffffff;
   border: none;
-  font-size: 24px;
-  width: 36px;
-  height: 36px;
+  font-size: 26px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s ease;
+  transition: all 0.15s ease;
+  z-index: 10;
 }
 
 .review-lightbox-close:hover {
   background: rgba(255, 255, 255, 0.4);
+  transform: scale(1.08);
+}
+
+.review-lightbox-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(15, 23, 42, 0.65);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 24px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  z-index: 10;
+}
+
+.review-lightbox-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.9);
+  color: #0f172a;
+  transform: translateY(-50%) scale(1.08);
+}
+
+.review-lightbox-nav-btn.prev {
+  left: -64px;
+}
+
+.review-lightbox-nav-btn.next {
+  right: -64px;
+}
+
+.review-lightbox-counter {
+  margin-top: 14px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #ffffff;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  padding: 4px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  letter-spacing: 0.05em;
+}
+
+@media (max-width: 768px) {
+  .review-lightbox-nav-btn.prev {
+    left: 8px;
+  }
+  .review-lightbox-nav-btn.next {
+    right: 8px;
+  }
+  .review-lightbox-card img {
+    max-width: 95vw;
+    max-height: 75vh;
+  }
 }

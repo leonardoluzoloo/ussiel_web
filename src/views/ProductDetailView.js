@@ -1024,7 +1024,12 @@ export function renderProductDetailView(productSlug) {
     let currentOnlyPhotos = false;
     let visibleCount = 6;
 
-    function showReviewPhotoLightbox(imgSrc) {
+    function showReviewPhotoLightbox(allPhotos, initialIndex = 0) {
+      const photos = Array.isArray(allPhotos) ? allPhotos : [allPhotos];
+      if (photos.length === 0) return;
+
+      let currentIndex = Math.max(0, Math.min(initialIndex, photos.length - 1));
+
       const existing = document.querySelector('.review-lightbox-overlay');
       if (existing) existing.remove();
 
@@ -1033,17 +1038,68 @@ export function renderProductDetailView(productSlug) {
       overlay.innerHTML = `
         <div class="review-lightbox-card">
           <button type="button" class="review-lightbox-close" id="closeReviewLightboxBtn" aria-label="Fechar">&times;</button>
-          <img src="${imgSrc}" alt="Foto ampliada da avaliação" />
+          
+          ${photos.length > 1 ? `
+            <button type="button" class="review-lightbox-nav-btn prev" id="lightboxPrevBtn" aria-label="Foto anterior" title="Foto anterior (←)">&#10094;</button>
+            <button type="button" class="review-lightbox-nav-btn next" id="lightboxNextBtn" aria-label="Próxima foto" title="Próxima foto (→)">&#10095;</button>
+          ` : ''}
+
+          <img id="lightboxActiveImg" src="${photos[currentIndex]}" alt="Foto ampliada da avaliação" />
+
+          ${photos.length > 1 ? `
+            <div class="review-lightbox-counter" id="lightboxCounter">
+              ${currentIndex + 1} de ${photos.length}
+            </div>
+          ` : ''}
         </div>
       `;
       document.body.appendChild(overlay);
+
+      const activeImg = overlay.querySelector('#lightboxActiveImg');
+      const counterEl = overlay.querySelector('#lightboxCounter');
+
+      const updatePhoto = (newIdx) => {
+        currentIndex = (newIdx + photos.length) % photos.length;
+        if (activeImg) {
+          activeImg.style.opacity = '0.3';
+          activeImg.src = photos[currentIndex];
+          activeImg.onload = () => { activeImg.style.opacity = '1'; };
+        }
+        if (counterEl) {
+          counterEl.textContent = `${currentIndex + 1} de ${photos.length}`;
+        }
+      };
+
+      const prevBtn = overlay.querySelector('#lightboxPrevBtn');
+      const nextBtn = overlay.querySelector('#lightboxNextBtn');
+
+      if (prevBtn) {
+        prevBtn.onclick = (e) => {
+          e.stopPropagation();
+          updatePhoto(currentIndex - 1);
+        };
+      }
+
+      if (nextBtn) {
+        nextBtn.onclick = (e) => {
+          e.stopPropagation();
+          updatePhoto(currentIndex + 1);
+        };
+      }
 
       const closeFn = () => {
         overlay.remove();
         document.removeEventListener('keydown', handleKeydown);
       };
+
       const handleKeydown = (e) => {
-        if (e.key === 'Escape') closeFn();
+        if (e.key === 'Escape') {
+          closeFn();
+        } else if (e.key === 'ArrowLeft' && photos.length > 1) {
+          updatePhoto(currentIndex - 1);
+        } else if (e.key === 'ArrowRight' && photos.length > 1) {
+          updatePhoto(currentIndex + 1);
+        }
       };
       document.addEventListener('keydown', handleKeydown);
 
@@ -1120,11 +1176,11 @@ export function renderProductDetailView(productSlug) {
 
       reviewsListContainer.innerHTML = `
         <div style="display: flex; flex-direction: column; gap: 14px;">
-          ${pagedItems.map(r => {
+          ${pagedItems.map((r, itemIdx) => {
             const initialLetters = (r.author || 'C').split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'C';
             const revPhotos = Array.isArray(r.photos) ? r.photos : (Array.isArray(r.fotos) ? r.fotos : []);
             return `
-              <div class="pdp-review-item-card">
+              <div class="pdp-review-item-card" data-review-index="${itemIdx}">
                 <div class="pdp-review-user-row">
                   <div class="pdp-review-user-profile">
                     <div class="pdp-review-avatar-circle">
@@ -1153,7 +1209,7 @@ export function renderProductDetailView(productSlug) {
                 ${revPhotos.length > 0 ? `
                   <div class="pdp-review-photos-grid" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
                     ${revPhotos.map((photoUrl, pIdx) => `
-                      <div class="pdp-review-photo-item" data-zoom-photo="${photoUrl}" title="Clique para ampliar a foto do cliente (${pIdx + 1})">
+                      <div class="pdp-review-photo-item" data-photo-idx="${pIdx}" title="Clique para ampliar a foto do cliente (${pIdx + 1} de ${revPhotos.length})">
                         <img src="${photoUrl}" alt="Foto da avaliação" style="width: 100%; height: 100%; object-fit: cover;" />
                       </div>
                     `).join('')}
@@ -1173,13 +1229,19 @@ export function renderProductDetailView(productSlug) {
         </div>
       `;
 
-      // Zoom em fotos anexadas ao clicar
-      reviewsListContainer.querySelectorAll('[data-zoom-photo]').forEach(thumb => {
-        thumb.onclick = (e) => {
-          e.stopPropagation();
-          const src = thumb.getAttribute('data-zoom-photo');
-          if (src) showReviewPhotoLightbox(src);
-        };
+      // Zoom e Galeria Completa com Navegação Anterior/Próxima
+      reviewsListContainer.querySelectorAll('.pdp-review-item-card').forEach((card, cardIdx) => {
+        const itemData = pagedItems[cardIdx];
+        const cardPhotos = Array.isArray(itemData?.photos) ? itemData.photos : (Array.isArray(itemData?.fotos) ? itemData.fotos : []);
+        if (cardPhotos.length === 0) return;
+
+        card.querySelectorAll('.pdp-review-photo-item').forEach(thumb => {
+          thumb.onclick = (e) => {
+            e.stopPropagation();
+            const photoIdx = Number(thumb.getAttribute('data-photo-idx') || 0);
+            showReviewPhotoLightbox(cardPhotos, photoIdx);
+          };
+        });
       });
 
       const loadMoreBtn = reviewsListContainer.querySelector('#btnLoadMoreModalReviews');
